@@ -33,19 +33,31 @@ runs:
   steps:
     - name: Install dorian
       shell: bash
-      run: python -m pip install --quiet "${{ inputs.install }}"
+      env:
+        # inputs flow through env, never inline ${{ }} in the script: an
+        # event-derived expression wired into an input (e.g. github.head_ref)
+        # must not become shell syntax
+        DORIAN_INSTALL: ${{ inputs.install }}
+      run: python -m pip install --quiet "$DORIAN_INSTALL"
 
     - name: Revalidate warranted claims
       id: revalidate
       shell: bash
+      env:
+        DORIAN_BASE: ${{ inputs.base }}
       run: |
         set +e
         dorian sync
-        dorian revalidate --since "${{ inputs.base }}" --format md > /tmp/dorian.md
+        dorian revalidate --since "$DORIAN_BASE" --format md > /tmp/dorian.md
         code=$?
         echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
         echo "dorian revalidate exited ${code}"
+        # PR-controlled checker details flow to the log: fence them so they
+        # cannot emit workflow commands (::error::, ::add-mask::, ...)
+        fence="dorian-$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+        echo "::stop-commands::${fence}"
         cat /tmp/dorian.md
+        echo "::${fence}::"
         exit 0
 
     - name: Sticky PR comment (update-or-create)
@@ -66,8 +78,10 @@ runs:
           exit 0
         fi
         # needs permissions: contents: read, pull-requests: write
+        # author filter: only adopt our own bot's comment, so a participant
+        # pre-planting the marker cannot have their comment taken over
         comment_id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
-          --paginate --jq '[.[] | select(.body | contains("<!-- dorian -->"))][0].id // empty')
+          --paginate --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- dorian -->")))][0].id // empty')
         if [ -n "${comment_id}" ]; then
           gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" \
             -F body=@/tmp/dorian.md > /dev/null
@@ -80,10 +94,13 @@ runs:
 
     - name: Map exit code to step outcome
       shell: bash
+      env:
+        DORIAN_EXIT: ${{ steps.revalidate.outputs.exit_code }}
+        DORIAN_FAIL_ON: ${{ inputs.fail_on }}
       run: |
         set -euo pipefail
-        code="${{ steps.revalidate.outputs.exit_code }}"
-        fail_on="${{ inputs.fail_on }}"
+        code="$DORIAN_EXIT"
+        fail_on="$DORIAN_FAIL_ON"
         case "${fail_on}" in
           revoked|degraded|never) ;;
           *) echo "::error::invalid fail_on '${fail_on}' (choose revoked|degraded|never)"; exit 1 ;;

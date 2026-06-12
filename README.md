@@ -71,7 +71,9 @@ prompt changelogs, and data-dependent artifacts.
 
 ## A 60-second example
 
-A generated design doc ships with a warrant covering three claims:
+A generated design doc ships with a warrant covering three claims (a committed,
+fictional version of this doc lives at
+[`examples/demo-repo/docs/design.md`](examples/demo-repo/docs/design.md)):
 
 | claim | text |
 |---|---|
@@ -111,7 +113,10 @@ human spot-check, not fully human-labeled — methodology, confidence intervals,
 caveats are in [`docs/KILL_REPORT_v0.0.md`](docs/KILL_REPORT_v0.0.md).
 
 This is one measured result on specific repositories, not a universal performance claim.
-Measure your own repos with the harness in `bench/`.
+Measure your own repos with the harness in `bench/`. Fully public proof is still in
+progress: the next evidence step is a small reproducible public benchmark (frozen public
+repos, manual claims, owner labels), per
+[`docs/SOLO_VALIDATION_LADDER.md`](docs/SOLO_VALIDATION_LADDER.md).
 
 ## How it works
 
@@ -150,7 +155,18 @@ derived cache — rebuildable at any time with `dorian sync` — and is never co
 
 ## Getting started
 
-The distribution is `dorian-vwp`; the import and CLI are `dorian`:
+The distribution is `dorian-vwp`; the import and CLI are `dorian`. The first PyPI
+release is on the roadmap — until it lands, install from source:
+
+```bash
+pip install 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'
+
+# extras
+pip install 'dorian-vwp[data] @ git+https://github.com/ajaysurya1221/dorian.git'     # + duckdb for parquet data claims
+pip install 'dorian-vwp[extract] @ git+https://github.com/ajaysurya1221/dorian.git'  # + anthropic for LLM claim drafting (experimental)
+```
+
+After the first PyPI release:
 
 ```bash
 pip install dorian-vwp             # core, zero runtime dependencies
@@ -158,15 +174,12 @@ pip install 'dorian-vwp[data]'     # + duckdb for parquet data claims
 pip install 'dorian-vwp[extract]'  # + anthropic for LLM claim drafting (experimental)
 ```
 
-The first PyPI release is on the roadmap; until it lands, install from source:
-
-```bash
-pip install 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'
-```
-
 Then run the four-step loop above on one artifact. For CI, add the composite
 [GitHub Action](action/README.md) — it revalidates the claims a pull request touches and
-posts a sticky PR comment:
+posts a sticky PR comment. Read its
+[security notes](action/README.md#security-checker-execution-and-untrusted-pull-requests)
+first: checker specs in `.warrant` files are executable, so the Action is currently
+recommended for trusted/internal repositories, not for public repos taking forked PRs:
 
 ```yaml
 name: dorian
@@ -237,7 +250,8 @@ model extracts a stable *number* of claims but a different *selection* each run.
 
 Treat extracted claims as **drafts for human review, not stable warrant inputs**: always
 review and edit `claims.json` before sealing. Measure your own documents with
-`dorian bench churn`. Prompt hardening to lift this gate is on the roadmap.
+`dorian bench churn` (the committed demo doc `examples/demo-repo/docs/design.md` works as
+a target). Prompt hardening to lift this gate is on the roadmap.
 
 ## What dorian is not
 
@@ -246,8 +260,14 @@ PR). Not an eval framework. Not an agent framework. Not a SaaS, a dashboard, or 
 AI-governance platform. It is a small, deterministic CLI that makes acceptance of
 AI-generated work perishable — and tells you when it expired.
 
+Related boundaries: agent receipt systems record agent actions; agent governance
+toolkits govern agent execution. `dorian` warrants generated artifacts *after they
+exist* and revalidates their claims over time.
+
 ## Roadmap
 
+- **A public micro-benchmark** — frozen public repos, manual claims, owner labels, fully
+  publishable artifacts ([`docs/SOLO_VALIDATION_LADDER.md`](docs/SOLO_VALIDATION_LADDER.md)).
 - **Extraction-prompt hardening** and churn re-measurement on more documents — the
   documented path to promoting `--extract` beyond experimental.
 - **Checker calibration** informed by the benchmark's measured failure modes (binding

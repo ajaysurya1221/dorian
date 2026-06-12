@@ -28,12 +28,61 @@ jobs:
       - uses: ajaysurya1221/dorian/action@main
         with:
           fail_on: revoked
+          # until the first PyPI release, install from source:
+          install: 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'
 ```
 
 `fetch-depth: 0` is required because `dorian revalidate --since` runs
 `git diff` against the pull request's base sha; the default shallow checkout
 (depth 1) does not have that commit, so the diff — and therefore the whole
 run — would fail as a usage error.
+
+## Security: checker execution and untrusted pull requests
+
+> A `.warrant` file can reference executable checker logic. Do not execute
+> checker specs from untrusted pull requests. For public repositories, use
+> trusted-base checker definitions and disable shell/custom executable
+> checkers until reviewed.
+
+**What the Action actually runs.** `dorian revalidate` executes the checkers
+of every affected claim *as found in the checkout* — and under `pull_request`
+the checkout is the PR's merged tree, including any `.warrant` files the PR
+added or changed. C4 checkers run `pytest`; C5 `shell:` checkers run shell
+commands. So a PR that edits a sidecar can cause this Action to execute
+PR-authored commands.
+
+**Is that safe for public forked PRs?** It is the *same* exposure as any CI
+workflow that runs a PR's test suite — under a plain `pull_request` event,
+fork PRs get no secrets and a read-only `GITHUB_TOKEN` — but with two real
+caveats:
+
+1. A `.warrant` file is a **non-obvious executable input**. Reviewers who
+   would scrutinize a workflow or `conftest.py` change may wave through a
+   "docs-only" diff that swaps a checker `program`.
+2. The verdict is **self-attested by the PR tree**. A PR can rewrite a
+   sidecar so a broken claim re-verifies; the trust root for what "should"
+   be checked is not yet the base branch.
+
+**Current recommendation: trusted/internal repositories.** Until a
+trusted-base mode exists (execute only checker specs already present on the
+base branch; parse/lint — never execute — new or changed PR sidecars; skip
+C5 `shell:` and other executable checkers in untrusted mode), this Action is
+recommended for repositories where everyone who can open a PR is already
+trusted to run code in CI. For public repositories, treat any PR that touches
+a `.warrant` file as a code change requiring the same review as a CI change.
+
+Hard rules either way:
+
+- Trigger on `pull_request`, **never** `pull_request_target` (a privileged
+  context plus a PR-controlled tree is exactly the combination that turns
+  the exposure above into secret exfiltration).
+- Do not mount secrets into jobs that run this Action on untrusted PRs.
+- On fork PRs the default `GITHUB_TOKEN` is read-only, so the sticky-comment
+  step cannot post and fails loudly — one more reason this Action currently
+  targets trusted/internal repositories.
+- Infrastructure failures stay loud: exits 2 (usage) and 5 (checkers could
+  not run) fail the step regardless of `fail_on` (except the explicit
+  `never` escape hatch) and are never reported as stale or broken claims.
 
 ## Inputs
 

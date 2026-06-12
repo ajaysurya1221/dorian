@@ -12,3 +12,4 @@ bench/results/
 bench/real/
 .DS_Store
 /assets/
+.env
