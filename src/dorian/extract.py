@@ -37,6 +37,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
+from collections import Counter
 from pathlib import Path
 
 from dorian import claims_io
@@ -140,13 +142,31 @@ def _numbered(text: str) -> str:
     return "\n".join(f"{i}\t{line}" for i, line in enumerate(text.split("\n"), start=1))
 
 
+# non-content lines trimmed from span edges: blank, markdown heading,
+# horizontal rule, code-fence marker — none of them carry claim content, and
+# off-by-one span edges that include them are pure boundary jitter
+_TRIM_RE = re.compile(r"^(\s*|#{1,6}\s.*|\s*-{3,}\s*|\s*={3,}\s*|\s*```.*)$")
+
+
+def _snap_span(lines: list[str], a: int, b: int) -> tuple[int, int] | None:
+    """Deterministic boundary snapping: trim non-content edge lines from the
+    1-based inclusive span [a, b]; None when nothing remains."""
+    while a <= b and _TRIM_RE.match(lines[a - 1]):
+        a += 1
+    while b >= a and _TRIM_RE.match(lines[b - 1]):
+        b -= 1
+    return (a, b) if a <= b else None
+
+
 def _claims_from_spans(data: dict, artifact_text: str) -> dict:
     """Deterministic stage 2 of anchor-first extraction: slice claim text out of
-    the artifact by the model's line spans. Ids canonicalize from span position
-    (cL<start>-<end>), anchor.quote is the verbatim artifact slice, text is the
-    quote with whitespace collapsed. Malformed spans are dropped, never guessed
-    (non-int lines, bools, non-bool load_bearing, unknown kind, out-of-bounds or
-    inverted ranges, empty text); duplicate spans collapse to one claim."""
+    the artifact by the model's line spans. Ids canonicalize from the SNAPPED
+    span position (cL<start>-<end>, after _snap_span trims non-content edge
+    lines), anchor.quote is the verbatim artifact slice, text is the quote with
+    whitespace collapsed. Malformed spans are dropped, never guessed (non-int
+    lines, bools, non-bool load_bearing, unknown kind, out-of-bounds or
+    inverted ranges, empty text); spans identical after snapping collapse to
+    one claim."""
     spans = data.get("spans") if isinstance(data, dict) else None
     if not isinstance(spans, list):
         raise ValueError("anchor extraction returned no spans array")
@@ -170,7 +190,13 @@ def _claims_from_spans(data: dict, artifact_text: str) -> dict:
             or kind not in claims_io.VALID_KINDS
         ):
             continue
-        if not (1 <= a <= b <= len(lines)) or (a, b) in seen:
+        if not (1 <= a <= b <= len(lines)):
+            continue
+        snapped = _snap_span(lines, a, b)
+        if snapped is None:
+            continue
+        a, b = snapped
+        if (a, b) in seen:
             continue
         quote = "\n".join(lines[a - 1 : b])
         text = " ".join(quote.split())
@@ -329,3 +355,76 @@ def extract_claims(
         cache_dir.mkdir(parents=True, exist_ok=True)
         cache.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return claims
+
+
+def extract_claims_consensus(
+    artifact_text: str,
+    *,
+    k: int = 3,
+    model: str,
+    cache_dir: Path,
+    artifact_hash: str,
+    temperature: float = 0.0,
+) -> list[Claim]:
+    """Consensus-of-k anchor extraction: k independent span selections, then a
+    deterministic majority vote. A document line is selected iff covered by a
+    strict majority (k//2 + 1) of runs; adjacent selected lines stay one claim
+    only if a majority of runs spanned them together; kind/load_bearing by
+    majority with deterministic tie-breaks (lexicographically smallest kind;
+    load_bearing ties resolve to False). The component runs always bypass the
+    cache (identical cached runs would make voting meaningless) and the result
+    is not cached. Anchor mode only: voting needs line identity."""
+    if k < 2:
+        raise ValueError("consensus k must be >= 2 (a single run has nothing to vote on)")
+    majority = k // 2 + 1
+    runs = [
+        extract_claims(
+            artifact_text,
+            model=model,
+            cache_dir=cache_dir,
+            artifact_hash=artifact_hash,
+            use_cache=False,
+            temperature=temperature,
+            mode="anchor",
+        )
+        for _ in range(k)
+    ]
+
+    line_votes: Counter[int] = Counter()
+    pair_votes: Counter[tuple[int, int]] = Counter()
+    meta_votes: dict[int, list[tuple[str, bool]]] = {}
+    for claims in runs:
+        covered: set[int] = set()
+        adjacent: set[tuple[int, int]] = set()
+        for c in claims:
+            assert c.anchor is not None  # anchor mode produces anchors by construction
+            a, b = c.anchor.line_start, c.anchor.line_end
+            for ln in range(a, b + 1):
+                covered.add(ln)
+                meta_votes.setdefault(ln, []).append((c.kind, c.load_bearing))
+            for ln in range(a, b):
+                adjacent.add((ln, ln + 1))
+        for ln in covered:
+            line_votes[ln] += 1
+        for pair in adjacent:
+            pair_votes[pair] += 1
+
+    consensus = sorted(ln for ln, votes in line_votes.items() if votes >= majority)
+    spans: list[list[int]] = []
+    for ln in consensus:
+        if spans and ln == spans[-1][1] + 1 and pair_votes[(ln - 1, ln)] >= majority:
+            spans[-1][1] = ln
+        else:
+            spans.append([ln, ln])
+
+    data: dict = {"spans": []}
+    for a, b in spans:
+        votes = [m for ln in range(a, b + 1) for m in meta_votes.get(ln, [])]
+        kind_counts = Counter(kind for kind, _ in votes)
+        top = max(kind_counts.values())
+        kind = sorted(k_ for k_, v in kind_counts.items() if v == top)[0]
+        load_bearing = sum(1 for _, lb in votes if lb) * 2 > len(votes)
+        data["spans"].append(
+            {"line_start": a, "line_end": b, "kind": kind, "load_bearing": load_bearing}
+        )
+    return claims_io.claims_from_dict(_claims_from_spans(data, artifact_text))

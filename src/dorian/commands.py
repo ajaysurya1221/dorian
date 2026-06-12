@@ -28,7 +28,7 @@ from dorian.blast import blast_conn
 from dorian.capture.manual import parse_manual
 from dorian.capture.transcript import parse_transcript
 from dorian.cli import EXIT_DEGRADED, EXIT_OK, EXIT_REVOKED, EXIT_SCOPE, EXIT_USAGE
-from dorian.extract import ExtractUnavailable, extract_claims
+from dorian.extract import ExtractUnavailable, extract_claims, extract_claims_consensus
 from dorian.model import IntegrityError, ReadSet, sha256_hex
 from dorian.report import audit_lines, report_events, report_since
 from dorian.revalidate import ChangedPathsError, render_json, render_md, render_text, revalidate
@@ -113,13 +113,28 @@ def cmd_seal(args: argparse.Namespace) -> int:
             data = gitio.working_file(repo, artifact_uri)
             if data is None:
                 raise ValueError(f"artifact missing: {artifact_uri}")
-            claims = extract_claims(
-                data.decode("utf-8", errors="replace"),
-                model=args.model,
-                cache_dir=repo / store.DORIAN_DIR / "extract-cache",
-                artifact_hash=sha256_hex(data),
-                mode=args.extract_mode,
-            )
+            if args.extract_consensus:
+                if args.extract_mode != "anchor":
+                    print(
+                        "dorian seal: --extract-consensus requires --extract-mode anchor",
+                        file=sys.stderr,
+                    )
+                    return EXIT_USAGE
+                claims = extract_claims_consensus(
+                    data.decode("utf-8", errors="replace"),
+                    k=args.extract_consensus,
+                    model=args.model,
+                    cache_dir=repo / store.DORIAN_DIR / "extract-cache",
+                    artifact_hash=sha256_hex(data),
+                )
+            else:
+                claims = extract_claims(
+                    data.decode("utf-8", errors="replace"),
+                    model=args.model,
+                    cache_dir=repo / store.DORIAN_DIR / "extract-cache",
+                    artifact_hash=sha256_hex(data),
+                    mode=args.extract_mode,
+                )
             claims_io.save_claims(out, claims)
             print(f"wrote {out}: review claims.json then re-run with --claims")
             return EXIT_OK

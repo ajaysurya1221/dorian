@@ -49,6 +49,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="--extract strategy: restate (model words each claim) or anchor"
         " (model selects line spans; text derives from the artifact)",
     )
+    seal.add_argument(
+        "--extract-consensus",
+        type=int,
+        default=0,
+        metavar="K",
+        help="consensus-of-K span voting for --extract-mode anchor (0 = off):"
+        " K independent selections, majority-voted deterministically",
+    )
     seal.add_argument("--model", default="claude-fable-5")
     seal.add_argument("--claims", help="claims.json produced by review")
     seal.add_argument(

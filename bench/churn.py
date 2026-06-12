@@ -82,6 +82,14 @@ def main(argv: list[str] | None = None) -> int:
         default="restate",
         help="extraction strategy under measurement (see dorian.extract)",
     )
+    ap.add_argument(
+        "--consensus",
+        type=int,
+        default=0,
+        metavar="K",
+        help="measure consensus-of-K anchor extraction instead of single runs"
+        " (0 = off; requires --mode anchor; each churn run = one consensus draw)",
+    )
     ap.add_argument("--model", default="claude-fable-5")
     ap.add_argument("--thr", type=float, default=0.75, help="fuzzy match ratio threshold")
     ap.add_argument("--out", default="bench/real/results/churn_compliant.json")
@@ -90,6 +98,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.runs < 2:
         print("churn: --runs must be >= 2 (a single run measures nothing)", file=sys.stderr)
+        return 2
+    if args.consensus and args.mode != "anchor":
+        print("churn: --consensus requires --mode anchor", file=sys.stderr)
         return 2
 
     doc = Path(args.doc)
@@ -103,15 +114,25 @@ def main(argv: list[str] | None = None) -> int:
     per_run_texts: list[list[str]] = []
     try:
         for _ in range(args.runs):
-            claims = extract.extract_claims(
-                text,
-                model=args.model,
-                cache_dir=Path(args.cache_dir),
-                artifact_hash=sha256_hex(raw),
-                use_cache=False,
-                temperature=0.0,
-                mode=args.mode,
-            )
+            if args.consensus:
+                claims = extract.extract_claims_consensus(
+                    text,
+                    k=args.consensus,
+                    model=args.model,
+                    cache_dir=Path(args.cache_dir),
+                    artifact_hash=sha256_hex(raw),
+                    temperature=0.0,
+                )
+            else:
+                claims = extract.extract_claims(
+                    text,
+                    model=args.model,
+                    cache_dir=Path(args.cache_dir),
+                    artifact_hash=sha256_hex(raw),
+                    use_cache=False,
+                    temperature=0.0,
+                    mode=args.mode,
+                )
             per_run_texts.append([c.text for c in claims])
     except Exception as exc:  # extractor unavailable / SDK failure: infra, not FAIL
         print(f"churn: extraction failed: {exc}", file=sys.stderr)
@@ -138,6 +159,7 @@ def main(argv: list[str] | None = None) -> int:
         "doc": doc.name,  # basename only — never the full path
         "model": args.model,
         "mode": args.mode,
+        "consensus": args.consensus,
         "temperature": None if temp_deprecated else 0.0,
         "temperature_deprecated_by_model": temp_deprecated,
         "tool_choice": "auto" if forced_rejected else "forced",
