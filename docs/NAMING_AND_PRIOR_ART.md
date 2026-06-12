@@ -54,6 +54,7 @@ CASCADE (FSE 2026) owns "LLM-extracted per-behavior executable checks for doc co
 ## Watch list (re-check at v0.1)
 
 1. **scriptorium SPEC.md** — any move toward git-versioned repo artifacts, additional checker types, or CI hooks would close most of the gap; diff against it before release.
+   *Checked 2026-06-12 (v0.1 public push): scriptorium is at v0.2 (SPEC v2, `scrip ingest`, optional embeddings) and remains a curated `vault/` KB — still no git-repo artifacts, single checker type, no typed data checks, no trust lifecycle, no CI/commit integration. Boundary holds.*
 2. **fiberplane/drift roadmap** — auto-anchoring from agent edits + claim extraction would compose two legs.
 3. **AAR (2602.13855) / provenance survey (2606.04990) implementations** — first system papers operationalizing Derive/Invalidate edges.
 4. **Swimm + Dosu product moves** — AI-generation-time capture or data-claim checks.
