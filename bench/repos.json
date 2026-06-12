@@ -1,0 +1,16 @@
+{
+  "repos": [
+    {
+      "name": "selftest",
+      "path_or_url": "SELFTEST",
+      "t0": "INITIAL",
+      "artifacts": [
+        {
+          "uri": "docs/design.md",
+          "claims_json": "selftest_claims.json"
+        }
+      ],
+      "replay_commits": 8
+    }
+  ]
+}

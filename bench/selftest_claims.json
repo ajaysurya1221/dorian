@@ -1,0 +1,60 @@
+{
+  "claims": [
+    {
+      "id": "c1",
+      "text": "Token verification lives in src/auth.py and uses RS256.",
+      "kind": "fact",
+      "load_bearing": true,
+      "anchor": {"line_start": 3, "line_end": 3, "quote": "uses RS256"},
+      "supports": ["rs-0"],
+      "checkers": [
+        {"type": "C1", "program": "rs-0", "watch": ["src/auth.py"]}
+      ]
+    },
+    {
+      "id": "c2",
+      "text": "The default request timeout is 30 seconds.",
+      "kind": "quantity",
+      "load_bearing": true,
+      "anchor": null,
+      "supports": ["rs-1"],
+      "checkers": [
+        {
+          "type": "C5",
+          "program": "shell:grep -Eq \"TIMEOUT *= *30\" src/config.py",
+          "watch": ["src/config.py"]
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "text": "Login is served at /v1/login.",
+      "kind": "reference",
+      "load_bearing": false,
+      "anchor": null,
+      "supports": ["rs-2"],
+      "checkers": [
+        {
+          "type": "C3",
+          "program": "string:src/routes.py::/v1/login",
+          "watch": ["src/routes.py"]
+        }
+      ]
+    },
+    {
+      "id": "c4",
+      "text": "The lots dataset has 4 rows.",
+      "kind": "quantity",
+      "load_bearing": false,
+      "anchor": null,
+      "supports": ["rs-3"],
+      "checkers": [
+        {
+          "type": "C5",
+          "program": "rowcount:data/lots.csv::== 4",
+          "watch": ["data/lots.csv"]
+        }
+      ]
+    }
+  ]
+}

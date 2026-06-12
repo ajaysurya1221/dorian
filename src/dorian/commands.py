@@ -1,0 +1,430 @@
+"""CLI command handlers for capture | seal | status | blast | bindings | revalidate
+| report | suggest-data-checks | sync | bench (cli.py owns parsing).
+
+Exit codes follow cli.py: 0 ok, 2 usage/infra, 3 DEGRADED, 4 REVOKED/seal-refused,
+6 seal-time scope violation (restricted read-set uri without --allow-restricted).
+A corrupt or tampered sidecar met while syncing maps to a clean message + exit 4
+(integrity) in status/sync, matching seal's handling of the same condition.
+`seal --extract` refuses to overwrite an existing claims.json next to the
+artifact (exit 2): that file embodies the human review the extract loop exists
+to enforce. `status --check` is hash-drift detection only in the kernel: it
+compares each read-set entry's sealed hash against the working tree and reports
+drifted entries without running any checkers or changing any state (revalidate
+does that).
+"""
+
+from __future__ import annotations
+
+import argparse
+import importlib
+import json
+import os
+import sys
+from collections import Counter
+from pathlib import Path
+
+from dorian import bindings, claims_io, datachecks, gitio, store
+from dorian.blast import blast_conn
+from dorian.capture.manual import parse_manual
+from dorian.capture.transcript import parse_transcript
+from dorian.cli import EXIT_DEGRADED, EXIT_OK, EXIT_REVOKED, EXIT_SCOPE, EXIT_USAGE
+from dorian.extract import ExtractUnavailable, extract_claims
+from dorian.model import IntegrityError, ReadSet, sha256_hex
+from dorian.report import audit_lines, report_events, report_since
+from dorian.revalidate import ChangedPathsError, render_json, render_md, render_text, revalidate
+from dorian.seal import ScopeConfigError, ScopeViolation, SealError, seal_artifact
+
+# What store.sync propagates from Warrant.load on a corrupt sidecar: tampered id
+# (IntegrityError), non-JSON (JSONDecodeError is a ValueError), valid JSON of the
+# wrong shape (KeyError/TypeError), unreadable file (OSError).
+_SIDECAR_ERRORS = (IntegrityError, ValueError, KeyError, TypeError, OSError)
+
+
+def _repo(args: argparse.Namespace) -> Path:
+    return Path(args.repo).resolve()
+
+
+def _artifact_uri(repo: Path, raw: str) -> str:
+    """Normalize an artifact argument to a repo-relative posix uri."""
+    p = Path(raw)
+    resolved = (p if p.is_absolute() else repo / p).resolve()
+    try:
+        return resolved.relative_to(repo).as_posix()
+    except ValueError:
+        raise ValueError(f"artifact outside repo: {raw}") from None
+
+
+def _load_readset(path: Path) -> ReadSet:
+    """ReadSet.load with shape errors normalized to ValueError (a usage error):
+    valid JSON of the wrong shape raises KeyError/TypeError from from_dict."""
+    try:
+        return ReadSet.load(path)
+    except (KeyError, TypeError) as exc:
+        raise ValueError(f"{path}: malformed read-set (missing or bad field: {exc})") from None
+
+
+def cmd_capture(args: argparse.Namespace) -> int:
+    repo = _repo(args)
+    if _missing_repo(repo, "capture"):
+        return EXIT_USAGE
+    if sum(map(bool, (args.transcript, args.manual, args.stdin))) != 1:
+        print(
+            "dorian capture: provide exactly one of --transcript, --manual, --stdin",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    try:
+        if args.transcript:
+            readset = parse_transcript(Path(args.transcript), repo)
+        else:
+            specs = args.manual or [line.strip() for line in sys.stdin if line.strip()]
+            readset = parse_manual(specs, repo)
+    except (ValueError, OSError, gitio.GitError) as exc:
+        print(f"dorian capture: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    readset.dump(Path(args.out))
+    print(
+        f"captured {len(readset.entries)} read-set entries "
+        f"(coverage {readset.coverage:.2f}) -> {args.out}"
+    )
+    return EXIT_OK
+
+
+def cmd_seal(args: argparse.Namespace) -> int:
+    repo = _repo(args)
+    if _missing_repo(repo, "seal"):
+        return EXIT_USAGE
+    try:
+        artifact_uri = _artifact_uri(repo, args.artifact)
+        readset = _load_readset(Path(args.readset))
+        if args.claims:
+            claims = claims_io.load_claims(Path(args.claims))
+        elif args.extract:
+            # human-review loop: never seal straight off extraction, and never
+            # clobber a claims.json a human may already have reviewed/edited
+            out = (repo / artifact_uri).parent / "claims.json"
+            if out.exists():
+                print(
+                    f"dorian seal: {out} already exists; re-run with --claims {out}"
+                    " (or delete it to re-extract)",
+                    file=sys.stderr,
+                )
+                return EXIT_USAGE
+            data = gitio.working_file(repo, artifact_uri)
+            if data is None:
+                raise ValueError(f"artifact missing: {artifact_uri}")
+            claims = extract_claims(
+                data.decode("utf-8", errors="replace"),
+                model=args.model,
+                cache_dir=repo / store.DORIAN_DIR / "extract-cache",
+                artifact_hash=sha256_hex(data),
+            )
+            claims_io.save_claims(out, claims)
+            print(f"wrote {out}: review claims.json then re-run with --claims")
+            return EXIT_OK
+        else:
+            print("dorian seal: provide --claims <file> or --extract", file=sys.stderr)
+            return EXIT_USAGE
+    except (ValueError, OSError, gitio.GitError, ExtractUnavailable) as exc:
+        print(f"dorian seal: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        warrant = seal_artifact(
+            repo,
+            artifact_uri,
+            readset,
+            claims,
+            supersede=args.supersede,
+            allow_restricted=args.allow_restricted,
+            no_quotes=args.no_quotes,
+        )
+    except ScopeViolation as exc:  # before SealError: scope refusal is exit 6, not 4
+        print(f"dorian seal: {exc}", file=sys.stderr)
+        return EXIT_SCOPE
+    except ScopeConfigError as exc:
+        print(f"dorian seal: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    except SealError as exc:
+        print(f"dorian seal: {exc}", file=sys.stderr)
+        return EXIT_REVOKED
+    print(warrant.id)
+    return EXIT_OK
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    repo = _repo(args)
+    if _missing_repo(repo, "status"):
+        return EXIT_USAGE
+    conn = store.connect(repo)
+    try:
+        try:
+            store.sync(repo, conn)
+        except _SIDECAR_ERRORS as exc:
+            print(f"dorian status: corrupt warrant sidecar: {exc}", file=sys.stderr)
+            return EXIT_REVOKED
+        warrants = store.get_warrants(conn)
+        if args.artifact:
+            try:
+                uri = _artifact_uri(repo, args.artifact)
+            except ValueError as exc:
+                print(f"dorian status: {exc}", file=sys.stderr)
+                return EXIT_USAGE
+            warrants = [w for w in warrants if w["artifact_uri"] == uri]
+        payload = []
+        for w in warrants:
+            counts = Counter(s["state"] for s in store.get_claim_states(conn, w["id"]))
+            drifted = _drifted_entries(conn, repo, w["id"]) if args.check else None
+            if args.json:
+                entry = {
+                    "id": w["id"],
+                    "artifact_uri": w["artifact_uri"],
+                    "trust_state": w["trust_state"],
+                    "claim_states": dict(sorted(counts.items())),
+                }
+                if drifted is not None:
+                    entry["drifted"] = drifted
+                payload.append(entry)
+                continue
+            summary = " ".join(f"{k}={v}" for k, v in sorted(counts.items()))
+            print(f"{w['trust_state']:9} {w['artifact_uri']}  {w['id'][:23]}  {summary}")
+            for where in drifted or ():
+                print(f"  drifted: {where}")
+        if args.json:
+            print(json.dumps({"warrants": payload}, sort_keys=True))
+        states = {w["trust_state"] for w in warrants}
+        if "REVOKED" in states:
+            return EXIT_REVOKED
+        if "DEGRADED" in states:
+            return EXIT_DEGRADED
+        return EXIT_OK
+    finally:
+        conn.close()
+
+
+def _drifted_entries(conn, repo: Path, warrant_id: str) -> list[str]:
+    """Kernel --check: stored read-set hashes vs working tree; no checker runs."""
+    rows = conn.execute(
+        "SELECT uri, selector, hash FROM resource WHERE warrant_id = ?"
+        " AND scope = 'project' ORDER BY entry_id",
+        (warrant_id,),
+    )
+    return [
+        f"{r['uri']}:{r['selector']}" if r["selector"] else r["uri"]
+        for r in rows
+        if gitio.working_hash(repo, r["uri"], r["selector"]) != r["hash"]
+    ]
+
+
+def _missing_repo(repo: Path, command: str) -> bool:
+    """True (with a usage message) when --repo is not a directory. Checked up
+    front: store.connect's mkdir would raise FileNotFoundError — an OSError, so
+    in _SIDECAR_ERRORS — mislabeling an infra/usage failure as exit 4."""
+    if repo.is_dir():
+        return False
+    print(f"dorian {command}: not a directory: {repo}", file=sys.stderr)
+    return True
+
+
+def cmd_blast(args: argparse.Namespace) -> int:
+    """Downstream warrants affected by a path or warrant (read-only walk of the
+    derives index): one line per hit, or a --json payload; always exit 0 unless
+    the input is unusable (2) or a sidecar is corrupt while syncing (4)."""
+    repo = _repo(args)
+    if _missing_repo(repo, "blast"):
+        return EXIT_USAGE
+    target = args.target
+    if not target.startswith("sha256:"):
+        try:
+            target = _artifact_uri(repo, target)
+        except ValueError as exc:
+            print(f"dorian blast: {exc}", file=sys.stderr)
+            return EXIT_USAGE
+    conn = store.connect(repo)
+    try:
+        try:
+            store.sync(repo, conn)
+        except _SIDECAR_ERRORS as exc:
+            print(f"dorian blast: corrupt warrant sidecar: {exc}", file=sys.stderr)
+            return EXIT_REVOKED
+        hits = blast_conn(conn, target, args.max_depth)
+    finally:
+        conn.close()
+    if args.json:
+        print(json.dumps({"target": target, "hits": hits}, sort_keys=True))
+        return EXIT_OK
+    if not hits:
+        print("no downstream warrants")
+        return EXIT_OK
+    for h in hits:
+        print(f"{h['trust_state']:9} {h['artifact_uri']}  depth={h['depth']}  via {h['via'][:23]}")
+    return EXIT_OK
+
+
+def cmd_bindings(args: argparse.Namespace) -> int:
+    """Binding-quality diagnostics for one warranted artifact (sidecar is the
+    source of truth; no checker runs, no state changes). Always exit 0 when the
+    warrant is readable — flags inform, they never gate. Usage guards exit 2;
+    a tampered sidecar is integrity (exit 4), matching status/sync."""
+    repo = _repo(args)
+    if _missing_repo(repo, "bindings"):
+        return EXIT_USAGE
+    try:
+        uri = _artifact_uri(repo, args.artifact)
+    except ValueError as exc:
+        print(f"dorian bindings: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    if not (repo / (uri + ".warrant")).is_file():
+        print(f"dorian bindings: no warrant sidecar for {uri}", file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        diags = bindings.analyze(repo, uri)
+    except gitio.GitError as exc:  # not a git checkout: usage, not integrity
+        print(f"dorian bindings: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    except _SIDECAR_ERRORS as exc:
+        print(f"dorian bindings: corrupt warrant sidecar: {exc}", file=sys.stderr)
+        return EXIT_REVOKED
+    if args.json:
+        print(json.dumps({"artifact_uri": uri, "claims": diags}, sort_keys=True))
+        return EXIT_OK
+    flagged = 0
+    for d in diags:
+        flagged += bool(d["flags"])
+        print(f"{d['claim_id']}  flags: {', '.join(d['flags']) or 'none'}")
+        for m in d["mentions"]:
+            print(f"  {m['token']} -> unwatched: {', '.join(m['unwatched_files'])}")
+    print(f"{len(diags)} claim(s), {flagged} flagged")
+    return EXIT_OK
+
+
+def cmd_revalidate(args: argparse.Namespace) -> int:
+    repo = _repo(args)
+    changed_file = Path(args.changed_paths) if args.changed_paths else None
+    if (args.since is None) == (changed_file is None):
+        print(
+            "dorian revalidate: provide exactly one of --since <ref> or --changed-paths <file>",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    if _missing_repo(repo, "revalidate"):
+        return EXIT_USAGE
+    try:
+        result = revalidate(
+            repo,
+            since=args.since,
+            changed_paths_file=changed_file,
+            enable_c2lite=args.enable_c2lite,
+        )
+    # user-input failures, before the broader ValueError in _SIDECAR_ERRORS:
+    # an unresolvable --since ref or an unreadable --changed-paths listing
+    # (revalidate reads the listing exactly once and tags its failures)
+    except (gitio.GitError, ChangedPathsError) as exc:
+        print(f"dorian revalidate: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    except _SIDECAR_ERRORS as exc:
+        print(f"dorian revalidate: corrupt warrant sidecar: {exc}", file=sys.stderr)
+        return EXIT_REVOKED
+    renderer = {"text": render_text, "json": render_json, "md": render_md}[args.format]
+    print(renderer(result), end="")
+    return result.exit_code
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    repo = _repo(args)
+    if _missing_repo(repo, "report"):
+        return EXIT_USAGE
+    try:
+        if args.audit:
+            # full local history (one JSON line per event); --since filters only
+            # when given explicitly — the digest's 7d default does not apply
+            for line in audit_lines(repo, args.since):
+                print(line)
+        elif args.json:
+            print(json.dumps(report_events(repo, args.since or "7d"), sort_keys=True))
+        else:
+            print(report_since(repo, args.since or "7d"), end="")
+    except ValueError as exc:
+        print(f"dorian report: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    return EXIT_OK
+
+
+# dorian bench subcommand -> (bench module, module's main() parses the
+# subcommand token itself). owner_review has its own subparsers and keeps the
+# token; single-purpose modules get the remaining argv only.
+_BENCH_DISPATCH: dict[str, tuple[str, bool]] = {
+    "make-owner-review": ("bench.owner_review", True),
+    "merge-owner-review": ("bench.owner_review", True),
+    "owner-metrics": ("bench.owner_review", True),
+    "public-summary": ("bench.public_summary", False),
+    "churn": ("bench.churn", False),
+}
+
+
+def cmd_bench(args: argparse.Namespace) -> int:
+    """Alias for the repo-local benchmark tooling: bench/ is a repo-root
+    package (not installed with dorian), so retry the lazy per-invocation
+    import with the current checkout on sys.path before giving up."""
+    rest = list(args.rest)
+    subcommand = rest[0] if rest else ""
+    dispatch = _BENCH_DISPATCH.get(subcommand)
+    if dispatch is None:
+        choices = ", ".join(sorted(_BENCH_DISPATCH))
+        print(
+            f"dorian bench: error: invalid subcommand {subcommand!r} (choose from {choices})",
+            file=sys.stderr,
+        )
+        raise SystemExit(EXIT_USAGE)
+    module_name, keeps_token = dispatch
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError:
+        sys.path.insert(0, os.getcwd())
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            print(
+                "dorian bench: repo-local benchmark tooling requires a dorian checkout"
+                " (bench/ package not found)",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+    return module.main(rest if keeps_token else rest[1:])
+
+
+def cmd_suggest_data_checks(args: argparse.Namespace) -> int:
+    """Print born-verifiable C5 checker SUGGESTIONS for a data file as a JSON
+    fragment {"checkers": [...]} — for a human to review and paste into
+    claims.json, never applied automatically. Input problems (missing,
+    unsupported, or unreadable file; unknown column) are usage errors (2)."""
+    repo = _repo(args)
+    if _missing_repo(repo, "suggest-data-checks"):
+        return EXIT_USAGE
+    try:
+        uri = _artifact_uri(repo, args.path)
+        cols = [c.strip() for c in args.columns.split(",") if c.strip()] if args.columns else None
+        checkers = datachecks.suggest(repo, uri, columns=cols)
+        payload = json.dumps({"checkers": checkers}, indent=2, sort_keys=True)
+        if args.out:  # unwritable --out is a usage error, not a traceback
+            Path(args.out).write_text(payload + "\n")
+    except (ValueError, OSError) as exc:
+        print(f"dorian suggest-data-checks: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    print(payload)
+    return EXIT_OK
+
+
+def cmd_sync(args: argparse.Namespace) -> int:
+    repo = _repo(args)
+    if _missing_repo(repo, "sync"):
+        return EXIT_USAGE
+    conn = store.connect(repo)
+    try:
+        n = store.sync(repo, conn)
+    except _SIDECAR_ERRORS as exc:
+        print(f"dorian sync: corrupt warrant sidecar: {exc}", file=sys.stderr)
+        return EXIT_REVOKED
+    finally:
+        conn.close()
+    print(f"indexed {n} warrant(s)")
+    return EXIT_OK

@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+dist/
+.warrant/index.sqlite
+.pytest_cache/
+.ruff_cache/
+bench/workspace/
+bench/cache/
+.claims_cache/
+bench/results/
+bench/real/
+.DS_Store
+/assets/
