@@ -77,3 +77,11 @@ do not build dashboards, SaaS, or platform features.
 - **Not yet:** promotion of `--extract` out of experimental (that takes
   public churn *and* coverage gates), auto-seal of extracted output —
   extracted claims stay drafts for human review.
+
+*Shipped in v0.4.0 (`--extract-mode anchor`) and measured against the v0.3.0
+restate baseline with the same 7-agent protocol: exact churn 0.187 → 0.029
+(gate 3/7 → 7/7 PASS; identical claim-text sets in 4/7 invocations, 15/21 run
+pairs vs 3/21). The gate criterion is met; unconditional run-identity is not yet
+(residual single-span selection jitter). See
+[`CHURN_BENCHMARK_v0.4.0.md`](CHURN_BENCHMARK_v0.4.0.md). The "not yet" list
+stands.*

@@ -22,7 +22,7 @@
   <a href="https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml"><img src="https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="Apache-2.0">
-  <img src="https://img.shields.io/badge/status-v0.3-orange" alt="v0.3">
+  <img src="https://img.shields.io/badge/status-v0.4-orange" alt="v0.4">
 </p>
 
 </div>
@@ -227,7 +227,9 @@ C3 path/symbol/string/regex, C4 `pytest:<nodeid>`, C5 typed data forms) are docu
   [GitHub Action](action/) (`action/action.yml`, composite, no third-party actions);
   its details get the same 160-char carryover bound as the audit export.
 - `dorian seal --no-quotes` — content-free sidecars: anchor line numbers stay, quotes
-  are dropped (the warrant id changes accordingly).
+  are dropped (the warrant id changes accordingly). Claim *text* always stays — and
+  with `--extract-mode anchor` the drafted text is itself derived from artifact lines,
+  so reword it during claims.json review if the sidecar must not embed source content.
 - Seal-time scope lint: `[tool.dorian.scopes] restricted = [globs]` in the *target*
   repo's pyproject.toml refuses to seal read-sets touching restricted paths (exit 6);
   `--allow-restricted` overrides and is receipted in the sealed event.
@@ -248,10 +250,21 @@ It is **experimental, and measurably so**: the first compliant churn measurement
 gate — mean exact Jaccard distance 0.49 and fuzzy 0.21 against the < 0.20 gate. The
 model extracts a stable *number* of claims but a different *selection* each run.
 
-Treat extracted claims as **drafts for human review, not stable warrant inputs**: always
-review and edit `claims.json` before sealing. Measure your own documents with
-`dorian bench churn` (the committed demo doc `examples/demo-repo/docs/design.md` works as
-a target). Prompt hardening to lift this gate is on the roadmap.
+Since v0.4.0 there is a measured mitigation: **anchor-first mode**
+(`--extract-mode anchor`), where the model only selects line spans and the claim
+text, anchor, and id are derived from the artifact deterministically — the model
+never authors identity-bearing text. On the same 7-invocation benchmark protocol
+and document, exact churn drops from 0.187 (gate verdict unstable, 3/7 pass) to
+0.029 (7/7 pass), with 4 of 7 invocations producing identical claim sets — by
+normalized claim text — across re-runs
+([`docs/CHURN_BENCHMARK_v0.4.0.md`](docs/CHURN_BENCHMARK_v0.4.0.md)).
+The trade-off is granularity: anchor claims are line-grained (~9 vs ~17 per doc).
+
+Both modes remain experimental. Treat extracted claims as **drafts for human
+review, not stable warrant inputs**: always review and edit `claims.json` before
+sealing. Measure your own documents with `dorian bench churn` (the committed demo
+doc `examples/demo-repo/docs/design.md` works as a target; compare
+`--mode restate` vs `--mode anchor`).
 
 ## What dorian is not
 
@@ -268,8 +281,9 @@ exist* and revalidates their claims over time.
 
 - **A public micro-benchmark** — frozen public repos, manual claims, owner labels, fully
   publishable artifacts ([`docs/SOLO_VALIDATION_LADDER.md`](docs/SOLO_VALIDATION_LADDER.md)).
-- **Extraction-prompt hardening** and churn re-measurement on more documents — the
-  documented path to promoting `--extract` beyond experimental.
+- **Extraction hardening on more documents** — anchor-first mode (shipped in v0.4.0)
+  cut measured churn 6.5× on the demo doc; re-measuring on longer, messier documents
+  is the documented path to promoting `--extract` beyond experimental.
 - **Checker calibration** informed by the benchmark's measured failure modes (binding
   misses and over-tight string literals).
 - **A polished example repo** with a scripted demo PR.

@@ -42,6 +42,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="LLM claim extraction (extra) (EXPERIMENTAL: see README)",
     )
+    seal.add_argument(
+        "--extract-mode",
+        choices=["restate", "anchor"],
+        default="restate",
+        help="--extract strategy: restate (model words each claim) or anchor"
+        " (model selects line spans; text derives from the artifact)",
+    )
     seal.add_argument("--model", default="claude-fable-5")
     seal.add_argument("--claims", help="claims.json produced by review")
     seal.add_argument(

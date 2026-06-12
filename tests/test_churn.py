@@ -183,8 +183,10 @@ def test_varying_extractions_fail_gate(
     ]
     seen: list[dict] = []
 
-    def fake_extract(text, *, model, cache_dir, artifact_hash, use_cache=True, temperature=0.0):
-        seen.append({"use_cache": use_cache, "temperature": temperature})
+    def fake_extract(
+        text, *, model, cache_dir, artifact_hash, use_cache=True, temperature=0.0, mode="restate"
+    ):
+        seen.append({"use_cache": use_cache, "temperature": temperature, "mode": mode})
         texts = per_run[len(seen) - 1]
         return [
             Claim(id=f"c{i}", text=t, kind="fact", load_bearing=False) for i, t in enumerate(texts)
@@ -197,7 +199,7 @@ def test_varying_extractions_fail_gate(
 
     rc = churn.main(["--doc", str(doc), "--out", str(out)])
     assert rc == 3
-    assert seen == [{"use_cache": False, "temperature": 0.0}] * 3
+    assert seen == [{"use_cache": False, "temperature": 0.0, "mode": "restate"}] * 3
 
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["exact_jaccard_distances"] == [pytest.approx(2 / 3), 0.0, pytest.approx(2 / 3)]

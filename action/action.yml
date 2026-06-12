@@ -23,7 +23,7 @@ inputs:
     default: ${{ github.event.pull_request.base.sha }}
   install:
     description: >-
-      pip requirement spec for dorian. Pin a release ('dorian-vwp==0.3.*')
+      pip requirement spec for dorian. Pin a release ('dorian-vwp==0.4.*')
       or pass '.' to install the checked-out source.
     required: false
     default: dorian-vwp

@@ -7,17 +7,20 @@ Usage:
 Calls extract_claims N times on the same LF-normalized doc with use_cache=False
 (every run is a fresh SDK call; nothing is read from or written to the cache)
 and temperature=0.0, then scores how much the extracted claim TEXTS move between
-runs. Texts are normalized (lowercase; backticks/asterisks/double+single quotes
-stripped; whitespace collapsed; stripped; trailing '.' dropped) and compared
-pairwise over normalized sets:
+runs. --mode selects the extraction strategy under measurement (restate or
+anchor-first; see dorian.extract) and is recorded in the result. Texts are
+normalized (lowercase; backticks/asterisks/double+single quotes stripped;
+whitespace collapsed; stripped; trailing '.' dropped) and compared pairwise
+over normalized sets:
 
 - exact distance: 1 - |A intersect B| / |A union B|
 - fuzzy distance: greedy best-match with difflib.SequenceMatcher ratio >= --thr;
   1 - matches / (|A| + |B| - matches)
 
-The output JSON records the doc BASENAME only (never the full path) and the full
-PROMPT_V0 sha256, so a churn result is tied to the exact prompt that produced
-it; no timestamps. Gate (advisory): exact_mean < 0.20.
+The output JSON records the doc BASENAME only (never the full path) and the
+full sha256 of the selected mode's extraction protocol (prompt + tool schema),
+so a churn result is tied to the exact protocol that produced it; no
+timestamps. Gate (advisory): exact_mean < 0.20.
 
 Exit codes: 0 PASS · 2 input/infra error (missing doc, extractor unavailable) ·
 3 measured FAIL (above the gate — advisory failure, not infra).
@@ -73,6 +76,12 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m bench.churn", description=__doc__)
     ap.add_argument("--doc", required=True, help="artifact document to extract from")
     ap.add_argument("--runs", type=int, default=3)
+    ap.add_argument(
+        "--mode",
+        choices=["restate", "anchor"],
+        default="restate",
+        help="extraction strategy under measurement (see dorian.extract)",
+    )
     ap.add_argument("--model", default="claude-fable-5")
     ap.add_argument("--thr", type=float, default=0.75, help="fuzzy match ratio threshold")
     ap.add_argument("--out", default="bench/real/results/churn_compliant.json")
@@ -101,6 +110,7 @@ def main(argv: list[str] | None = None) -> int:
                 artifact_hash=sha256_hex(raw),
                 use_cache=False,
                 temperature=0.0,
+                mode=args.mode,
             )
             per_run_texts.append([c.text for c in claims])
     except Exception as exc:  # extractor unavailable / SDK failure: infra, not FAIL
@@ -127,10 +137,11 @@ def main(argv: list[str] | None = None) -> int:
         "schema": "dorian-churn-v1",
         "doc": doc.name,  # basename only — never the full path
         "model": args.model,
+        "mode": args.mode,
         "temperature": None if temp_deprecated else 0.0,
         "temperature_deprecated_by_model": temp_deprecated,
         "tool_choice": "auto" if forced_rejected else "forced",
-        "prompt_hash": extract.prompt_hash(),
+        "prompt_hash": extract.prompt_hash(args.mode),
         "runs": args.runs,
         "per_run_claim_counts": [len(texts) for texts in per_run_texts],
         "exact_jaccard_distances": exact_distances,

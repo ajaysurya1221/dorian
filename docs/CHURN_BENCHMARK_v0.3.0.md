@@ -11,7 +11,7 @@ invocations — the property that currently keeps `--extract` experimental.
   committed fictional public demo doc). Before any run, the claim set was
   sanitized to remove any prior verdict/status tags (`owner-checked`) and
   verified to contain none; each agent received its own byte-identical copy.
-  Sanitized claim-set sha256:
+  Sanitized doc sha256 (the document is the claim-set source):
   `213409f36b91615cab028e460143f2ffa3a3c81e44d45565f5f3b85d5b200a6a`.
 - **Runner isolation:** 7 agents in fresh, isolated contexts; no shared
   state, no knowledge of each other or of the aggregation. Each ran the

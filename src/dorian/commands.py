@@ -118,6 +118,7 @@ def cmd_seal(args: argparse.Namespace) -> int:
                 model=args.model,
                 cache_dir=repo / store.DORIAN_DIR / "extract-cache",
                 artifact_hash=sha256_hex(data),
+                mode=args.extract_mode,
             )
             claims_io.save_claims(out, claims)
             print(f"wrote {out}: review claims.json then re-run with --claims")
