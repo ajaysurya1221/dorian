@@ -22,7 +22,7 @@
   <a href="https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml"><img src="https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="Apache-2.0">
-  <img src="https://img.shields.io/badge/status-v0.5-orange" alt="v0.5">
+  <img src="https://img.shields.io/badge/status-v0.6-orange" alt="v0.6">
 </p>
 
 </div>

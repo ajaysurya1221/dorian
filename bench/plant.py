@@ -31,17 +31,59 @@ SERVICES = ["login", "billing", "search", "export", "status", "ingest"]
 NAMES = ["gateway", "worker", "scheduler", "replica", "courier"]
 CODES = [408, 413, 429, 503]
 
-# (kind, template) — every rendering carries a digit or a path token
+# (kind, template) — every rendering carries a digit or a path token. v2
+# templates are deliberately COMPOUND (multiple clauses, qualifiers, two or
+# three checkable tokens per sentence): the v1 single-clause templates failed
+# instrument calibration because the restate model could reword them
+# consistently, so the battery never stressed the per-run decomposition
+# choices that real documents force.
 CLAIM_TEMPLATES = [
-    ("quantity", "The default {param} {dim} is {n} {unit}."),
-    ("quantity", "Batch processing handles {n} records per cycle."),
-    ("quantity", "The report schema is version {a}.{b}."),
-    ("reference", "The {svc} endpoint is served at /v{v}/{svc}."),
-    ("reference", "Runtime settings load from config/{name}.toml."),
-    ("behavior", "Requests over the {param} limit return HTTP {code} without retry."),
-    ("behavior", "Failed {svc} jobs move to the dead-letter queue after {n} attempts."),
-    ("decision", "We pinned the {name} library to major version {n2}."),
-    ("fact", "The {svc} cache holds {n} entries at steady state."),
+    (
+        "quantity",
+        "The default {param} {dim} is {n} {unit}, falling back to {n2} {unit}"
+        " whenever the {svc} pool reports saturation.",
+    ),
+    (
+        "quantity",
+        "Batch processing handles {n} records per cycle unless the backlog"
+        " exceeds {n2} times that, in which case the cycle splits in two.",
+    ),
+    (
+        "quantity",
+        "The report schema is version {a}.{b}, and consumers must treat any"
+        " field added after {a}.{b} as forward-compatible rather than fatal.",
+    ),
+    (
+        "reference",
+        "The {svc} endpoint is served at /v{v}/{svc}, while the legacy route"
+        " under /v{v}/{svc}-old is kept only for replay traffic.",
+    ),
+    (
+        "reference",
+        "Runtime settings load from config/{name}.toml, with any overrides in"
+        " config/{name}-local.toml taking precedence at startup.",
+    ),
+    (
+        "behavior",
+        "Requests over the {param} limit return HTTP {code} without retry,"
+        " and clients that trip it repeatedly are throttled for {n} {unit}.",
+    ),
+    (
+        "behavior",
+        "Failed {svc} jobs move to the dead-letter queue after {n} attempts,"
+        " where they are retained for {n2} days before being purged.",
+    ),
+    (
+        "decision",
+        "We pinned the {name} library to major version {n2} after the {svc}"
+        " regression, accepting the older default {param} {dim} it ships.",
+    ),
+    (
+        "fact",
+        "The {svc} cache holds {n} entries at steady state and evicts the"
+        " coldest {n2} of them whenever memory pressure crosses the high"
+        " watermark.",
+    ),
 ]
 
 # distractors: no digits, no path tokens, deliberately unverifiable

@@ -86,6 +86,11 @@ pairs vs 3/21). The gate criterion is met; unconditional run-identity is not yet
 [`CHURN_BENCHMARK_v0.4.0.md`](CHURN_BENCHMARK_v0.4.0.md). A four-document
 battery ([`CHURN_BENCHMARK_v0.5.0.md`](CHURN_BENCHMARK_v0.5.0.md)) confirms a
 2–8× advantage on every document but shows the gate is length-bound: anchor
-passes only at ≤60 lines. Next stabilization targets: deterministic boundary
-snapping, a checkability prefilter over candidate spans, consensus-of-k span
-voting. The "not yet" list stands.*
+passes only at ≤60 lines. Boundary snapping and consensus-of-k voting shipped
+in v0.6.0 (`--extract-consensus`), but the planted-truth gate built to judge
+them failed instrument calibration twice and was rejected by its own
+pre-registered rule ([`EXTRACT_GATE_RESULTS.md`](EXTRACT_GATE_RESULTS.md)) —
+synthetic documents flatter extraction and cannot carry a promotion decision.
+The honest next instrument is metamorphic relations on REAL documents
+(invariance under filler/reorder; anchor-targeted deletion), pre-registered
+before any run. The "not yet" list stands.*

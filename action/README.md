@@ -90,7 +90,7 @@ Hard rules either way:
 | --------- | -------------------------------------------- | ------------------------------------------------------------------------ |
 | `fail_on` | `revoked`                                    | when to fail the step: `revoked` (exit 4 only), `degraded` (3 or 4), `never` |
 | `base`    | `${{ github.event.pull_request.base.sha }}`  | git ref passed to `dorian revalidate --since`                            |
-| `install` | `dorian-vwp`                                 | pip spec; pin `dorian-vwp==0.5.*`, or `.` for checkout installs          |
+| `install` | `dorian-vwp`                                 | pip spec; pin `dorian-vwp==0.6.*`, or `.` for checkout installs          |
 
 Until the first PyPI release of `dorian-vwp`, set `install` to a source spec:
 `install: 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'`.
