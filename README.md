@@ -180,7 +180,7 @@ jobs:
   revalidate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with: { fetch-depth: 0 }   # revalidate diffs against the PR base sha
       - uses: ajaysurya1221/dorian/action@main
         with:
