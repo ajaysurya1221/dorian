@@ -22,7 +22,7 @@
   <a href="https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml"><img src="https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="Apache-2.0">
-  <img src="https://img.shields.io/badge/status-v0.4-orange" alt="v0.4">
+  <img src="https://img.shields.io/badge/status-v0.5-orange" alt="v0.5">
 </p>
 
 </div>
@@ -259,6 +259,10 @@ and document, exact churn drops from 0.187 (gate verdict unstable, 3/7 pass) to
 normalized claim text — across re-runs
 ([`docs/CHURN_BENCHMARK_v0.4.0.md`](docs/CHURN_BENCHMARK_v0.4.0.md)).
 The trade-off is granularity: anchor claims are line-grained (~9 vs ~17 per doc).
+A four-document battery confirms the advantage on every document tested (2–8×
+lower churn than restate) but shows selection jitter growing with document
+length — anchor clears the 0.20 gate only on short, structured documents
+([`docs/CHURN_BENCHMARK_v0.5.0.md`](docs/CHURN_BENCHMARK_v0.5.0.md)).
 
 Both modes remain experimental. Treat extracted claims as **drafts for human
 review, not stable warrant inputs**: always review and edit `claims.json` before

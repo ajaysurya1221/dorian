@@ -83,5 +83,9 @@ restate baseline with the same 7-agent protocol: exact churn 0.187 → 0.029
 (gate 3/7 → 7/7 PASS; identical claim-text sets in 4/7 invocations, 15/21 run
 pairs vs 3/21). The gate criterion is met; unconditional run-identity is not yet
 (residual single-span selection jitter). See
-[`CHURN_BENCHMARK_v0.4.0.md`](CHURN_BENCHMARK_v0.4.0.md). The "not yet" list
-stands.*
+[`CHURN_BENCHMARK_v0.4.0.md`](CHURN_BENCHMARK_v0.4.0.md). A four-document
+battery ([`CHURN_BENCHMARK_v0.5.0.md`](CHURN_BENCHMARK_v0.5.0.md)) confirms a
+2–8× advantage on every document but shows the gate is length-bound: anchor
+passes only at ≤60 lines. Next stabilization targets: deterministic boundary
+snapping, a checkability prefilter over candidate spans, consensus-of-k span
+voting. The "not yet" list stands.*
