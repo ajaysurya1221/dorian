@@ -10,7 +10,7 @@ two shorter documents. `--extract` stays experimental in both modes.
 ## Method
 
 Four committed public documents from this repository, increasing in length
-and mess, each measured in both modes by an isolated agent running
+and mess, each measured in both modes by an isolated run of
 `dorian bench churn` exactly once with `--runs 5` — 5 independent extraction
 runs (`claude-sonnet-4-6`, temperature 0, cache disabled) scoring all 10
 pairwise normalized-claim-text Jaccard distances. 10 pairs per cell is the

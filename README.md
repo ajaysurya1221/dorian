@@ -22,7 +22,7 @@
   <a href="https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml"><img src="https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="Apache-2.0">
-  <img src="https://img.shields.io/badge/status-v0.6-orange" alt="v0.6">
+  <img src="https://img.shields.io/badge/status-v0.7-orange" alt="v0.7">
 </p>
 
 </div>
@@ -45,8 +45,8 @@
 
 ## About
 
-When an AI agent writes a document — a design doc, a plan, a report, a summary — it may be
-correct today. Later, the code, data, prompt, schema, or API it described changes. The
+When an AI assistant writes a document — a design doc, a plan, a report, a summary — it may
+be correct today. Later, the code, data, prompt, schema, or API it described changes. The
 document still looks fine. CI is green. But one of its claims is now false, and nothing
 tells you.
 
@@ -104,19 +104,18 @@ constantly — refactors, formatting, comments, adjacent features — and most o
 changes don't falsify anything the artifact says. `dorian` checks **claims**, not just
 files: an alarm means a specific sentence stopped being true.
 
-In the owner-checked v0.0 real-history gate, claim-level revalidation reduced
-false-positive staleness alarms **32.40×** versus file-hash watching at **0.89 recall**
-(556 artifact-commit pairs over three repositories; blind model-panel labels with a
-72-pair human spot-check, recommendation PASS). Raw private benchmark artifacts remain
-local-only; public summaries are aggregate-only. Labels are model-adjudicated with a
-human spot-check, not fully human-labeled — methodology, confidence intervals, and
-caveats are in [`docs/KILL_REPORT_v0.0.md`](docs/KILL_REPORT_v0.0.md).
+On the v0.6.0 controlled-mutation benchmark — 41 (artifact, mutation) pairs over a single
+invented, synthetic fixture, 9 claims, with **known-truth** labels (each label is a
+mechanical consequence of the edit, not a review judgment) — claim-level revalidation
+flagged broken claims at precision **0.76** / recall **0.84**, versus a naive file-change
+watcher at precision **0.49** / recall 1.00 and a stronger line-aware watcher at precision
+**0.56** / recall 1.00. That is a **4.0x false-positive reduction** versus the naive watcher
+(20 → 5 false alarms) and **3.0x** versus the line-aware one (15 → 5) — at a recall cost from
+substring-checker misses the benchmark records honestly.
 
-This is one measured result on specific repositories, not a universal performance claim.
-Measure your own repos with the harness in `bench/`. Fully public proof is still in
-progress: the next evidence step is a small reproducible public benchmark (frozen public
-repos, manual claims, owner labels), per
-[`docs/SOLO_VALIDATION_LADDER.md`](docs/SOLO_VALIDATION_LADDER.md).
+These numbers describe one synthetic fixture, not your repository, and are not a universal
+performance claim. See [`docs/BENCHMARK_v0.6.0.md`](docs/BENCHMARK_v0.6.0.md); reproduce with
+`dorian bench mutation`, and measure your own repos with the harness in `bench/`.
 
 ## How it works
 
@@ -218,7 +217,7 @@ C3 path/symbol/string/regex, C4 `pytest:<nodeid>`, C5 typed data forms) are docu
   short-literal, unwatched-mention). Informational, never a gate; output carries file
   paths only, never matched content.
 - `dorian suggest-data-checks <path> [--columns ...] [--out f]` — born-verifiable C5
-  checker suggestions from a data file's current state, for human review and pasting
+  checker suggestions from a data file's current state, for review and pasting
   into a claim's `checkers` list in claims.json. Never applied automatically.
 - `dorian report --audit` — the full event log as `dorian-audit-v1` JSONL,
   byte-identical across runs; checker details truncated to 160 chars to bound
@@ -233,10 +232,10 @@ C3 path/symbol/string/regex, C4 `pytest:<nodeid>`, C5 typed data forms) are docu
 - Seal-time scope lint: `[tool.dorian.scopes] restricted = [globs]` in the *target*
   repo's pyproject.toml refuses to seal read-sets touching restricted paths (exit 6);
   `--allow-restricted` overrides and is receipted in the sealed event.
-- `dorian bench public-summary` — the private-content-free benchmark summary; the
-  other bench subcommands (`make-owner-review` / `merge-owner-review` /
-  `owner-metrics` / `churn`) are documented in
-  [`docs/OWNER_SPOTCHECK.md`](docs/OWNER_SPOTCHECK.md).
+- `dorian bench mutation` — the controlled-mutation benchmark: a numbers-only aggregate
+  summary comparing claim-level revalidation against file-change watchers on known-truth
+  edits ([`docs/BENCHMARK_v0.6.0.md`](docs/BENCHMARK_v0.6.0.md)). `dorian bench churn`
+  measures extraction stability.
 
 Exit codes: `0` ok/TRUSTED · `2` usage/infra · `3` DEGRADED · `4` REVOKED/integrity ·
 `5` ERRORED-only (checkers could not run — never conflated with broken) · `6` scope
@@ -259,7 +258,7 @@ and document, exact churn drops from 0.187 (gate verdict unstable, 3/7 pass) to
 normalized claim text — across re-runs
 ([`docs/CHURN_BENCHMARK_v0.4.0.md`](docs/CHURN_BENCHMARK_v0.4.0.md)).
 The trade-off is granularity: anchor claims are line-grained (~9 vs ~17 per doc).
-A four-document battery confirms the advantage on every document tested (2–8×
+A four-document battery confirms the advantage on every document tested (2-8x
 lower churn than restate) but shows selection jitter growing with document
 length — anchor clears the 0.20 gate only on short, structured documents
 ([`docs/CHURN_BENCHMARK_v0.5.0.md`](docs/CHURN_BENCHMARK_v0.5.0.md)).
@@ -272,14 +271,14 @@ The active promotion/rejection instrument is the pre-registered
 **real-document metamorphic gate**
 ([`docs/REAL_DOC_METAMORPHIC_GATE.md`](docs/REAL_DOC_METAMORPHIC_GATE.md)):
 filler/reorder invariance and anchor-targeted deletion on this repository's
-committed documents — no planted truth, no human labels, thresholds committed
-before any measurement. It judges the shipped anchor+consensus architecture
+committed documents — no planted truth, label-free, thresholds committed
+before any measurement. It tests the shipped anchor+consensus architecture
 against one pre-registered challenger, `--extract-mode candidate`
 (deterministic segmentation; the model only classifies blocks, so boundaries
 cannot jitter by construction).
 
 All modes remain experimental until that gate reports. Treat extracted claims
-as **drafts for human review, not stable warrant inputs**: always review and
+as **drafts for review, not stable warrant inputs**: always review and
 edit `claims.json` before sealing. Measure your own documents with
 `dorian bench churn` (the committed demo doc
 `examples/demo-repo/docs/design.md` works as a target; compare
@@ -288,22 +287,25 @@ edit `claims.json` before sealing. Measure your own documents with
 ## What dorian is not
 
 Not a doc generator. Not an LLM drift *scanner* (no model re-reads your repo on every
-PR). Not an eval framework. Not an agent framework. Not a SaaS, a dashboard, or an
-AI-governance platform. It is a small, deterministic CLI that makes acceptance of
-AI-generated work perishable — and tells you when it expired.
+PR). Not an eval framework. Not a framework for running AI tools. Not a SaaS, a
+dashboard, or an AI-governance platform. It is a small, deterministic CLI that makes
+acceptance of AI-generated work perishable — and tells you when it expired.
 
-Related boundaries: agent receipt systems record agent actions; agent governance
-toolkits govern agent execution. `dorian` warrants generated artifacts *after they
-exist* and revalidates their claims over time.
+Related boundaries: receipt systems and execution-governance toolkits sit *upstream*,
+recording or controlling how AI-generated work is produced. `dorian` warrants generated
+artifacts *after they exist* and revalidates their claims over time.
 
 ## Roadmap
 
-- **A public micro-benchmark** — frozen public repos, manual claims, owner labels, fully
-  publishable artifacts ([`docs/SOLO_VALIDATION_LADDER.md`](docs/SOLO_VALIDATION_LADDER.md)).
+- **A public benchmark on real repositories** — the v0.6.0 controlled-mutation benchmark
+  ([`docs/BENCHMARK_v0.6.0.md`](docs/BENCHMARK_v0.6.0.md)) demonstrates the mechanism on a
+  synthetic fixture; the next step extends it to frozen public repository SHAs with manual
+  claims and reproducible known-truth labels
+  ([`docs/SOLO_VALIDATION_LADDER.md`](docs/SOLO_VALIDATION_LADDER.md)).
 - **Extraction promotion or rejection by the real-document metamorphic gate** —
   pre-registered in [`docs/REAL_DOC_METAMORPHIC_GATE.md`](docs/REAL_DOC_METAMORPHIC_GATE.md):
   anchor+consensus vs candidate-first, judged label-free on real committed
-  documents; the verdict (promote / reject / insufficient) lands in v0.7.0.
+  documents; the verdict (promote / reject / insufficient) lands in a future release.
 - **Checker calibration** informed by the benchmark's measured failure modes (binding
   misses and over-tight string literals).
 - **A polished example repo** with a scripted demo PR.

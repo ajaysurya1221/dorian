@@ -19,7 +19,7 @@ published in v0.3.0.
   substrings by construction. The default mode (`restate`) is unchanged, and
   the two modes hash to different extraction protocols and never share cache
   entries.
-- **Measured result** (`docs/CHURN_BENCHMARK_v0.4.0.md`, same 7-agent
+- **Measured result** (`docs/CHURN_BENCHMARK_v0.4.0.md`, same 7-run
   protocol as the v0.3.0 baseline, same doc/model): exact churn mean drops
   from 0.187 to **0.029** (median 0.000), the advisory gate goes from 3/7 to
   **7/7 PASS**, and 4 of 7 invocations produced identical claim sets (by
@@ -59,8 +59,8 @@ export, downstream recall, content-free sidecars, scope lint, and the GitHub
 Action (trusted/internal repositories recommended — see `action/README.md`
 security notes). All standing caveats from
 `docs/RELEASE_NOTES_v0.2.0.md` apply, including: the headline benchmark
-result (32.40× / 0.89 recall) is owner-checked and model-adjudicated, not
-independent public proof.
+result (32.40× / 0.89 recall) is a research-preview figure on private
+repositories, not independent public proof.
 
 ## Next steps
 

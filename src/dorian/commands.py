@@ -367,14 +367,10 @@ def cmd_report(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-# dorian bench subcommand -> (bench module, module's main() parses the
-# subcommand token itself). owner_review has its own subparsers and keeps the
-# token; single-purpose modules get the remaining argv only.
+# dorian bench subcommand -> (bench module, keeps-subcommand-token flag).
+# Single-purpose modules get the remaining argv only (no token to re-parse).
 _BENCH_DISPATCH: dict[str, tuple[str, bool]] = {
-    "make-owner-review": ("bench.owner_review", True),
-    "merge-owner-review": ("bench.owner_review", True),
-    "owner-metrics": ("bench.owner_review", True),
-    "public-summary": ("bench.public_summary", False),
+    "mutation": ("bench.controlled_mutation", False),
     "churn": ("bench.churn", False),
 }
 

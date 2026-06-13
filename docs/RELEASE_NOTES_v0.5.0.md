@@ -47,8 +47,8 @@ The full local loop, checker families, trust-state folding, audit export,
 downstream recall, content-free sidecars, scope lint, and the GitHub Action
 (trusted/internal repositories recommended — see `action/README.md`). All
 standing caveats apply, including: the headline benchmark result (32.40× /
-0.89 recall) is owner-checked and model-adjudicated, not independent public
-proof.
+0.89 recall) is a research-preview figure on private repositories, not
+independent public proof.
 
 ## Next steps
 
@@ -56,5 +56,5 @@ proof.
   checkability prefilter, consensus-of-k span voting
   (`docs/NEXT_ALGORITHMIC_BETS.md`).
 - Level 1 of `docs/SOLO_VALIDATION_LADDER.md`: the reproducible public
-  micro-benchmark (requires owner ground-truth labels by design).
+  micro-benchmark (requires manual ground-truth labels by design).
 - First PyPI release of `dorian-vwp`.

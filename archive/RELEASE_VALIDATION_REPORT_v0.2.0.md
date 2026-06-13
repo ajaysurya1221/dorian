@@ -1,5 +1,10 @@
 # Release validation report — v0.2.0 (2026-06-12)
 
+> **ARCHIVED / SUPERSEDED — HISTORICAL RECORD, NOT CURRENT EVIDENCE.** Retained as
+> development history only. The current public benchmark is the controlled-mutation
+> benchmark with known-truth labels (`docs/BENCHMARK_v0.6.0.md`); the README cites
+> nothing in this file.
+
 Evidence record for the v0.2.0 public R&D preview. Four independent review
 passes were run with fresh context against the release tree: benchmark-claim
 audit, functionality/end-to-end, privacy/security, and prior-art boundary.
