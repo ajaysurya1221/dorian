@@ -138,6 +138,41 @@ def _c5_data_paths(form: str, rest: str) -> list[str]:
     return []
 
 
+def referenced_paths(claims: list[Claim]) -> list[str]:
+    """Repo-relative files the claims' C3/C4/C5 checkers read, in first-seen order.
+
+    This is the auto-captured read-set for `dorian verify`: every C3/C4/C5 program
+    names the file it depends on, so the read-set can be derived from the claims
+    alone (the same parsing `_derive_watch` uses to fill watch lists). A C1 span
+    checker binds a read-set ENTRY (its program is an entry id, not a path), so it
+    cannot be auto-captured — raise ValueError directing the caller to an explicit
+    `capture` + `seal`.
+    """
+    paths: list[str] = []
+
+    def add(p: str) -> None:
+        p = p.strip()
+        if p and p not in paths:
+            paths.append(p)
+
+    for claim in claims:
+        for spec in claim.checkers:
+            if spec.type == "C1":
+                raise ValueError(
+                    f"{claim.id}: C1 span claims bind a read-set entry, not a file; "
+                    "use `dorian capture` + `dorian seal` (verify auto-captures C3/C4/C5)"
+                )
+            prefix, _, rest = spec.program.partition(":")
+            if spec.type == "C3":
+                add(rest.partition("::")[0] if prefix in ("symbol", "string", "regex") else rest)
+            elif spec.type == "C4":
+                add(rest.partition("::")[0])
+            elif spec.type == "C5":
+                for path in _c5_data_paths(prefix, rest):
+                    add(path)
+    return paths
+
+
 def _derive_supports(claim: Claim, readset: ReadSet) -> Claim:
     """Bind the read-set entry a C5 snapshot program needs: snapshot:<path>
     ERRORs (no_support_entry) unless the claim supports-binds a read-set entry

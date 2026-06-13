@@ -1,5 +1,5 @@
-"""dorian CLI: capture | seal | status | blast | bindings | revalidate | report |
-suggest-data-checks | sync | bench.
+"""dorian CLI: capture | seal | verify | status | blast | bindings | revalidate |
+report | suggest-data-checks | sync | bench.
 
 Exit codes: 0 ok/TRUSTED · 2 usage/infra · 3 DEGRADED · 4 REVOKED/integrity ·
 5 ERRORED-only · 6 scope violation (ring 1).
@@ -74,6 +74,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-quotes",
         action="store_true",
         help="content-free sidecar: drop anchor quotes (line numbers stay; changes the warrant id)",
+    )
+
+    vf = sub.add_parser(
+        "verify",
+        help="one-shot: auto-capture a read-set from the claims, then seal"
+        " (the agent-claims workflow; C3/C4/C5 claims)",
+    )
+    vf.add_argument("artifact")
+    vf.add_argument("--claims", required=True, help="claims.json (agent-emitted or hand-written)")
+    vf.add_argument(
+        "--allow-restricted",
+        action="store_true",
+        help="seal even when referenced files match [tool.dorian.scopes] restricted globs",
+    )
+    vf.add_argument(
+        "--no-quotes",
+        action="store_true",
+        help="content-free sidecar: drop anchor quotes (changes the warrant id)",
     )
 
     st = sub.add_parser("status", help="trust state of warranted artifacts")
