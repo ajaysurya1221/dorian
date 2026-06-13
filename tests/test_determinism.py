@@ -1,12 +1,13 @@
 """Determinism and flake-resistance — the actual contracts, not assumptions.
 
 A subtlety worth pinning: the warrant id is content-addressed over the *whole*
-body, which includes `sealed_at` (a wall-clock, second-resolution stamp). So the
-id is a pure function of the body (same body -> same id), but re-sealing the same
-artifact at a later second yields a DIFFERENT id and different sidecar bytes —
-i.e. `verify`/`seal` is intentionally not byte-idempotent. The reproducibility the
-project actually guarantees is elsewhere: `report --audit` is byte-identical
-across runs, and `sync` rebuilds the same index from the sidecars.
+body, including `sealed_at` (a wall-clock stamp) — so `Warrant.create` is a pure
+function of its body (same body -> same id; a different `sealed_at` -> a different
+id). At the seal layer, though, re-running verify/seal on MATERIALLY identical
+content is idempotent: the existing sidecar is kept byte-for-byte (the two wall-clock
+stamps are masked when comparing), so a re-run never churns a committed sidecar; a
+real change still re-seals. `report --audit` is byte-identical across runs and
+`sync` rebuilds the same index from the sidecars.
 """
 
 from __future__ import annotations
@@ -117,3 +118,59 @@ def test_revalidate_is_deterministic_across_repeats(fixture_repo: Path) -> None:
         rc, out = _capture(fixture_repo, "revalidate", "--since", "HEAD")
         outcomes.append((rc, "BROKEN" in out and "login-route" in out))
     assert outcomes == [(4, True), (4, True), (4, True)], outcomes
+
+
+def test_reseal_of_identical_content_is_idempotent(fixture_repo: Path, monkeypatch) -> None:
+    """Re-running verify on byte-identical content keeps the committed sidecar (no churn),
+    even across a time gap; only a material change re-seals. A forced clock makes the two
+    runs' wall-clock stamps differ, so this fails if those stamps aren't masked."""
+    import datetime as _dt
+
+    from dorian import seal as _seal
+    from dorian.capture import manual as _manual
+
+    class _Clock:
+        n = 0
+
+        @classmethod
+        def now(cls, tz=None):
+            cls.n += 1
+            return _dt.datetime(2026, 1, 1, 0, 0, 0, tzinfo=_dt.UTC) + _dt.timedelta(seconds=cls.n)
+
+    monkeypatch.setattr(_seal, "datetime", _Clock)
+    monkeypatch.setattr(_manual, "datetime", _Clock)
+
+    cp = fixture_repo / "claims.json"
+
+    def _claims(cid: str, program: str) -> None:
+        cp.write_text(
+            json.dumps(
+                {
+                    "claims": [
+                        {
+                            "id": cid,
+                            "text": "x",
+                            "kind": "reference",
+                            "load_bearing": False,
+                            "checkers": [{"type": "C3", "program": program}],
+                        }
+                    ]
+                }
+            )
+        )
+
+    args = ["--repo", str(fixture_repo), "verify", "docs/design.md", "--claims", str(cp)]
+    sidecar = fixture_repo / "docs/design.md.warrant"
+
+    _claims("login-route", "string:src/routes.py::/v1/login")
+    assert cli.main(args) == 0
+    bytes1 = sidecar.read_bytes()
+
+    # re-verify identical content; the clock advanced, so the stamps would differ if unmasked
+    assert cli.main(args) == 0
+    assert sidecar.read_bytes() == bytes1, "re-seal of identical content churned the sidecar"
+
+    # a material change (different claim + watched file) DOES re-seal
+    _claims("timeout", "string:src/config.py::TIMEOUT")
+    assert cli.main(args) == 0
+    assert sidecar.read_bytes() != bytes1, "a material change must produce a new warrant"

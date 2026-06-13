@@ -213,6 +213,28 @@ def _supports(claim: Claim, readset: ReadSet) -> list[ReadSetEntry]:
     return entries
 
 
+def _existing_warrant(sidecar_path: Path) -> Warrant | None:
+    """The sidecar already on disk, if present and integrity-valid; else None (a missing
+    or corrupt sidecar is simply overwritten by a fresh seal)."""
+    if not sidecar_path.is_file():
+        return None
+    try:
+        return Warrant.load(sidecar_path)
+    except (IntegrityError, ValueError, KeyError, TypeError, OSError):
+        return None
+
+
+def _material(body: dict) -> dict:
+    """A warrant body with only the two per-run wall-clock stamps masked — `sealed_at`
+    and produced_by.captured_at — so two seals of otherwise-identical content compare
+    equal. Everything else (claims, read-set hashes, git ref, derives, supersede, ...)
+    stays in the comparison, so a real change is never masked into a no-op."""
+    masked = dict(body)
+    masked["sealed_at"] = ""
+    masked["produced_by"] = {**body["produced_by"], "captured_at": ""}
+    return masked
+
+
 def seal_artifact(
     repo: Path,
     artifact_uri: str,
@@ -328,9 +350,18 @@ def seal_artifact(
         supersedes=supersede,
     )
     sidecar_path = warrant.sidecar_path(repo)
-    tmp_path = sidecar_path.with_name(sidecar_path.name + ".tmp")
-    warrant.dump(tmp_path)
-    os.replace(tmp_path, sidecar_path)
+
+    # idempotent re-seal: if a valid sidecar already records the same MATERIAL body
+    # (everything but the two per-run wall-clock stamps), keep its bytes + id so a
+    # re-run on unchanged content does not churn the committed sidecar; any real change
+    # re-seals. This makes `verify` safe to run repeatedly (pre-commit, CI).
+    existing = _existing_warrant(sidecar_path)
+    if existing is not None and _material(existing.body_dict()) == _material(warrant.body_dict()):
+        warrant = existing
+    else:
+        tmp_path = sidecar_path.with_name(sidecar_path.name + ".tmp")
+        warrant.dump(tmp_path)
+        os.replace(tmp_path, sidecar_path)
 
     conn = store.connect(repo)
     try:
@@ -339,7 +370,7 @@ def seal_artifact(
         # checkers just ran green, so backed claims are VERIFIED right now
         for claim in sealed_claims:
             state = "VERIFIED" if claim.backed else "UNBACKED"
-            store.set_claim_state(conn, warrant.id, claim.id, state, sealed_at)
+            store.set_claim_state(conn, warrant.id, claim.id, state, warrant.sealed_at)
         # with --allow-restricted the sealed event receipts the allowance
         store.append_event(
             conn,

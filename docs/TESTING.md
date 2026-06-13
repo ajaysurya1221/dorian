@@ -68,9 +68,11 @@ make coverage    # coverage (term-missing + HTML under htmlcov/), measured over 
   timeout; catastrophic backtracking *within* the cap is a documented residual risk.
   `docs/AGENT_CLAIMS.md` steers authors toward literal-anchored patterns; review
   agent-emitted regex claims.
-- **Re-seal is not byte-idempotent:** `sealed_at` is part of the content-addressed
-  warrant id, so re-running `verify`/`seal` on an unchanged artifact rewrites the
-  sidecar with a new timestamp + id (a spurious git diff). Re-seal intentionally with
-  `seal --supersede <old-id>`.
+- **Re-seal idempotency (resolved):** re-running `verify`/`seal` on a *materially
+  identical* artifact keeps the committed sidecar byte-for-byte — the two per-run
+  wall-clock stamps (`sealed_at`, `produced_by.captured_at`) are masked when comparing
+  to the existing sidecar, so a re-run no longer churns a committed sidecar. Any real
+  change re-seals; `seal --supersede <old-id>` records an intentional supersession.
+  Pinned by `tests/test_determinism.py::test_reseal_of_identical_content_is_idempotent`.
 - **CI is Ubuntu-only:** path / subprocess behavior on macOS and Windows is not yet
   gated in CI (the suite passes locally on macOS).
