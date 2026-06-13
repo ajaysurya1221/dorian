@@ -252,6 +252,36 @@ jobs:
           install: 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'
 ```
 
+### Try it in 30 seconds
+
+A self-contained run on a throwaway repo — copy-paste it; it leaves nothing behind but a
+temp directory. (This exact sequence is pinned by a black-box test, so it is guaranteed to
+work, not just illustrative.)
+
+```bash
+tmp=$(mktemp -d) && cd "$tmp" && git init -q
+printf 'def handler():\n    return 200\n' > app.py
+printf '# change note\n\n`handler()` lives in app.py.\n' > note.md
+git add -A && git commit -q -m "app + note"
+
+cat > claims.json <<'JSON'
+{"claims": [
+  {"id": "handler-exists", "text": "handler() lives in app.py.",
+   "kind": "behavior", "load_bearing": true,
+   "checkers": [{"type": "C3", "program": "symbol:app.py::handler"}]}
+]}
+JSON
+
+dorian verify note.md --claims claims.json     # -> verified 1/1 claim(s)  (exit 0)
+
+# now a refactor renames the function the note claims exists:
+printf 'def renamed():\n    return 200\n' > app.py
+dorian revalidate --since HEAD                 # -> handler-exists BROKEN; WARRANTED -> REVOKED  (exit 4)
+```
+
+`note.md` never changed and `git`/CI stay quiet — but the warrant flips to REVOKED, naming
+the exact claim that stopped being true.
+
 ## Writing claims an agent can be held to
 
 A warrant is worth only what its checkers actually catch. The full authoring contract — the
