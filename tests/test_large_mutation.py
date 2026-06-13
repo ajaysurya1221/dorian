@@ -24,6 +24,8 @@ if str(REPO_ROOT) not in sys.path:  # bench/ is a repo-root package, not install
 from bench import large_mutation as lm  # noqa: E402
 from bench import large_mutation_domains as dom  # noqa: E402
 
+from dorian import __version__ as DORIAN_VERSION  # noqa: E402
+
 # Forbidden tokens assembled from fragments so this enforcement test does not
 # itself contain the literal strings it forbids (keeps the grep gates clean).
 _OWN, _HUM, _MOD, _AGT, _JDG, _REV = (
@@ -134,7 +136,10 @@ def test_schema_and_shape(summary: dict) -> None:
         }
     prov = summary["provenance"]
     assert prov["benchmark_id"] == lm.BENCHMARK_ID
-    assert prov["dorian_version"] == "0.7.0"
+    # provenance records the dorian build it ran on; the benchmark is *named* for
+    # the v0.7.0 feature set it exercises (revalidate is unchanged), so the doc id
+    # stays v0.7.0 even when shipped in a later release.
+    assert prov["dorian_version"] == DORIAN_VERSION
     assert prov["seed"] == 42
 
 
