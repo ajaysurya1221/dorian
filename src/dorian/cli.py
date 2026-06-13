@@ -40,7 +40,8 @@ def build_parser() -> argparse.ArgumentParser:
     seal.add_argument(
         "--extract",
         action="store_true",
-        help="LLM claim extraction (extra) (EXPERIMENTAL: see README)",
+        help="LLM claim drafting (extra) — FROZEN/experimental; prefer agent-emitted"
+        " claims via `dorian verify --claims` (see docs/AGENT_CLAIMS.md)",
     )
     seal.add_argument(
         "--extract-mode",

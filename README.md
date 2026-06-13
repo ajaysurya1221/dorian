@@ -134,7 +134,7 @@ performance claim. See [`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md) (p
 # 1. capture the read-set (or: dorian capture --transcript session.jsonl)
 dorian capture --manual src/auth.py --manual src/config.py:L1-40 --out rs.json
 
-# 2. write claims.json (or draft with --extract, then review), then seal
+# 2. write claims.json (by hand or agent-emitted — see docs/AGENT_CLAIMS.md), then seal
 dorian seal docs/design.md --readset rs.json --claims claims.json
 
 # 3. later, after the repo changed
@@ -246,6 +246,12 @@ Exit codes: `0` ok/TRUSTED · `2` usage/infra · `3` DEGRADED · `4` REVOKED/int
 violation.
 
 ## Claim extraction is experimental
+
+> **`--extract` is frozen.** It still works, but the supported, recommended way to
+> produce warrant claims is now to emit a `claims.json` directly — by hand or from your
+> coding agent — and run `dorian verify <artifact> --claims claims.json`. See
+> [`docs/AGENT_CLAIMS.md`](docs/AGENT_CLAIMS.md). The extractor below stays for drafting
+> from a blank file; its output remains drafts for review, never stable warrant inputs.
 
 `--extract` drafts claims with an LLM so you don't start from a blank `claims.json`.
 It is **experimental, and measurably so**: the first compliant churn measurement
