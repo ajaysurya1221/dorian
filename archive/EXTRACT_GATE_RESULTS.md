@@ -1,7 +1,7 @@
 # Extraction gate results — calibration failed twice; approach rejected (2026-06-13)
 
 This is the results record for the pre-registered planted-truth extraction
-gate ([`EXTRACT_GATE.md`](EXTRACT_GATE.md), pushed publicly before any
+gate ([`EXTRACT_GATE.md`](../docs/EXTRACT_GATE.md), pushed publicly before any
 battery run). The headline is a **negative result about the validation
 approach itself**: the synthetic battery failed its instrument-calibration
 precondition twice, and per the pre-registered rule — *"a second calibration

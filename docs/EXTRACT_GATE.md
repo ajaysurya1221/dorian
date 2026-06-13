@@ -2,7 +2,7 @@
 
 > **Status (2026-06-13):** instrument calibration failed twice; per the rule
 > below, the validation approach was rejected before the gate phase ran.
-> Results and consequences: [`EXTRACT_GATE_RESULTS.md`](EXTRACT_GATE_RESULTS.md).
+> Results and consequences: [`EXTRACT_GATE_RESULTS.md`](../archive/EXTRACT_GATE_RESULTS.md).
 > The thresholds in this document were not altered after pre-registration.
 
 This document pre-registers the validation design and the exact decision

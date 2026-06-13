@@ -132,4 +132,4 @@ combining** read-set capture + atomic claims + executable claim-level
 checkers + zero-token revalidation + trust-state lifecycle + downstream
 recall in a git-native sidecar workflow. Agent receipt and governance
 systems cover agent *actions*; `dorian` warrants generated artifacts after
-they exist. Standing watchlist: [`NAMING_AND_PRIOR_ART.md`](NAMING_AND_PRIOR_ART.md).
+they exist. Standing watchlist: [`NAMING_AND_PRIOR_ART.md`](../docs/NAMING_AND_PRIOR_ART.md).
