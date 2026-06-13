@@ -90,3 +90,63 @@ def test_verify_rejects_c1_span_claims(fixture_repo: Path, capsys) -> None:
     assert rc == 2  # EXIT_USAGE: C1 needs explicit capture + seal
     assert not (fixture_repo / "docs/design.md.warrant").exists()
     assert "C1 span claims" in capsys.readouterr().err
+
+
+def test_verify_agent_shape_multiple_robust_checkers(fixture_repo: Path, capsys) -> None:
+    # the shape docs/AGENT_CLAIMS.md teaches: symbol + anchored regex + typed C5,
+    # each binding the file that would change if the claim went false.
+    claims = [
+        _claim(
+            "auth-verify-token",
+            "Token verification lives in verify_token.",
+            CheckerSpec(type="C3", program="symbol:src/auth.py::verify_token"),
+            kind="fact",
+        ),
+        _claim(
+            "config-timeout-30",
+            "The default request timeout is 30 seconds.",
+            CheckerSpec(type="C3", program=r"regex:src/config.py::TIMEOUT\s*=\s*30\b"),
+            kind="quantity",
+        ),
+        _claim(
+            "lots-status-domain",
+            "lots.status is limited to open/closed.",
+            CheckerSpec(type="C5", program="domain:data/lots.csv::status::{open,closed}"),
+            kind="quantity",
+        ),
+    ]
+    path = _write_claims(fixture_repo, claims)
+
+    rc = cli.main(["--repo", str(fixture_repo), "verify", "docs/design.md", "--claims", str(path)])
+
+    assert rc == 0
+    assert "verified 3/3 claim(s)" in capsys.readouterr().out
+    conn = store.connect(fixture_repo)
+    try:
+        uris = {r["uri"] for r in conn.execute("SELECT uri FROM resource WHERE scope = 'project'")}
+    finally:
+        conn.close()
+    assert uris == {"src/auth.py", "src/config.py", "data/lots.csv"}
+
+
+def test_verify_unbacked_claim_seals_green(fixture_repo: Path, capsys) -> None:
+    # Documented kernel behaviour (AGENT_CLAIMS.md R1): an UNBACKED claim (no checker)
+    # seals with exit 0 and sits in the denominator, proving nothing. The contract
+    # closes this behaviourally, not with a gate — so verify must NOT refuse it.
+    claims = [
+        Claim(
+            id="note",
+            text="A descriptive note with no checker.",
+            kind="fact",
+            load_bearing=False,
+            supports=(),
+            checkers=(),
+        ),
+    ]
+    path = _write_claims(fixture_repo, claims)
+
+    rc = cli.main(["--repo", str(fixture_repo), "verify", "docs/design.md", "--claims", str(path)])
+
+    assert rc == 0
+    assert "verified 0/1 claim(s)" in capsys.readouterr().out
+    assert (fixture_repo / "docs/design.md.warrant").is_file()
