@@ -316,7 +316,8 @@ def test_churn_consensus_passthrough(tmp_path: Path, monkeypatch: pytest.MonkeyP
     monkeypatch.delenv("DORIAN_EXTRACT_STUB", raising=False)
     seen: list[int] = []
 
-    def fake_consensus(text, *, k, model, cache_dir, artifact_hash, temperature=0.0):
+    def fake_consensus(text, *, k, model, cache_dir, artifact_hash, temperature=0.0, mode="anchor"):
+        assert mode == "anchor"
         seen.append(k)
         return [_claim(2, 2)]
 

@@ -78,7 +78,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument(
         "--mode",
-        choices=["restate", "anchor"],
+        choices=["restate", "anchor", "candidate"],
         default="restate",
         help="extraction strategy under measurement (see dorian.extract)",
     )
@@ -87,8 +87,8 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=0,
         metavar="K",
-        help="measure consensus-of-K anchor extraction instead of single runs"
-        " (0 = off; requires --mode anchor; each churn run = one consensus draw)",
+        help="measure consensus-of-K extraction instead of single runs (0 = off;"
+        " requires --mode anchor or candidate; each churn run = one consensus draw)",
     )
     ap.add_argument("--model", default="claude-fable-5")
     ap.add_argument("--thr", type=float, default=0.75, help="fuzzy match ratio threshold")
@@ -99,8 +99,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.runs < 2:
         print("churn: --runs must be >= 2 (a single run measures nothing)", file=sys.stderr)
         return 2
-    if args.consensus and args.mode != "anchor":
-        print("churn: --consensus requires --mode anchor", file=sys.stderr)
+    if args.consensus and args.mode not in ("anchor", "candidate"):
+        print("churn: --consensus requires --mode anchor or candidate", file=sys.stderr)
         return 2
 
     doc = Path(args.doc)
@@ -122,6 +122,7 @@ def main(argv: list[str] | None = None) -> int:
                     cache_dir=Path(args.cache_dir),
                     artifact_hash=sha256_hex(raw),
                     temperature=0.0,
+                    mode=args.mode,
                 )
             else:
                 claims = extract.extract_claims(

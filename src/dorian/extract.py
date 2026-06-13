@@ -21,7 +21,7 @@ response are merged). Each degradation retries once and is remembered for
 the process — queryable via temperature_unsupported() / forced_tools_unsupported()
 so measurements record what was actually sent.
 
-Two extraction modes (mode=):
+Three extraction modes (mode=):
 - "restate" (default, the original protocol): the model authors each claim's
   text as an atomic restatement.
 - "anchor" (anchor-first): the model only selects 1-based line spans via the
@@ -30,6 +30,12 @@ Two extraction modes (mode=):
   text, so claim wording cannot churn — only span selection can. Modes hash to
   different extraction protocols (prompt_hash(mode)) and never share cache
   entries; the restate protocol hash is unchanged.
+- "candidate" (candidate-first; pre-registered challenger in
+  docs/REAL_DOC_METAMORPHIC_GATE.md): segment_candidates() splits the
+  artifact into candidate blocks deterministically and the model only
+  classifies which candidates state checkable claims via emit_candidates.
+  Boundaries are fixed by the segmentation — boundary jitter is impossible
+  by construction — and selection reduces to a per-candidate vote.
 """
 
 from __future__ import annotations
@@ -104,6 +110,44 @@ CLAIMS_TOOL = {
     },
 }
 
+# candidate-first mode: segmentation happens in code; the model only says
+# WHICH pre-cut candidate blocks state checkable claims. It cannot move a
+# boundary and it never authors text, so the only degree of freedom left —
+# and the only thing that can churn — is the per-candidate yes/no.
+CANDIDATE_PROMPT_V0 = """\
+You classify pre-segmented candidate blocks of an AI-generated artifact.
+Each candidate is shown as "b<INDEX> [lines A-B]" followed by its exact text.
+You MUST call the emit_candidates tool with your selections — never answer in
+prose. Select exactly the candidates that state verifiable claims, by index;
+skip unverifiable prose (opinions, transitions, headings, boilerplate). You
+cannot change candidate boundaries and you never write claim text — text is
+derived from the artifact lines.
+Mark load_bearing true only when the artifact's conclusions depend on the claim.
+"""
+
+CANDIDATES_TOOL = {
+    "name": "emit_candidates",
+    "description": "Record the candidate blocks that state verifiable claims.",
+    "input_schema": {
+        "type": "object",
+        "required": ["candidates"],
+        "properties": {
+            "candidates": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "required": ["index", "kind", "load_bearing"],
+                    "properties": {
+                        "index": {"type": "integer"},
+                        "kind": {"enum": ["fact", "reference", "behavior", "quantity", "decision"]},
+                        "load_bearing": {"type": "boolean"},
+                    },
+                },
+            }
+        },
+    },
+}
+
 SPANS_TOOL = {
     "name": "emit_spans",
     "description": "Record the artifact line spans that state verifiable claims.",
@@ -132,6 +176,7 @@ SPANS_TOOL = {
 _MODE_PROTOCOLS = {
     "restate": (PROMPT_V0, CLAIMS_TOOL, "claims"),
     "anchor": (ANCHOR_PROMPT_V0, SPANS_TOOL, "spans"),
+    "candidate": (CANDIDATE_PROMPT_V0, CANDIDATES_TOOL, "candidates"),
 }
 
 _MAX_TOKENS = 8192
@@ -140,6 +185,48 @@ _MAX_TOKENS = 8192
 def _numbered(text: str) -> str:
     """1-based, tab-separated line numbering — the span-selection input format."""
     return "\n".join(f"{i}\t{line}" for i, line in enumerate(text.split("\n"), start=1))
+
+
+# a line that opens a list item or table row starts its own candidate block
+_LIST_START_RE = re.compile(r"^\s*(?:[-*+]\s|\d+[.)]\s|\|)")
+_CANDIDATE_MAX_LINES = 6
+
+
+def segment_candidates(text: str) -> list[tuple[int, int]]:
+    """Deterministic candidate segmentation: maximal runs of content lines
+    (non-blank, non-heading, non-rule, non-fence-marker), where every list
+    item or table row starts its own block and blocks cap at
+    _CANDIDATE_MAX_LINES. Pure code — the same text always yields the same
+    1-based inclusive blocks."""
+    blocks: list[tuple[int, int]] = []
+    current: list[int] = []
+
+    def flush() -> None:
+        if current:
+            blocks.append((current[0], current[-1]))
+            current.clear()
+
+    for j, line in enumerate(text.split("\n"), start=1):
+        if _TRIM_RE.match(line):
+            flush()
+            continue
+        if _LIST_START_RE.match(line) or len(current) >= _CANDIDATE_MAX_LINES:
+            flush()
+        current.append(j)
+    flush()
+    return blocks
+
+
+def _render_candidates(text: str, candidates: list[tuple[int, int]]) -> str:
+    """The candidate-classification input format: indexed blocks with their
+    exact artifact lines."""
+    lines = text.split("\n")
+    parts: list[str] = []
+    for i, (a, b) in enumerate(candidates):
+        parts.append(f"b{i} [lines {a}-{b}]")
+        parts.extend(lines[a - 1 : b])
+        parts.append("")
+    return "\n".join(parts)
 
 
 # non-content lines trimmed from span edges: blank, markdown heading,
@@ -220,6 +307,37 @@ def _claims_from_spans(data: dict, artifact_text: str) -> dict:
     return {"claims": claims}
 
 
+def _claims_from_candidates(
+    data: dict, artifact_text: str, candidates: list[tuple[int, int]]
+) -> dict:
+    """Deterministic stage 2 of candidate-first extraction: selected candidate
+    indexes become spans, then _claims_from_spans derives text/anchor/id.
+    Malformed selections are dropped, never guessed (non-int or bool indexes,
+    out-of-range indexes, non-bool load_bearing, unknown kinds); duplicate
+    selections collapse."""
+    chosen = data.get("candidates") if isinstance(data, dict) else None
+    if not isinstance(chosen, list):
+        raise ValueError("candidate extraction returned no candidates array")
+    spans: list[dict] = []
+    for raw in chosen:
+        if not isinstance(raw, dict):
+            continue
+        idx, kind, load_bearing = raw.get("index"), raw.get("kind"), raw.get("load_bearing")
+        if (
+            not isinstance(idx, int)
+            or isinstance(idx, bool)
+            or not 0 <= idx < len(candidates)
+            or not isinstance(load_bearing, bool)
+            or kind not in claims_io.VALID_KINDS
+        ):
+            continue
+        a, b = candidates[idx]
+        spans.append({"line_start": a, "line_end": b, "kind": kind, "load_bearing": load_bearing})
+    if not spans:
+        raise ValueError("candidate extraction yielded no valid selections")
+    return _claims_from_spans({"spans": spans}, artifact_text)
+
+
 class ExtractUnavailable(RuntimeError):
     """The anthropic package is not installed (extraction is an optional extra)."""
 
@@ -276,7 +394,7 @@ def extract_claims(
     mode: str = "restate",
 ) -> list[Claim]:
     if mode not in _MODE_PROTOCOLS:
-        raise ValueError(f"unknown extraction mode {mode!r} (choose restate|anchor)")
+        raise ValueError(f"unknown extraction mode {mode!r} (choose restate|anchor|candidate)")
     stub = os.environ.get("DORIAN_EXTRACT_STUB")
     if stub:
         return claims_io.load_claims(Path(stub))
@@ -294,17 +412,19 @@ def extract_claims(
         raise ExtractUnavailable("pip install dorian-vwp[extract]") from None
 
     system, tool, payload_key = _MODE_PROTOCOLS[mode]
+    candidates = segment_candidates(artifact_text) if mode == "candidate" else []
+    if mode == "anchor":
+        content = _numbered(artifact_text)
+    elif mode == "candidate":
+        content = _render_candidates(artifact_text, candidates)
+    else:
+        content = artifact_text
     client = anthropic.Anthropic()
     kwargs: dict = {
         "model": model,
         "max_tokens": _MAX_TOKENS,
         "system": system,
-        "messages": [
-            {
-                "role": "user",
-                "content": _numbered(artifact_text) if mode == "anchor" else artifact_text,
-            }
-        ],
+        "messages": [{"role": "user", "content": content}],
         "tools": [tool],
         "tool_choice": {"type": "tool", "name": tool["name"]},
     }
@@ -350,6 +470,8 @@ def extract_claims(
             data[payload_key] = list(data.get(payload_key, [])) + extra[payload_key]
     if mode == "anchor":
         data = _claims_from_spans(data, artifact_text)
+    elif mode == "candidate":
+        data = _claims_from_candidates(data, artifact_text, candidates)
     claims = claims_io.claims_from_dict(data)  # validate before caching
     if use_cache:
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -365,15 +487,21 @@ def extract_claims_consensus(
     cache_dir: Path,
     artifact_hash: str,
     temperature: float = 0.0,
+    mode: str = "anchor",
 ) -> list[Claim]:
-    """Consensus-of-k anchor extraction: k independent span selections, then a
-    deterministic majority vote. A document line is selected iff covered by a
-    strict majority (k//2 + 1) of runs; adjacent selected lines stay one claim
-    only if a majority of runs spanned them together; kind/load_bearing by
-    majority with deterministic tie-breaks (lexicographically smallest kind;
-    load_bearing ties resolve to False). The component runs always bypass the
-    cache (identical cached runs would make voting meaningless) and the result
-    is not cached. Anchor mode only: voting needs line identity."""
+    """Consensus-of-k extraction: k independent selections, then a
+    deterministic majority vote. Anchor mode votes per document line: a line
+    is selected iff covered by a strict majority (k//2 + 1) of runs, and
+    adjacent selected lines stay one claim only if a majority of runs spanned
+    them together. Candidate mode votes per candidate block (the segmentation
+    is identical across runs, so spans align exactly and never merge).
+    kind/load_bearing by majority with deterministic tie-breaks
+    (lexicographically smallest kind; load_bearing ties resolve to False).
+    The component runs always bypass the cache (identical cached runs would
+    make voting meaningless) and the result is not cached. Voting needs line
+    identity, so restate mode is not supported."""
+    if mode not in ("anchor", "candidate"):
+        raise ValueError("consensus supports modes anchor|candidate only")
     if k < 2:
         raise ValueError("consensus k must be >= 2 (a single run has nothing to vote on)")
     majority = k // 2 + 1
@@ -385,10 +513,35 @@ def extract_claims_consensus(
             artifact_hash=artifact_hash,
             use_cache=False,
             temperature=temperature,
-            mode="anchor",
+            mode=mode,
         )
         for _ in range(k)
     ]
+
+    if mode == "candidate":
+        span_votes: Counter[tuple[int, int]] = Counter()
+        span_meta: dict[tuple[int, int], list[tuple[str, bool]]] = {}
+        for claims in runs:
+            seen_spans: set[tuple[int, int]] = set()
+            for c in claims:
+                assert c.anchor is not None  # candidate mode derives anchors by construction
+                key = (c.anchor.line_start, c.anchor.line_end)
+                if key in seen_spans:
+                    continue
+                seen_spans.add(key)
+                span_votes[key] += 1
+                span_meta.setdefault(key, []).append((c.kind, c.load_bearing))
+        data: dict = {"spans": []}
+        for a, b in sorted(key for key, votes in span_votes.items() if votes >= majority):
+            votes = span_meta[(a, b)]
+            kind_counts = Counter(kind for kind, _ in votes)
+            top = max(kind_counts.values())
+            kind = sorted(k_ for k_, v in kind_counts.items() if v == top)[0]
+            load_bearing = sum(1 for _, lb in votes if lb) * 2 > len(votes)
+            data["spans"].append(
+                {"line_start": a, "line_end": b, "kind": kind, "load_bearing": load_bearing}
+            )
+        return claims_io.claims_from_dict(_claims_from_spans(data, artifact_text))
 
     line_votes: Counter[int] = Counter()
     pair_votes: Counter[tuple[int, int]] = Counter()

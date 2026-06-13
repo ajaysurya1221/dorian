@@ -264,11 +264,26 @@ lower churn than restate) but shows selection jitter growing with document
 length — anchor clears the 0.20 gate only on short, structured documents
 ([`docs/CHURN_BENCHMARK_v0.5.0.md`](docs/CHURN_BENCHMARK_v0.5.0.md)).
 
-Both modes remain experimental. Treat extracted claims as **drafts for human
-review, not stable warrant inputs**: always review and edit `claims.json` before
-sealing. Measure your own documents with `dorian bench churn` (the committed demo
-doc `examples/demo-repo/docs/design.md` works as a target; compare
-`--mode restate` vs `--mode anchor`).
+The planted-truth gate built to judge the consensus architecture failed its
+instrument calibration twice and was rejected by its own pre-registered rule —
+synthetic documents flatter extraction, so no planted number may support a
+promotion decision ([`docs/EXTRACT_GATE_RESULTS.md`](docs/EXTRACT_GATE_RESULTS.md)).
+The active promotion/rejection instrument is the pre-registered
+**real-document metamorphic gate**
+([`docs/REAL_DOC_METAMORPHIC_GATE.md`](docs/REAL_DOC_METAMORPHIC_GATE.md)):
+filler/reorder invariance and anchor-targeted deletion on this repository's
+committed documents — no planted truth, no human labels, thresholds committed
+before any measurement. It judges the shipped anchor+consensus architecture
+against one pre-registered challenger, `--extract-mode candidate`
+(deterministic segmentation; the model only classifies blocks, so boundaries
+cannot jitter by construction).
+
+All modes remain experimental until that gate reports. Treat extracted claims
+as **drafts for human review, not stable warrant inputs**: always review and
+edit `claims.json` before sealing. Measure your own documents with
+`dorian bench churn` (the committed demo doc
+`examples/demo-repo/docs/design.md` works as a target; compare
+`--mode restate` vs `--mode anchor` vs `--mode candidate`).
 
 ## What dorian is not
 
@@ -285,9 +300,10 @@ exist* and revalidates their claims over time.
 
 - **A public micro-benchmark** — frozen public repos, manual claims, owner labels, fully
   publishable artifacts ([`docs/SOLO_VALIDATION_LADDER.md`](docs/SOLO_VALIDATION_LADDER.md)).
-- **Extraction hardening on more documents** — anchor-first mode (shipped in v0.4.0)
-  cut measured churn 6.5× on the demo doc; re-measuring on longer, messier documents
-  is the documented path to promoting `--extract` beyond experimental.
+- **Extraction promotion or rejection by the real-document metamorphic gate** —
+  pre-registered in [`docs/REAL_DOC_METAMORPHIC_GATE.md`](docs/REAL_DOC_METAMORPHIC_GATE.md):
+  anchor+consensus vs candidate-first, judged label-free on real committed
+  documents; the verdict (promote / reject / insufficient) lands in v0.7.0.
 - **Checker calibration** informed by the benchmark's measured failure modes (binding
   misses and over-tight string literals).
 - **A polished example repo** with a scripted demo PR.

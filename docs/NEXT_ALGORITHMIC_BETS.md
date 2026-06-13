@@ -93,4 +93,8 @@ pre-registered rule ([`EXTRACT_GATE_RESULTS.md`](EXTRACT_GATE_RESULTS.md)) —
 synthetic documents flatter extraction and cannot carry a promotion decision.
 The honest next instrument is metamorphic relations on REAL documents
 (invariance under filler/reorder; anchor-targeted deletion), pre-registered
-before any run. The "not yet" list stands.*
+before any run. That instrument is now built and pre-registered
+([`REAL_DOC_METAMORPHIC_GATE.md`](REAL_DOC_METAMORPHIC_GATE.md)), and the
+candidate-first prefilter this bet originally named — segment first, classify
+only — ships as its pre-registered challenger (`--extract-mode candidate`).
+The "not yet" list stands.*

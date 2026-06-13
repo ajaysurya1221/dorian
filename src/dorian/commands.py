@@ -114,9 +114,10 @@ def cmd_seal(args: argparse.Namespace) -> int:
             if data is None:
                 raise ValueError(f"artifact missing: {artifact_uri}")
             if args.extract_consensus:
-                if args.extract_mode != "anchor":
+                if args.extract_mode not in ("anchor", "candidate"):
                     print(
-                        "dorian seal: --extract-consensus requires --extract-mode anchor",
+                        "dorian seal: --extract-consensus requires --extract-mode"
+                        " anchor or candidate",
                         file=sys.stderr,
                     )
                     return EXIT_USAGE
@@ -126,6 +127,7 @@ def cmd_seal(args: argparse.Namespace) -> int:
                     model=args.model,
                     cache_dir=repo / store.DORIAN_DIR / "extract-cache",
                     artifact_hash=sha256_hex(data),
+                    mode=args.extract_mode,
                 )
             else:
                 claims = extract_claims(
