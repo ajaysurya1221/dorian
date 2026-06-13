@@ -2,7 +2,7 @@
 
 v0.4.0 implements the anchor-first extraction prototype
 (`--extract-mode anchor`, bet 5 of
-[`NEXT_ALGORITHMIC_BETS.md`](NEXT_ALGORITHMIC_BETS.md)): the model only
+[`NEXT_ALGORITHMIC_BETS.md`](../docs/NEXT_ALGORITHMIC_BETS.md)): the model only
 *selects* 1-based line spans; claim text, anchor, and id are derived from the
 artifact deterministically (`cL<start>-<end>`). The model never authors
 identity-bearing text, so claim wording cannot churn — only span selection

@@ -13,7 +13,7 @@
 
 This is the v0.7.0 promotion/rejection instrument for `--extract`, replacing
 the planted-truth gate that was rejected by its own calibration rule
-([`EXTRACT_GATE_RESULTS.md`](EXTRACT_GATE_RESULTS.md)). It applies
+([`EXTRACT_GATE_RESULTS.md`](../archive/EXTRACT_GATE_RESULTS.md)). It applies
 metamorphic relations to **real, committed documents**: no planted truth, no
 manual labels, no LLM scorer. An LLM appears only as the system under test;
 every verdict input is a deterministic computation over extraction outputs.

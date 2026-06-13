@@ -52,6 +52,7 @@ def test_checker_grammar_reference_exists_and_covers_every_grammar() -> None:
 def test_readme_documents_the_ring1_surface() -> None:
     text = (ROOT / "README.md").read_text(encoding="utf-8")
     for needle in (
+        "dorian verify",
         "dorian blast",
         "recalled",
         "--supersede",
@@ -66,6 +67,7 @@ def test_readme_documents_the_ring1_surface() -> None:
         "bench mutation",
         "bench large-mutation",
         "spec/checkers.md",
+        "docs/AGENT_CLAIMS.md",
     ):
         assert needle in text, f"README must mention {needle!r}"
     # the user-facing exit-code contract (previously only in cli.py's docstring)

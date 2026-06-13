@@ -1,5 +1,5 @@
-"""dorian CLI: capture | seal | status | blast | bindings | revalidate | report |
-suggest-data-checks | sync | bench.
+"""dorian CLI: capture | seal | verify | status | blast | bindings | revalidate |
+report | suggest-data-checks | sync | bench.
 
 Exit codes: 0 ok/TRUSTED · 2 usage/infra · 3 DEGRADED · 4 REVOKED/integrity ·
 5 ERRORED-only · 6 scope violation (ring 1).
@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import argparse
 import sys
+
+from dorian import __version__
 
 EXIT_OK = 0
 EXIT_USAGE = 2
@@ -21,9 +23,10 @@ EXIT_SCOPE = 6
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="dorian",
-        description="Validity warrants for AI-generated artifacts: "
-        "your doc still looks perfect; its portrait doesn't.",
+        description="Hold AI agents to what they said they did: deterministic, "
+        "token-free verification of the claims a change makes about its sources.",
     )
+    p.add_argument("--version", action="version", version=f"dorian {__version__}")
     p.add_argument("--repo", default=".", help="repository root (default: .)")
     p.add_argument("--json", action="store_true", help="machine-readable output")
     sub = p.add_subparsers(dest="command", required=True)
@@ -40,7 +43,8 @@ def build_parser() -> argparse.ArgumentParser:
     seal.add_argument(
         "--extract",
         action="store_true",
-        help="LLM claim extraction (extra) (EXPERIMENTAL: see README)",
+        help="LLM claim drafting (extra) — FROZEN/experimental; prefer agent-emitted"
+        " claims via `dorian verify --claims` (see docs/AGENT_CLAIMS.md)",
     )
     seal.add_argument(
         "--extract-mode",
@@ -74,6 +78,29 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-quotes",
         action="store_true",
         help="content-free sidecar: drop anchor quotes (line numbers stay; changes the warrant id)",
+    )
+
+    vf = sub.add_parser(
+        "verify",
+        help="one-shot: auto-capture a read-set from the claims, then seal"
+        " (the agent-claims workflow; C3/C4/C5 claims)",
+    )
+    vf.add_argument("artifact")
+    vf.add_argument("--claims", required=True, help="claims.json (agent-emitted or hand-written)")
+    vf.add_argument(
+        "--supersede",
+        help="warrant id being superseded; keeps downstream warrants sealed against"
+        " the old id reachable by blast/recall",
+    )
+    vf.add_argument(
+        "--allow-restricted",
+        action="store_true",
+        help="seal even when referenced files match [tool.dorian.scopes] restricted globs",
+    )
+    vf.add_argument(
+        "--no-quotes",
+        action="store_true",
+        help="content-free sidecar: drop anchor quotes (changes the warrant id)",
     )
 
     st = sub.add_parser("status", help="trust state of warranted artifacts")

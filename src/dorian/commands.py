@@ -1,5 +1,5 @@
-"""CLI command handlers for capture | seal | status | blast | bindings | revalidate
-| report | suggest-data-checks | sync | bench (cli.py owns parsing).
+"""CLI command handlers for capture | seal | verify | status | blast | bindings
+| revalidate | report | suggest-data-checks | sync | bench (cli.py owns parsing).
 
 Exit codes follow cli.py: 0 ok, 2 usage/infra, 3 DEGRADED, 4 REVOKED/seal-refused,
 6 seal-time scope violation (restricted read-set uri without --allow-restricted).
@@ -32,7 +32,7 @@ from dorian.extract import ExtractUnavailable, extract_claims, extract_claims_co
 from dorian.model import IntegrityError, ReadSet, sha256_hex
 from dorian.report import audit_lines, report_events, report_since
 from dorian.revalidate import ChangedPathsError, render_json, render_md, render_text, revalidate
-from dorian.seal import ScopeConfigError, ScopeViolation, SealError, seal_artifact
+from dorian.seal import ScopeConfigError, ScopeViolation, SealError, referenced_paths, seal_artifact
 
 # What store.sync propagates from Warrant.load on a corrupt sidecar: tampered id
 # (IntegrityError), non-JSON (JSONDecodeError is a ValueError), valid JSON of the
@@ -166,6 +166,51 @@ def cmd_seal(args: argparse.Namespace) -> int:
         print(f"dorian seal: {exc}", file=sys.stderr)
         return EXIT_REVOKED
     print(warrant.id)
+    return EXIT_OK
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    """One-shot: auto-capture a read-set from the files the claims reference, then
+    seal. Collapses `capture` + `seal` for the agent-claims workflow, where each
+    C3/C4/C5 checker already names the file it depends on. Seal is born-verifiable,
+    so exit 0 means every backed claim passed against the current sources; a failed
+    claim refuses the seal (exit 4) and writes nothing. C1 span claims bind a
+    read-set entry, not a file, and need explicit `capture` + `seal` (exit 2)."""
+    repo = _repo(args)
+    if _missing_repo(repo, "verify"):
+        return EXIT_USAGE
+    try:
+        artifact_uri = _artifact_uri(repo, args.artifact)
+        claims = claims_io.load_claims(Path(args.claims))
+        readset = parse_manual(referenced_paths(claims), repo)
+    except (ValueError, OSError, gitio.GitError) as exc:
+        print(f"dorian verify: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        warrant = seal_artifact(
+            repo,
+            artifact_uri,
+            readset,
+            claims,
+            supersede=args.supersede,
+            allow_restricted=args.allow_restricted,
+            no_quotes=args.no_quotes,
+        )
+    except ScopeViolation as exc:  # before SealError: scope refusal is exit 6, not 4
+        print(f"dorian verify: {exc}", file=sys.stderr)
+        return EXIT_SCOPE
+    except ScopeConfigError as exc:
+        print(f"dorian verify: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    except SealError as exc:
+        print(f"dorian verify: {exc}", file=sys.stderr)
+        return EXIT_REVOKED
+    backed = sum(1 for c in claims if c.backed)
+    print(warrant.id)
+    print(
+        f"verified {backed}/{len(claims)} claim(s) against current sources"
+        f" -> {artifact_uri}.warrant"
+    )
     return EXIT_OK
 
 

@@ -83,13 +83,13 @@ restate baseline with the same 7-run protocol: exact churn 0.187 → 0.029
 (gate 3/7 → 7/7 PASS; identical claim-text sets in 4/7 invocations, 15/21 run
 pairs vs 3/21). The gate criterion is met; unconditional run-identity is not yet
 (residual single-span selection jitter). See
-[`CHURN_BENCHMARK_v0.4.0.md`](CHURN_BENCHMARK_v0.4.0.md). A four-document
-battery ([`CHURN_BENCHMARK_v0.5.0.md`](CHURN_BENCHMARK_v0.5.0.md)) confirms a
+[`CHURN_BENCHMARK_v0.4.0.md`](../archive/CHURN_BENCHMARK_v0.4.0.md). A four-document
+battery ([`CHURN_BENCHMARK_v0.5.0.md`](../archive/CHURN_BENCHMARK_v0.5.0.md)) confirms a
 2–8× advantage on every document but shows the gate is length-bound: anchor
 passes only at ≤60 lines. Boundary snapping and consensus-of-k voting shipped
 in v0.6.0 (`--extract-consensus`), but the planted-truth gate built to judge
 them failed instrument calibration twice and was rejected by its own
-pre-registered rule ([`EXTRACT_GATE_RESULTS.md`](EXTRACT_GATE_RESULTS.md)) —
+pre-registered rule ([`EXTRACT_GATE_RESULTS.md`](../archive/EXTRACT_GATE_RESULTS.md)) —
 synthetic documents flatter extraction and cannot carry a promotion decision.
 The honest next instrument is metamorphic relations on REAL documents
 (invariance under filler/reorder; anchor-targeted deletion), pre-registered

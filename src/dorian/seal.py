@@ -138,6 +138,48 @@ def _c5_data_paths(form: str, rest: str) -> list[str]:
     return []
 
 
+def referenced_paths(claims: list[Claim]) -> list[str]:
+    """Repo-relative files the claims' C3/C4/C5 checkers read, in first-seen order.
+
+    This is the auto-captured read-set for `dorian verify`: every C3/C4/C5 program
+    names the file it depends on, so the read-set can be derived from the claims
+    alone (the same parsing `_derive_watch` uses to fill watch lists). A C1 span
+    checker binds a read-set ENTRY (its program is an entry id, not a path), so it
+    cannot be auto-captured — raise ValueError directing the caller to an explicit
+    `capture` + `seal`. A C5 `shell:` program likewise needs an explicit watch and is
+    rejected here for the same reason.
+    """
+    paths: list[str] = []
+
+    def add(p: str) -> None:
+        p = p.strip()
+        if p and p not in paths:
+            paths.append(p)
+
+    for claim in claims:
+        for spec in claim.checkers:
+            if spec.type == "C1":
+                raise ValueError(
+                    f"{claim.id}: C1 span claims bind a read-set entry, not a file; "
+                    "use `dorian capture` + `dorian seal` (verify auto-captures C3/C4/C5)"
+                )
+            prefix, _, rest = spec.program.partition(":")
+            if spec.type == "C3":
+                add(rest.partition("::")[0] if prefix in ("symbol", "string", "regex") else rest)
+            elif spec.type == "C4":
+                if prefix == "pytest":  # match _derive_watch; other C4 forms ERROR at seal
+                    add(rest.partition("::")[0])
+            elif spec.type == "C5":
+                if prefix == "shell":
+                    raise ValueError(
+                        f"{claim.id}: C5 shell checkers need an explicit watch and cannot be "
+                        "auto-captured; use `dorian seal` with a watch, or a typed C5 form"
+                    )
+                for path in _c5_data_paths(prefix, rest):
+                    add(path)
+    return paths
+
+
 def _derive_supports(claim: Claim, readset: ReadSet) -> Claim:
     """Bind the read-set entry a C5 snapshot program needs: snapshot:<path>
     ERRORs (no_support_entry) unless the claim supports-binds a read-set entry
@@ -169,6 +211,28 @@ def _supports(claim: Claim, readset: ReadSet) -> list[ReadSetEntry]:
         except KeyError:
             raise SealError(f"{claim.id}: unknown read-set entry {sid!r}") from None
     return entries
+
+
+def _existing_warrant(sidecar_path: Path) -> Warrant | None:
+    """The sidecar already on disk, if present and integrity-valid; else None (a missing
+    or corrupt sidecar is simply overwritten by a fresh seal)."""
+    if not sidecar_path.is_file():
+        return None
+    try:
+        return Warrant.load(sidecar_path)
+    except (IntegrityError, ValueError, KeyError, TypeError, OSError):
+        return None
+
+
+def _material(body: dict) -> dict:
+    """A warrant body with only the two per-run wall-clock stamps masked — `sealed_at`
+    and produced_by.captured_at — so two seals of otherwise-identical content compare
+    equal. Everything else (claims, read-set hashes, git ref, derives, supersede, ...)
+    stays in the comparison, so a real change is never masked into a no-op."""
+    masked = dict(body)
+    masked["sealed_at"] = ""
+    masked["produced_by"] = {**body["produced_by"], "captured_at": ""}
+    return masked
 
 
 def seal_artifact(
@@ -286,9 +350,18 @@ def seal_artifact(
         supersedes=supersede,
     )
     sidecar_path = warrant.sidecar_path(repo)
-    tmp_path = sidecar_path.with_name(sidecar_path.name + ".tmp")
-    warrant.dump(tmp_path)
-    os.replace(tmp_path, sidecar_path)
+
+    # idempotent re-seal: if a valid sidecar already records the same MATERIAL body
+    # (everything but the two per-run wall-clock stamps), keep its bytes + id so a
+    # re-run on unchanged content does not churn the committed sidecar; any real change
+    # re-seals. This makes `verify` safe to run repeatedly (pre-commit, CI).
+    existing = _existing_warrant(sidecar_path)
+    if existing is not None and _material(existing.body_dict()) == _material(warrant.body_dict()):
+        warrant = existing
+    else:
+        tmp_path = sidecar_path.with_name(sidecar_path.name + ".tmp")
+        warrant.dump(tmp_path)
+        os.replace(tmp_path, sidecar_path)
 
     conn = store.connect(repo)
     try:
@@ -297,7 +370,7 @@ def seal_artifact(
         # checkers just ran green, so backed claims are VERIFIED right now
         for claim in sealed_claims:
             state = "VERIFIED" if claim.backed else "UNBACKED"
-            store.set_claim_state(conn, warrant.id, claim.id, state, sealed_at)
+            store.set_claim_state(conn, warrant.id, claim.id, state, warrant.sealed_at)
         # with --allow-restricted the sealed event receipts the allowance
         store.append_event(
             conn,
