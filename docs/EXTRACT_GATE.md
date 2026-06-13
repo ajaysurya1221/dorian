@@ -13,11 +13,11 @@ separately and must reference this document.
 
 ## Why this gate exists
 
-The validation ladder's Level 1 requires owner ground-truth labels for the
+The validation ladder's Level 1 requires manual ground-truth labels for the
 *warrant-value* question (real-history staleness). The `--extract`
 promotion decision is narrower — stability, selection correctness, and
 non-fabrication of a *draft generator* — and those three properties are
-checkable without any human labels:
+checkable without any manual labels:
 
 - **Planted truth:** documents are generated *from* a known claim
   inventory, so which lines are checkable claims is ground truth by
@@ -132,8 +132,8 @@ and a v2 gate is pre-registered before any re-run.
 
 Synthetic documents are not a distributional guarantee for real documents
 (calibration detects "too easy", it cannot prove transfer); extraction
-*quality of judgment* (which claims are load-bearing) remains a human
+*quality of judgment* (which claims are load-bearing) remains a manual
 review step at seal time by design; and the end-to-end warrant-value claim
-on real history remains exactly as caveated in the README — owner-checked,
-model-adjudicated, private raw data. No result from this gate may be
-quoted as "human-verified" or as real-history performance.
+on real history is a research-preview figure on private repositories, not
+independent public proof. No result from this gate may be
+quoted as "externally verified" or as real-history performance.

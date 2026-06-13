@@ -19,7 +19,7 @@ Solo-feasible scope:
 - 1–2 public repos, frozen SHAs;
 - 2–4 artifacts total;
 - 5–10 **manual** claims per artifact (no `--extract`);
-- owner labels only, recorded next to the claims;
+- known-truth labels only, recorded next to the claims;
 - every artifact, claim, warrant, label, and score is publishable.
 
 Goal: **reproducibility, not final proof.** Anyone can re-run the harness on

@@ -21,7 +21,7 @@ judge the extractor.
 - **A pre-registered extraction gate** (`docs/EXTRACT_GATE.md`, pushed
   before any run): planted-truth documents, metamorphic transforms, and
   exact promotion/rejection/insufficient thresholds — designed to decide
-  `--extract`'s fate with zero human labels.
+  `--extract`'s fate with zero manual labels.
 - **The result** (`docs/EXTRACT_GATE_RESULTS.md`): the battery failed its
   instrument-calibration precondition twice — synthetic documents, even
   with compound multi-clause claims, do not reproduce the difficulty
@@ -49,7 +49,7 @@ wrong; the calibration precondition caught it twice and the pre-registered
 rule fired. The next instrument — metamorphic relations applied to real
 documents (extraction invariance under meaning-preserving edits;
 anchor-targeted deletion as a fabrication check) — needs no planted truth
-and no human labels, and will be pre-registered before any run.
+and no manual labels, and will be pre-registered before any run.
 
 ## Unchanged
 
@@ -57,7 +57,7 @@ The full local loop, checker families, trust-state folding, audit export,
 downstream recall, content-free sidecars, scope lint, the GitHub Action
 (trusted/internal repositories recommended), and every standing caveat —
 including: the headline benchmark result (32.40× / 0.89 recall) is
-owner-checked and model-adjudicated, not independent public proof.
+a research-preview figure on private repositories, not independent public proof.
 
 ## How to try it
 

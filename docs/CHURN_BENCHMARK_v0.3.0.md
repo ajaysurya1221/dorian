@@ -1,6 +1,6 @@
 # Extraction-churn benchmark — v0.3.0 (multi-run, blinded inputs)
 
-Seven isolated benchmark agents independently ran `dorian bench churn` on the
+Seven isolated benchmark runs independently executed `dorian bench churn` on the
 committed public demo document, and their verified results were aggregated.
 This measures how stable LLM claim extraction is across separate benchmark
 invocations — the property that currently keeps `--extract` experimental.
@@ -9,11 +9,11 @@ invocations — the property that currently keeps `--extract` experimental.
 
 - **Input:** a sanitized copy of `examples/demo-repo/docs/design.md` (the
   committed fictional public demo doc). Before any run, the claim set was
-  sanitized to remove any prior verdict/status tags (`owner-checked`) and
-  verified to contain none; each agent received its own byte-identical copy.
+  sanitized to remove any prior verdict/status tags and
+  verified to contain none; each run received its own byte-identical copy.
   Sanitized doc sha256 (the document is the claim-set source):
   `213409f36b91615cab028e460143f2ffa3a3c81e44d45565f5f3b85d5b200a6a`.
-- **Runner isolation:** 7 agents in fresh, isolated contexts; no shared
+- **Runner isolation:** 7 runs in fresh, isolated contexts; no shared
   state, no knowledge of each other or of the aggregation. Each ran the
   benchmark command exactly once.
 - **Per invocation:** 3 independent extraction runs (`claude-sonnet-4-6`,
@@ -26,7 +26,7 @@ invocations — the property that currently keeps `--extract` experimental.
 
 ## Results
 
-| agent | exact churn | fuzzy churn | claims/run | gate (< 0.20) |
+| run | exact churn | fuzzy churn | claims/run | gate (< 0.20) |
 |---|---:|---:|---|---|
 | 1 | 0.2072 | 0.0000 | 17, 17, 17 | FAIL |
 | 2 | 0.2826 | 0.0370 | 18, 18, 17 | FAIL |
@@ -60,12 +60,12 @@ Aggregates over the 7 valid runs (no outliers excluded):
   them differently run to run. Exact-match identity of claim text is what
   fails.
 - **Relation to earlier measurements:** the v0.0 compliant churn record in
-  [`KILL_REPORT_v0.0.md`](KILL_REPORT_v0.0.md) measured exact 0.49 / fuzzy
+  [`KILL_REPORT_v0.0.md`](../archive/KILL_REPORT_v0.0.md) measured exact 0.49 / fuzzy
   0.21 on a real (private, longer) document — substantially worse than this
   short structured demo doc, and the basis for the experimental status.
   This benchmark adds the run-to-run variance picture; it does not replace
   that result, and it does not change the experimental status.
 
-Raw per-agent outputs (`churn.json`, `dorian-churn-v1` schema) contain doc
+Raw per-run outputs (`churn.json`, `dorian-churn-v1` schema) contain doc
 basenames, counts, and distances only — no document content and no private
 material.

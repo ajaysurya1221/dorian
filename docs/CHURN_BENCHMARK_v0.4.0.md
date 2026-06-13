@@ -11,7 +11,7 @@ can. This benchmark measures whether that kills the instability documented in
 
 ## Method
 
-Identical protocol to the v0.3.0 baseline: 7 isolated benchmark agents, each
+Identical protocol to the v0.3.0 baseline: 7 isolated benchmark runs, each
 running `dorian bench churn` exactly once (3 independent extraction runs,
 `claude-sonnet-4-6`, temperature 0, cache disabled) on its own byte-identical
 copy of the same sanitized public demo doc (sha256
@@ -21,7 +21,7 @@ from the raw `churn.json` artifacts; 7/7 runs valid, none excluded.
 
 ## Results
 
-| agent | exact churn | claims/run | identical run pairs | gate (< 0.20) |
+| run | exact churn | claims/run | identical run pairs | gate (< 0.20) |
 |---|---:|---|---|---|
 | 1 | 0.0000 | 9, 9, 9 | 3/3 | PASS |
 | 2 | 0.0000 | 9, 9, 9 | 3/3 | PASS |
@@ -60,12 +60,12 @@ Side by side (same doc, same model, same protocol, n=7 invocations each):
 - **The honest trade-off: granularity.** Anchor claims are line-grained
   (~9/doc vs ~17 restated sub-claims): a line stating two facts stays one
   claim. Restate decomposes finer but cannot hold its wording still. Both
-  modes remain drafts for human review.
+  modes remain drafts for review.
 - **Scope of evidence:** one short, structured public document; selection
   stability on longer, messier documents is unmeasured. `--extract` stays
   **experimental and draft-only** in both modes; anchor mode is the
   documented path toward lifting that, not the lifting itself.
 
-Raw per-agent outputs (`dorian-churn-v1` schema, now with a `mode` field)
+Raw per-run outputs (`dorian-churn-v1` schema, now with a `mode` field)
 contain doc basenames, counts, and distances only — no document content and
 no private material.

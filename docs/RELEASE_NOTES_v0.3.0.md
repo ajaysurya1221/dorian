@@ -10,7 +10,7 @@ v0.2.0. It publishes the multi-run extraction-churn benchmark.
 
 ## What's new since v0.2.0
 
-- **`docs/CHURN_BENCHMARK_v0.3.0.md`** — seven isolated benchmark agents
+- **`docs/CHURN_BENCHMARK_v0.3.0.md`** — seven isolated benchmark runs
   independently ran the extraction-churn benchmark (21 fresh temperature-0
   extraction runs on a hash-pinned, sanitized copy of the public demo doc;
   every reported number recomputed from raw artifacts; 7/7 valid runs, none
@@ -47,8 +47,8 @@ measure extraction churn on your own documents with `dorian bench churn`.
 
 Unchanged from v0.2.0 (see `docs/RELEASE_NOTES_v0.2.0.md` and
 `docs/RELEASE_VALIDATION_REPORT_v0.2.0.md`): R&D stage; the headline
-benchmark result (32.40× / 0.89 recall) is owner-checked and
-model-adjudicated, not independent public proof; Action security caveats
+benchmark result (32.40× / 0.89 recall) is a research-preview figure on
+private repositories, not independent public proof; Action security caveats
 apply; `--extract` is experimental and draft-only — now with multi-run
 variance data to show why.
 

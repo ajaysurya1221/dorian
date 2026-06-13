@@ -30,7 +30,7 @@ commands:
     malformed (valid-JSON, wrong-shape) read-set file -> usage exit 2;
     corrupt sidecar anywhere -> status/sync print a message and exit 4, never a
     traceback; `seal --extract` refuses to overwrite an existing claims.json
-    (exit 2) so re-extraction cannot clobber a human review
+    (exit 2) so re-extraction cannot clobber a manual review
 """
 
 from __future__ import annotations
@@ -666,14 +666,14 @@ def test_cmd_seal_extract_refuses_to_overwrite_claims(
     fixture_repo: Path, tmp_path: Path, capsys, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Re-running --extract with a claims.json already next to the artifact must
-    refuse (exit 2) rather than clobber the human review the file embodies."""
+    refuse (exit 2) rather than clobber the manual review the file embodies."""
     rs_path, _ = _seal_setup(fixture_repo, tmp_path)
     stub = tmp_path / "stub-claims.json"
     claims_io.save_claims(stub, make_claims())
     monkeypatch.setenv("DORIAN_EXTRACT_STUB", str(stub))
     reviewed = fixture_repo / "docs/claims.json"
     claims_io.save_claims(
-        reviewed, [Claim(id="c9", text="human-reviewed", kind="fact", load_bearing=False)]
+        reviewed, [Claim(id="c9", text="manually-reviewed", kind="fact", load_bearing=False)]
     )
     edited = reviewed.read_text()
     args = _ns(
@@ -687,7 +687,7 @@ def test_cmd_seal_extract_refuses_to_overwrite_claims(
     )
     assert commands.cmd_seal(args) == 2
     assert "claims.json" in capsys.readouterr().err
-    assert reviewed.read_text() == edited  # human edits preserved
+    assert reviewed.read_text() == edited  # manual edits preserved
     assert not (fixture_repo / "docs/design.md.warrant").exists()
 
 

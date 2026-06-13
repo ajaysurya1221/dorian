@@ -1,5 +1,12 @@
 # dorian v0.0 gate verdict — day 15
 
+> **ARCHIVED / SUPERSEDED — HISTORICAL RECORD, NOT CURRENT EVIDENCE.** This v0.0
+> R&D record describes an early benchmark whose labels were produced by a review
+> process that the project no longer presents as evidence. It is retained only as
+> development history. The current public benchmark is the controlled-mutation
+> benchmark with known-truth labels: see `docs/BENCHMARK_v0.6.0.md`. Nothing in
+> this file is cited by the README or used to support any current claim.
+
 > **ADDENDUM (2026-06-12, ring 1) — panel-only numbers below are SUPERSEDED for public
 > use.** The owner spot-check this report names as a publication precondition (see "GO
 > carries two conditions" below) is complete: 72 of 201 panel-labeled pairs reviewed,

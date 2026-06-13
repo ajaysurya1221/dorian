@@ -15,7 +15,7 @@ This is the v0.7.0 promotion/rejection instrument for `--extract`, replacing
 the planted-truth gate that was rejected by its own calibration rule
 ([`EXTRACT_GATE_RESULTS.md`](EXTRACT_GATE_RESULTS.md)). It applies
 metamorphic relations to **real, committed documents**: no planted truth, no
-human labels, no LLM judge. An LLM appears only as the system under test;
+manual labels, no LLM scorer. An LLM appears only as the system under test;
 every verdict input is a deterministic computation over extraction outputs.
 
 ## Why this gate, after v0.6.0
@@ -27,13 +27,13 @@ compare the extractor **with itself** across meaning-preserving (or
 claim-killing) edits of the *same real document*, so the measurement happens
 at real-document difficulty by construction. The price is scope: a
 metamorphic gate can validate **stability, edit-invariance, and
-non-fabrication**. It cannot validate human judgment.
+non-fabrication**. It cannot validate authoring judgment.
 
 **This gate can validate only that `--extract` is a stable, invariant,
 non-fabricating draft generator on the tested documents. It cannot validate
-which claims are important, whether coverage is complete, or whether a human
+which claims are important, whether coverage is complete, or whether an author
 would have selected the same claims. Extracted claims remain drafts for
-human review at seal time regardless of the verdict.**
+manual review at seal time regardless of the verdict.**
 
 ## Systems under test
 
@@ -249,7 +249,7 @@ Outcome: the passing SUT is promoted from "experimental" to **"supported
 draft generator under the tested real-document metamorphic relations"** —
 with the published wording stating exactly that, and explicitly **not**
 "correct automatic claim extractor", not "complete coverage", not "safe to
-auto-seal", not "human review no longer needed". If both SUTs pass, the
+auto-seal", not "manual review no longer needed". If both SUTs pass, the
 documented default becomes the one with lower long-tier boundary-normalized
 churn (tie → incumbent); the other remains available with its measured
 numbers.
@@ -322,16 +322,16 @@ incomplete evidence).
 ## What this gate cannot prove (non-claims)
 
 - **Not claim importance, not coverage.** A stable extractor can stably
-  select unhelpful spans; importance judgment stays with the human at
+  select unhelpful spans; importance judgment stays with the author at
   claims.json review, by design.
-- **Not real-history warrant value.** That remains exactly as caveated in
-  the README (owner-checked v0.0 gate, model-adjudicated labels).
+- **Not real-history warrant value.** That remains a research-preview figure
+  on private repositories, not independent public proof.
 - **Not distributional generality.** 22 documents from one repository, one
   model, R = 3 (3 pairs per document; tier means pool 9–33 pairs). The
   reorder safety check is a conservative lexical heuristic; documents it
   cannot clear are untestable, not evidence.
 - **Not "the model cannot hallucinate"** — see the deletion-oracle honesty
   note.
-- No number from this gate may be quoted as human-verified, as recall
+- No number from this gate may be quoted as externally verified, as recall
   against true claims, or as planted-battery performance; planted documents
   remain test infrastructure only.

@@ -10,7 +10,7 @@ can be tried, broken, and measured in the open.
 
 ## What it is
 
-When an AI agent writes a document — a design doc, a plan, a report — the
+When an AI assistant writes a document — a design doc, a plan, a report — the
 document may be correct today and silently wrong next month, because the
 code, schemas, configs, prompts, or data it described keep changing while
 the document does not. `dorian` attaches a `.warrant` sidecar to the
@@ -58,9 +58,9 @@ benchmark runs with `make bench`; the full test suite with `make test`.
   is versioned (`spec_version: 0.1`) but not frozen.
 - **Benchmark evidence is promising, not public proof.** The headline result
   (32.40× fewer false-positive staleness alarms than file-hash watching at
-  0.89 recall) comes from an owner-checked, model-adjudicated benchmark
-  whose raw artifacts are private; public summaries are aggregate-only. A
-  fully public, reproducible micro-benchmark is the next evidence step —
+  0.89 recall) is a research-preview figure on private repositories, not
+  independent public proof. A fully public, reproducible micro-benchmark is
+  the next evidence step —
   see `docs/SOLO_VALIDATION_LADDER.md`.
 - **GitHub Action security.** Checker specs in `.warrant` files are
   executable. Do not run checker specs from untrusted pull requests; the
@@ -69,7 +69,7 @@ benchmark runs with `make bench`; the full test suite with `make test`.
   `action/README.md`.
 - **`--extract` is experimental and draft-only.** Measured extraction churn
   fails its stability gate (the model selects a different claim subset per
-  run), so extracted claims are drafts for human review, never stable
+  run), so extracted claims are drafts for review, never stable
   warrant inputs. Manual or reviewed claims are the supported workflow.
 
 ## Next steps

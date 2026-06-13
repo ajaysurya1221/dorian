@@ -81,7 +81,7 @@ cannot handle claim-dense long documents in a single call.
    cite planted-battery numbers.
 3. **The honest label-free path forward** (named, not built; requires its
    own pre-registration before any run): metamorphic relations applied to
-   **real** documents, which need no planted truth and no human labels —
+   **real** documents, which need no planted truth and no manual labels —
    (i) extraction invariance under filler-insert and section-reorder on
    real documents (compare extractions before/after a meaning-preserving
    edit; no ground truth needed), and (ii) anchor-targeted deletion (delete
@@ -90,7 +90,7 @@ cannot handle claim-dense long documents in a single call.
    operate at real-document difficulty by construction, eliminating the
    transfer problem that killed this gate.
 
-No number in this document is human-verified, and none may be quoted as
+No number in this document is externally verified, and none may be quoted as
 real-history extraction performance; raw per-document calibration artifacts
 are local-only, with aggregates reproducible from `bench/plant.py` seeds
 (1–5 per tier) and the commands in `EXTRACT_GATE.md`.

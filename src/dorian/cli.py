@@ -123,7 +123,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("sync", help="rebuild the index from sidecars")
 
-    bench = sub.add_parser("bench", help="repo-local benchmark tooling (owner spot-check)")
+    bench = sub.add_parser("bench", help="repo-local benchmark tooling (mutation, churn)")
     bench.add_argument("rest", nargs=argparse.REMAINDER)
     return p
 
