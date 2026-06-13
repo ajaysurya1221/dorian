@@ -17,7 +17,18 @@ This page is the authoring companion to two references it deliberately does **no
 duplicate (a second copy would be exactly the drift dorian exists to catch):
 
 - [`spec/checkers.md`](../spec/checkers.md) — the authoritative checker grammar.
-- [`spec/warrant.schema.json`](../spec/warrant.schema.json) — the sidecar JSON schema.
+- [`spec/warrant.schema.json`](../spec/warrant.schema.json) — the sealed-sidecar JSON schema
+  (every claim serializes `checkers`, even when empty, so its required set is not the
+  authoring-input set below).
+
+> ⚠️ **Checker programs are executable.** `dorian verify` *runs* every checker at seal time, on
+> the machine you run it on. C3 and typed C5 only inspect files — but **C4 (`pytest:`) and C5
+> `shell:` execute code**: pytest collection imports the target module and any `conftest.py`, and
+> `shell:` runs its command. Review an agent-emitted `claims.json` exactly as you would review
+> agent-emitted code, and never run `verify` on claims from an untrusted source.
+> `[tool.dorian.scopes]` restricts which files a claim may *name*, not what an executed checker may
+> read or write — it is not a sandbox. See the Action's
+> [security notes](../action/README.md#security-checker-execution-and-untrusted-pull-requests).
 
 ## 1. The `claims.json` shape
 
@@ -51,7 +62,7 @@ Each claim has **four required fields** and three optional ones:
 
 `kind` and `load_bearing` are **not** defaulted, on purpose: `load_bearing` changes what
 a future break *does*, so you must decide it per claim (§2), and `kind` records intent for
-`dorian report`/`bindings`. Omitting any required field is a hard error naming the claim.
+`dorian report`/`bindings`. Omitting any required field is a hard error identifying the offending claim by its position in the list.
 
 ## 2. `load_bearing`: loud vs quiet
 
@@ -90,9 +101,9 @@ in prose.
 | "function/class `X` exists" | `C3 symbol:<file>::X` | `C3 string:<file>::def X` | `symbol:` survives reformatting, decorators, `async def`; `string:` breaks on `def  X` and false-passes on a mention in a comment. |
 | "`TIMEOUT` is 30" / any value | `C3 regex:<file>::TIMEOUT\s*=\s*30\b` | `C3 string:<file>::TIMEOUT = 30` | `regex:` tolerates spacing — but **anchor BOTH key and value**: a bare `TIMEOUT` regex still passes after the value changes (a silent false pass). |
 | "config key / identifier present" | `C3 regex:` anchored to the key | `C3 string:` of a short literal | literals < 6 chars near-match everything (flagged `short-literal`); a bare string also survives if it lives only in a comment. |
-| "tests for `X` pass" | `C4 pytest:<file>::<nodeid>` | `C3 string:` of an assert line | `C4` actually runs the test and tells `test_gone` (FAIL) from infra (ERROR); a string only proves text exists. |
+| "tests for `X` pass" | `C4 pytest:<file>::<test>` | `C3 string:` of an assert line | `C4` actually runs the test and tells `test_gone` (FAIL) from infra (ERROR); a string only proves text exists. |
 | "file/path exists" | `C3 path:<repo/path>` | a regex on a sibling file | `path:` is existence, rename-resolved. |
-| "table has column / rowcount / domain / freshness" | typed `C5` (`schema:`/`rowcount:`/`domain:`/`freshness:`/`nullrate:`) | `C5 shell:'grep … data.csv'` | typed `C5` parses the data, has the no-rows vacuous-truth guard, and auto-derives its watch; `shell:` is opaque and needs explicit `watch` + `expect`. |
+| "table has column / rowcount / domain / freshness" | typed `C5` (`schema:`/`rowcount:`/`domain:`/`freshness:`/`nullrate:`) | `C5 shell:'grep … data.csv'` | typed `C5` parses the data and auto-derives its watch; `nullrate`/`domain`/`freshness` add a no-rows vacuous-truth guard (an empty dataset can't support the claim), while `rowcount`/`schema` do not — bound those deliberately; `shell:` is opaque and needs explicit `watch` + `expect`. |
 | "this exact data file is unchanged" | `C5 snapshot:<path>` | a C1 span on data | `snapshot:` is a content hash. |
 | "this prose span is unchanged" | `C1` span — **`capture` + `seal`, not `verify`** | `string:` of a paragraph | `C1` hashes the span and follows relocation; `verify` rejects C1 (exit 2). |
 
@@ -105,7 +116,7 @@ ignores `timeout_s`, and a backtracking pattern can stall `revalidate`.
 The authoritative grammar is [`spec/checkers.md`](../spec/checkers.md). In brief:
 
 - **C3** — `path:<p>` · `symbol:<file>::<name>` · `string:<file>::<literal>` · `regex:<file>::<pattern>`
-- **C4** — `pytest:<file>::<nodeid>`
+- **C4** — `pytest:<nodeid>` (a nodeid is `file::test`)
 - **C5** — `rowcount:<f>::<op><n>` · `schema:<f>::c1,c2` · `nullrate:<f>::<col>::<op><x>` · `domain:<f>::<col>::{a,b}` · `freshness:<f>::<col>::>= <ISO>` · `snapshot:<f>` · `reconcile:<A>~~<B>` · `shell:<cmd>` (needs explicit `watch` + `expect`)
 - **C1** — a span anchor; its `program` is a read-set entry id. **Not** auto-capturable by `verify`.
 
@@ -128,8 +139,9 @@ subjective quality, future intentions. Those belong in prose, not a warrant.
 - **C1 span claims cannot go through `verify`** (`referenced_paths` raises, exit 2) — they
   need explicit `dorian capture` + `dorian seal`. Do not put C1 in a verify-targeted
   `claims.json`.
-- **`C5 shell:<cmd>`** needs an explicit `watch` list (and `expect`) or the seal refuses.
-  Prefer typed C5 forms, whose `watch` auto-derives.
+- **`C5 shell:<cmd>`** cannot be auto-captured by `verify` (it needs an explicit `watch`):
+  `verify` rejects it with exit 2. Use `dorian seal` with an explicit `watch`, or prefer typed
+  C5 forms, whose `watch` auto-derives.
 
 ## 9. Emit-time self-check
 
@@ -178,7 +190,7 @@ find out.
 | exit | meaning |
 |---|---|
 | `0` | sealed; every backed claim held against current sources |
-| `2` | usage — bad JSON, a C1 claim in `verify`, a referenced file missing, artifact outside the repo |
+| `2` | usage — bad JSON, a C1 or C5 `shell:` claim in `verify`, a referenced file missing, artifact outside the repo |
 | `4` | a claim is false (`FAILED_AT_SEAL`) or its checker could not run (`ERRORED_AT_SEAL`); **nothing written** |
 | `6` | a referenced file matches a `[tool.dorian.scopes]` restricted glob without `--allow-restricted` |
 

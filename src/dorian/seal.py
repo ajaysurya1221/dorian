@@ -146,7 +146,8 @@ def referenced_paths(claims: list[Claim]) -> list[str]:
     alone (the same parsing `_derive_watch` uses to fill watch lists). A C1 span
     checker binds a read-set ENTRY (its program is an entry id, not a path), so it
     cannot be auto-captured — raise ValueError directing the caller to an explicit
-    `capture` + `seal`.
+    `capture` + `seal`. A C5 `shell:` program likewise needs an explicit watch and is
+    rejected here for the same reason.
     """
     paths: list[str] = []
 
@@ -166,8 +167,14 @@ def referenced_paths(claims: list[Claim]) -> list[str]:
             if spec.type == "C3":
                 add(rest.partition("::")[0] if prefix in ("symbol", "string", "regex") else rest)
             elif spec.type == "C4":
-                add(rest.partition("::")[0])
+                if prefix == "pytest":  # match _derive_watch; other C4 forms ERROR at seal
+                    add(rest.partition("::")[0])
             elif spec.type == "C5":
+                if prefix == "shell":
+                    raise ValueError(
+                        f"{claim.id}: C5 shell checkers need an explicit watch and cannot be "
+                        "auto-captured; use `dorian seal` with a watch, or a typed C5 form"
+                    )
                 for path in _c5_data_paths(prefix, rest):
                     add(path)
     return paths

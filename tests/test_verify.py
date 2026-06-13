@@ -13,6 +13,7 @@ from pathlib import Path
 
 from dorian import claims_io, cli, store
 from dorian.model import CheckerSpec, Claim
+from dorian.seal import referenced_paths
 
 
 def _claim(cid: str, text: str, spec: CheckerSpec, *, kind: str = "reference") -> Claim:
@@ -150,3 +151,88 @@ def test_verify_unbacked_claim_seals_green(fixture_repo: Path, capsys) -> None:
     assert rc == 0
     assert "verified 0/1 claim(s)" in capsys.readouterr().out
     assert (fixture_repo / "docs/design.md.warrant").is_file()
+
+
+def test_verify_missing_referenced_file_is_exit_2(fixture_repo: Path, capsys) -> None:
+    claims = [
+        _claim(
+            "gone",
+            "A symbol lives in a file that does not exist.",
+            CheckerSpec(type="C3", program="string:src/does_not_exist.py::foo"),
+        ),
+    ]
+    path = _write_claims(fixture_repo, claims)
+
+    rc = cli.main(["--repo", str(fixture_repo), "verify", "docs/design.md", "--claims", str(path)])
+
+    assert rc == 2  # EXIT_USAGE: the read-set cannot be captured for a missing file
+    assert not (fixture_repo / "docs/design.md.warrant").exists()
+    assert "does_not_exist" in capsys.readouterr().err
+
+
+def test_verify_rejects_c5_shell_claims(fixture_repo: Path, capsys) -> None:
+    claims = [
+        _claim(
+            "shell",
+            "The lots file has rows (checked via shell).",
+            CheckerSpec(type="C5", program="shell:wc -l data/lots.csv"),
+        ),
+    ]
+    path = _write_claims(fixture_repo, claims)
+
+    rc = cli.main(["--repo", str(fixture_repo), "verify", "docs/design.md", "--claims", str(path)])
+
+    assert rc == 2  # EXIT_USAGE: shell C5 needs an explicit watch; verify can't auto-capture it
+    assert not (fixture_repo / "docs/design.md.warrant").exists()
+    assert "shell" in capsys.readouterr().err
+
+
+def test_verify_restricted_readset_is_exit_6_then_allow(fixture_repo: Path, capsys) -> None:
+    (fixture_repo / "pyproject.toml").write_text(
+        '[tool.dorian.scopes]\nrestricted = ["data/lots.csv"]\n'
+    )
+    claims = [
+        _claim(
+            "lots-rows",
+            "The lots dataset has 4 rows.",
+            CheckerSpec(type="C5", program="rowcount:data/lots.csv::== 4"),
+            kind="quantity",
+        ),
+    ]
+    path = _write_claims(fixture_repo, claims)
+    base = ["--repo", str(fixture_repo), "verify", "docs/design.md", "--claims", str(path)]
+
+    assert cli.main(base) == 6  # EXIT_SCOPE: a restricted file is in the auto-captured read-set
+    assert not (fixture_repo / "docs/design.md.warrant").exists()
+    capsys.readouterr()
+
+    assert cli.main([*base, "--allow-restricted"]) == 0
+    assert (fixture_repo / "docs/design.md.warrant").is_file()
+
+
+def test_referenced_paths_extracts_c4_and_reconcile_paths() -> None:
+    # pins seal.referenced_paths' C4 (pytest nodeid -> file) and C5 reconcile (two sides),
+    # and that a non-pytest C4 form contributes nothing (matching _derive_watch).
+    def claim(cid: str, program: str, ctype: str = "C3") -> Claim:
+        return Claim(
+            id=cid,
+            text="x",
+            kind="fact",
+            load_bearing=False,
+            checkers=(CheckerSpec(type=ctype, program=program),),
+        )
+
+    assert referenced_paths([claim("a", "pytest:tests/test_x.py::test_a", "C4")]) == [
+        "tests/test_x.py"
+    ]
+    assert referenced_paths(
+        [claim("b", "reconcile:csv:data/a.csv~~sqlite:data/b.db::SELECT 1", "C5")]
+    ) == ["data/a.csv", "data/b.db"]
+    assert referenced_paths([claim("c", "unittest:tests/x.py::t", "C4")]) == []
+    assert referenced_paths(
+        [
+            claim("d", "symbol:src/a.py::f"),
+            claim("e", "string:src/a.py::lit"),
+            claim("f", "path:src/b.py"),
+        ]
+    ) == ["src/a.py", "src/b.py"]
