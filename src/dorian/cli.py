@@ -10,6 +10,8 @@ from __future__ import annotations
 import argparse
 import sys
 
+from dorian import __version__
+
 EXIT_OK = 0
 EXIT_USAGE = 2
 EXIT_DEGRADED = 3
@@ -21,9 +23,10 @@ EXIT_SCOPE = 6
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="dorian",
-        description="Validity warrants for AI-generated artifacts: "
-        "your doc still looks perfect; its portrait doesn't.",
+        description="Hold AI agents to what they said they did: deterministic, "
+        "token-free verification of the claims a change makes about its sources.",
     )
+    p.add_argument("--version", action="version", version=f"dorian {__version__}")
     p.add_argument("--repo", default=".", help="repository root (default: .)")
     p.add_argument("--json", action="store_true", help="machine-readable output")
     sub = p.add_subparsers(dest="command", required=True)
@@ -84,6 +87,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     vf.add_argument("artifact")
     vf.add_argument("--claims", required=True, help="claims.json (agent-emitted or hand-written)")
+    vf.add_argument(
+        "--supersede",
+        help="warrant id being superseded; keeps downstream warrants sealed against"
+        " the old id reachable by blast/recall",
+    )
     vf.add_argument(
         "--allow-restricted",
         action="store_true",

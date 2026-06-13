@@ -9,6 +9,7 @@ are rejected (exit 2) with a pointer to explicit capture + seal.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from dorian import claims_io, cli, store
@@ -236,3 +237,22 @@ def test_referenced_paths_extracts_c4_and_reconcile_paths() -> None:
             claim("f", "path:src/b.py"),
         ]
     ) == ["src/a.py", "src/b.py"]
+
+
+def test_verify_supersede_records_old_warrant_id(fixture_repo: Path) -> None:
+    # --supersede flows through verify to the sealed warrant, so an agent-claims re-seal
+    # preserves the lineage that downstream warrants' derives_from edges point at.
+    claims = [
+        _claim(
+            "login-route",
+            "Login is served at /v1/login.",
+            CheckerSpec(type="C3", program="string:src/routes.py::/v1/login"),
+        )
+    ]
+    path = _write_claims(fixture_repo, claims)
+    old_id = "sha256:" + ("0" * 64)
+    base = ["--repo", str(fixture_repo), "verify", "docs/design.md", "--claims", str(path)]
+    rc = cli.main([*base, "--supersede", old_id])
+    assert rc == 0
+    sidecar = json.loads((fixture_repo / "docs/design.md.warrant").read_text(encoding="utf-8"))
+    assert sidecar["warrant"]["supersedes"] == old_id

@@ -1,4 +1,4 @@
-.PHONY: install lint test bench bench-mutation bench-large-mutation demo
+.PHONY: install lint fmt test test-fast coverage bench bench-mutation bench-large-mutation demo
 
 install:
 	uv sync
@@ -13,6 +13,13 @@ fmt:
 
 test:
 	uv run pytest
+
+# fast iteration gate: skips benchmark runs, wheel build, and pytest-subprocess checks
+test-fast:
+	uv run pytest -m "not slow"
+
+coverage:
+	uv run pytest --cov=dorian --cov-report=term-missing --cov-report=html
 
 bench:
 	uv run python -m bench.replay --config bench/repos.json

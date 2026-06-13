@@ -5,6 +5,8 @@ dist/
 .warrant/index.sqlite
 .pytest_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 bench/workspace/
 bench/cache/
 .claims_cache/

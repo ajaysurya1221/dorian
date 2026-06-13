@@ -15,6 +15,10 @@ from pathlib import Path
 
 import pytest
 
+# Heavy: the module fixture runs the full benchmark (and the determinism test runs
+# it twice). Keep it out of the fast gate; the full `make test` still runs it.
+pytestmark = pytest.mark.slow
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:  # bench/ is a repo-root package, not installed
     sys.path.insert(0, str(REPO_ROOT))

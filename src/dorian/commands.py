@@ -192,6 +192,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
             artifact_uri,
             readset,
             claims,
+            supersede=args.supersede,
             allow_restricted=args.allow_restricted,
             no_quotes=args.no_quotes,
         )
