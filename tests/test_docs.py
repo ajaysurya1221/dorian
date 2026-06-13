@@ -64,6 +64,7 @@ def test_readme_documents_the_ring1_surface() -> None:
         "--allow-restricted",
         "action/",
         "bench mutation",
+        "bench large-mutation",
         "spec/checkers.md",
     ):
         assert needle in text, f"README must mention {needle!r}"

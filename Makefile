@@ -1,4 +1,4 @@
-.PHONY: install lint test bench bench-mutation demo
+.PHONY: install lint test bench bench-mutation bench-large-mutation demo
 
 install:
 	uv sync
@@ -21,6 +21,9 @@ bench:
 
 bench-mutation:
 	uv run python -m bench.controlled_mutation --md-out bench/results/BENCHMARK_v0.6.0.md
+
+bench-large-mutation:
+	uv run python -m bench.large_mutation --md-out docs/BENCHMARK_v0.7.0.md
 
 demo:
 	@echo "the example repo is on the roadmap; see the Roadmap section in README.md"

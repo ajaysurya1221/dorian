@@ -104,18 +104,21 @@ constantly — refactors, formatting, comments, adjacent features — and most o
 changes don't falsify anything the artifact says. `dorian` checks **claims**, not just
 files: an alarm means a specific sentence stopped being true.
 
-On the v0.6.0 controlled-mutation benchmark — 41 (artifact, mutation) pairs over a single
-invented, synthetic fixture, 9 claims, with **known-truth** labels (each label is a
-mechanical consequence of the edit, not a review judgment) — claim-level revalidation
-flagged broken claims at precision **0.76** / recall **0.84**, versus a naive file-change
-watcher at precision **0.49** / recall 1.00 and a stronger line-aware watcher at precision
-**0.56** / recall 1.00. That is a **4.0x false-positive reduction** versus the naive watcher
-(20 → 5 false alarms) and **3.0x** versus the line-aware one (15 → 5) — at a recall cost from
-substring-checker misses the benchmark records honestly.
+On the v0.7.0 large controlled-mutation benchmark — 240 (artifact, mutation) pairs over six
+invented, synthetic fixture domains (Python/CSV/JSON/YAML/package-metadata/SQL), 16 warranted
+artifacts, 53 claims, with **known-truth** labels (each label is a mechanical consequence of
+the edit, not a review judgment) — claim-level revalidation flagged broken claims at precision
+**0.93** / recall **0.93**, versus three file-change watchers all at recall 1.00 but precision
+**0.34** (naive), **0.56** (path-scope), and **0.59** (line-aware). That is a **11.6x
+false-positive reduction** versus the path-scope watcher (58 → 5 false alarms) and **10.4x**
+versus the stronger line-aware watcher (52 → 5) — at a recall cost from substring-scan misses
+the benchmark records honestly. (The baselines hit recall 1.00 by construction here; the
+meaningful axis is their precision.)
 
-These numbers describe one synthetic fixture, not your repository, and are not a universal
-performance claim. See [`docs/BENCHMARK_v0.6.0.md`](docs/BENCHMARK_v0.6.0.md); reproduce with
-`dorian bench mutation`, and measure your own repos with the harness in `bench/`.
+These numbers describe a synthetic fixture suite, not your repository, and are not a universal
+performance claim. See [`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md) (protocol:
+[`docs/BENCHMARK_PROTOCOL_v0.7.0.md`](docs/BENCHMARK_PROTOCOL_v0.7.0.md)); reproduce with
+`dorian bench large-mutation`, and measure your own repos with the harness in `bench/`.
 
 ## How it works
 
@@ -232,10 +235,11 @@ C3 path/symbol/string/regex, C4 `pytest:<nodeid>`, C5 typed data forms) are docu
 - Seal-time scope lint: `[tool.dorian.scopes] restricted = [globs]` in the *target*
   repo's pyproject.toml refuses to seal read-sets touching restricted paths (exit 6);
   `--allow-restricted` overrides and is receipted in the sealed event.
-- `dorian bench mutation` — the controlled-mutation benchmark: a numbers-only aggregate
-  summary comparing claim-level revalidation against file-change watchers on known-truth
-  edits ([`docs/BENCHMARK_v0.6.0.md`](docs/BENCHMARK_v0.6.0.md)). `dorian bench churn`
-  measures extraction stability.
+- `dorian bench large-mutation` — the v0.7.0 controlled-mutation benchmark: a numbers-only
+  aggregate + stratified summary comparing claim-level revalidation against three file-change
+  watchers on known-truth edits across six fixture domains
+  ([`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md)). `dorian bench mutation` is the
+  earlier, smaller v0.6.0 benchmark; `dorian bench churn` measures extraction stability.
 
 Exit codes: `0` ok/TRUSTED · `2` usage/infra · `3` DEGRADED · `4` REVOKED/integrity ·
 `5` ERRORED-only (checkers could not run — never conflated with broken) · `6` scope
@@ -297,10 +301,10 @@ artifacts *after they exist* and revalidates their claims over time.
 
 ## Roadmap
 
-- **A public benchmark on real repositories** — the v0.6.0 controlled-mutation benchmark
-  ([`docs/BENCHMARK_v0.6.0.md`](docs/BENCHMARK_v0.6.0.md)) demonstrates the mechanism on a
-  synthetic fixture; the next step extends it to frozen public repository SHAs with manual
-  claims and reproducible known-truth labels
+- **A public benchmark on real repositories** — the v0.7.0 large controlled-mutation
+  benchmark ([`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md)) demonstrates the
+  mechanism across six synthetic fixture domains; the next step extends it to frozen public
+  repository SHAs with manual claims and reproducible known-truth labels
   ([`docs/SOLO_VALIDATION_LADDER.md`](docs/SOLO_VALIDATION_LADDER.md)).
 - **Extraction promotion or rejection by the real-document metamorphic gate** —
   pre-registered in [`docs/REAL_DOC_METAMORPHIC_GATE.md`](docs/REAL_DOC_METAMORPHIC_GATE.md):

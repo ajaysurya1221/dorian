@@ -371,6 +371,7 @@ def cmd_report(args: argparse.Namespace) -> int:
 # Single-purpose modules get the remaining argv only (no token to re-parse).
 _BENCH_DISPATCH: dict[str, tuple[str, bool]] = {
     "mutation": ("bench.controlled_mutation", False),
+    "large-mutation": ("bench.large_mutation", False),
     "churn": ("bench.churn", False),
 }
 
