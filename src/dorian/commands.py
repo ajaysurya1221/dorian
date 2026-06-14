@@ -29,7 +29,7 @@ from dorian.capture.manual import parse_manual
 from dorian.capture.transcript import parse_transcript
 from dorian.cli import EXIT_DEGRADED, EXIT_OK, EXIT_REVOKED, EXIT_SCOPE, EXIT_USAGE
 from dorian.extract import ExtractUnavailable, extract_claims, extract_claims_consensus
-from dorian.model import IntegrityError, ReadSet, sha256_hex
+from dorian.model import IntegrityError, ReadSet, Warrant, sha256_hex
 from dorian.report import audit_lines, report_events, report_since
 from dorian.revalidate import ChangedPathsError, render_json, render_md, render_text, revalidate
 from dorian.seal import ScopeConfigError, ScopeViolation, SealError, referenced_paths, seal_artifact
@@ -414,6 +414,60 @@ def cmd_bind_suggest(args: argparse.Namespace) -> int:
         for sym, files in sorted(s["ambiguous"].items()):
             print(f"{s['claim_id']}  ambiguous: {sym} ({len(files)} definers, unbound)")
     print(f"{len(suggestions)} claim(s) with binding suggestions")
+    return EXIT_OK
+
+
+def cmd_rebind(args: argparse.Namespace) -> int:
+    """Re-derive a warrant's symbol-definer watches with the CURRENT binding logic and
+    re-seal it (born-verifiable, superseding the old id) — upgrading a warrant sealed
+    before the symbol index existed so a future change to a mentioned symbol's defining
+    file re-checks the claim. Re-runs every checker, so a claim that has SINCE become
+    false refuses the re-seal (exit 4) and is never laundered into a fresh TRUSTED. The
+    watch only ever widens (existing watches are kept). C1 span claims bind a read-set
+    entry, not a file, and are not auto-rebindable (exit 2)."""
+    repo = _repo(args)
+    if _missing_repo(repo, "rebind"):
+        return EXIT_USAGE
+    try:
+        uri = _artifact_uri(repo, args.artifact)
+    except ValueError as exc:
+        print(f"dorian rebind: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    sidecar = repo / (uri + ".warrant")
+    if not sidecar.is_file():
+        print(f"dorian rebind: no warrant sidecar for {uri}", file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        old = Warrant.load(sidecar)
+    except _SIDECAR_ERRORS as exc:
+        print(f"dorian rebind: corrupt warrant sidecar: {exc}", file=sys.stderr)
+        return EXIT_REVOKED
+    claims = list(old.claims)
+    try:
+        paths = referenced_paths(claims)
+        symbol_watch = symbol_index.claim_symbol_watch_paths(repo, claims)
+        for path in sorted({p for ps in symbol_watch.values() for p in ps}):
+            if path not in paths:
+                paths.append(path)
+        readset = parse_manual(paths, repo)
+    except (ValueError, OSError, gitio.GitError) as exc:
+        print(f"dorian rebind: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        warrant = seal_artifact(
+            repo, uri, readset, claims, supersede=old.id, extra_watch=symbol_watch
+        )
+    except ScopeViolation as exc:  # before SealError: scope refusal is exit 6, not 4
+        print(f"dorian rebind: {exc}", file=sys.stderr)
+        return EXIT_SCOPE
+    except ScopeConfigError as exc:
+        print(f"dorian rebind: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    except SealError as exc:
+        print(f"dorian rebind: {exc}", file=sys.stderr)
+        return EXIT_REVOKED
+    print(warrant.id)
+    print(f"rebound {uri}.warrant (supersedes {old.id})")
     return EXIT_OK
 
 

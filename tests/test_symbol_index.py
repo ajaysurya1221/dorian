@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import AUTH_PY, commit_all, write
+from conftest import AUTH_PY, ROUTES_PY, commit_all, write
 from dorian import claims_io, cli, gitio, store, symbol_index
 from dorian.model import CheckerSpec, Claim, Warrant
 from dorian.revalidate import revalidate
@@ -531,3 +531,49 @@ def test_trigger_only_flag_clears_when_a_checker_names_the_definer(
     assert _verify(fixture_repo, [cov]) == 0
     capsys.readouterr()
     assert "trigger-only-symbol" not in _bindings_flags(fixture_repo, capsys, "cov")
+
+
+# --- Lim #3 (C): `dorian rebind` upgrades an old warrant's watches (revalidate stays blind) -
+
+
+def _seal_prefix_style(fixture_repo: Path):
+    # simulate a PRE-binding-fix warrant: seal with extra_watch=None so the symbol
+    # definer (src/auth.py) is NOT watched and a change there would be silently skipped.
+    from dorian.capture.manual import parse_manual
+    from dorian.seal import seal_artifact
+
+    return seal_artifact(
+        fixture_repo, "docs/design.md", parse_manual(["src/routes.py"], fixture_repo), [LOGIN_CLAIM]
+    )
+
+
+def test_rebind_widens_old_warrant_watch_and_supersedes(fixture_repo: Path) -> None:
+    old = _seal_prefix_style(fixture_repo)
+    assert old.claims[0].checkers[0].watch == ("src/routes.py",)  # narrow (pre-fix)
+
+    assert cli.main(["--repo", str(fixture_repo), "rebind", "docs/design.md"]) == 0
+    new = _warrant(fixture_repo)
+    assert new.claims[0].checkers[0].watch == (
+        "src/routes.py",
+        "src/auth.py",
+    )  # widened, not shrunk
+    assert new.supersedes == old.id  # lineage preserved for blast/recall
+    assert "src/auth.py" in {e.uri for e in new.read_set}
+
+
+def test_rebind_refuses_to_launder_a_now_false_claim(fixture_repo: Path) -> None:
+    _seal_prefix_style(fixture_repo)
+    # the claim's fact is now false; rebind re-runs every checker (born verifiable) and
+    # must REFUSE -> a stale warrant is never laundered into a fresh TRUSTED.
+    write(fixture_repo, "src/routes.py", ROUTES_PY.replace('    "/v1/login": "auth.login",\n', ""))
+    assert cli.main(["--repo", str(fixture_repo), "rebind", "docs/design.md"]) == 4
+
+
+def test_revalidate_stays_symbol_blind() -> None:
+    # the permanent design constraint: revalidate never scans symbols / imports the index;
+    # it works only because rebind (or verify) baked better watches into the sidecar.
+    import dorian.revalidate as _rv
+
+    src = (Path(_rv.__file__)).read_text(encoding="utf-8")
+    assert "symbol_index" not in src
+    assert "import ast" not in src and "\nimport ast" not in src
