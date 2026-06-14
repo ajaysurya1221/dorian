@@ -22,7 +22,7 @@
   <a href="https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml"><img src="https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="Apache-2.0">
-  <img src="https://img.shields.io/badge/status-v0.8-orange" alt="v0.8">
+  <a href="https://github.com/ajaysurya1221/dorian/releases/latest"><img src="https://img.shields.io/github/v/release/ajaysurya1221/dorian?label=release&color=blue" alt="Latest release"></a>
 </p>
 
 </div>
@@ -103,8 +103,8 @@ verify` sealed five true claims about dorian's code (e.g. that `cmd_verify`
 and `referenced_paths` exist) — `verified 5/5 claim(s)`, exit 0 — and then renaming a symbol one of
 those claims named made `dorian revalidate` flag exactly that claim `BROKEN` and fold the warrant to
 `REVOKED` (exit 4), leaving the other four `VERIFIED`. That was a throwaway demo on a real repo — not
-a committed artifact and not a benchmark figure — but it is proof the mechanism catches a real break
-on real code, for zero model tokens.
+a committed artifact and not a benchmark figure — but it is evidence that the mechanism can catch
+this kind of checked break on real code, for zero model tokens.
 
 ## About
 
@@ -196,7 +196,8 @@ issue is the template; the fixture is invented). Of three reproductions: a renam
 left in the docs and a flipped `InsecureSkipVerify` TLS flag both fold `BROKEN` (**solved**); a major-
 version API rename is caught while a same-name return-type change on a sibling is **missed** — the same
 trigger-vs-truth ceiling, on a real class (**partial**). Two further cases (documented from public
-sources, not reproduced) are honest misses (**not_solved**).
+sources, not reproduced) are honest misses (**not_solved**). These are scoped reproductions of public
+problem classes — not universal validation.
 
 See [`docs/BENCHMARK_BINDING_LIFECYCLE.md`](docs/BENCHMARK_BINDING_LIFECYCLE.md) and
 [`docs/REALWORLD_USECASES.md`](docs/REALWORLD_USECASES.md) (protocols alongside each); reproduce with
