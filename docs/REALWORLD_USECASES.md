@@ -8,7 +8,7 @@
 
 - candidates: 5 · reproduced (hermetic): 3
 - solved: 2 · partial: 1 · not_solved: 2 · cannot_test: 0
-- dorian `0.8.1` · run_id `1ffdef1671126a5c`
+- dorian `0.9.0` · run_id `1ffdef1671126a5c`
 
 | case | source | status | reproduction | outcome |
 | --- | --- | --- | --- | --- |

@@ -6,7 +6,7 @@
 
 ## Scope
 
-- schema `dorian-binding-lifecycle-v1` · dorian `0.8.1` · run_id `168b50d9aa631d52`
+- schema `dorian-binding-lifecycle-v1` · dorian `0.9.0` · run_id `168b50d9aa631d52`
 - 63 domains · 122 artifacts · 122 claims · 408 mutations · 808 (artifact, mutation) pairs
 - 174 fact-stale · 631 trigger-stale · 177 benign · 0 errored pairs
 
