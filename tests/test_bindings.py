@@ -401,3 +401,19 @@ def test_backticked_common_word_is_not_a_token() -> None:
         "TokenVerifier",
     ]
     assert bindings._tokens("The `cert` rotates.") == ["cert"]  # not common: still a token
+
+
+def test_checker_named_files_counts_c5_shell_explicit_watch() -> None:
+    """A C5 shell checker derives no data path (_c5_data_paths returns [] for shell),
+    so its EXPLICIT watch is what it exercises. _checker_named_files must count that
+    watch, or a load-bearing shell claim gets a spurious 'trigger-only-symbol' flag."""
+    spec = CheckerSpec(
+        type="C5",
+        program="shell:grep -q rotate data/policy.csv",
+        watch=("data/policy.csv",),
+        expect="exit:0",
+    )
+    claim = Claim(id="c", text="x", kind="fact", load_bearing=True, checkers=(spec,))
+    named = bindings._checker_named_files(claim, {})
+    assert named == {"data/policy.csv"}  # the shell checker's explicit watch is named
+    assert all(w in named for s in claim.checkers for w in s.watch)  # => no spurious flag

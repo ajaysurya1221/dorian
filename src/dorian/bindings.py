@@ -134,7 +134,10 @@ def _checker_named_files(claim: Claim, entry_uris: dict[str, str]) -> set[str]:
         elif spec.type == "C4" and prefix == "pytest":
             named.add(rest.partition("::")[0].strip())  # parity with seal._derive_watch
         elif spec.type == "C5":
-            named.update(_c5_data_paths(prefix, rest))
+            # typed C5 derives its data path; a shell checker derives none, so its
+            # EXPLICIT watch is what it exercises (else a load-bearing shell claim
+            # gets a spurious 'trigger-only-symbol' flag).
+            named.update(_c5_data_paths(prefix, rest) or spec.watch)
     return {f for f in named if f}
 
 

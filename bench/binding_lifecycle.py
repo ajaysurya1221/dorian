@@ -791,7 +791,9 @@ def main(argv: list[str] | None = None) -> int:
         for row in _records_for_jsonl(records):
             f.write(json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n")
     if args.md_out:
-        Path(args.md_out).write_text(render_markdown(summary), encoding="utf-8")
+        md_out = Path(args.md_out)
+        md_out.parent.mkdir(parents=True, exist_ok=True)
+        md_out.write_text(render_markdown(summary), encoding="utf-8")
 
     cmp = summary["composition"]
     ft = summary["false_trusted_analysis"]

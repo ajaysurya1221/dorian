@@ -349,6 +349,8 @@ def _run_reproduction(case: UseCase, workspace: Path) -> dict:
 
     broken = {cid for _, cid, _ in res.broken}
     passed = {cid for _, cid, _ in res.passed}
+    relocated = {cid for _, cid, _ in res.relocated}  # VERIFIED via relocation
+    verified = passed | relocated  # both are still-true outcomes, not breaks
     candidates = {
         cid for grp in (res.passed, res.broken, res.relocated, res.errored) for _, cid, _ in grp
     }
@@ -356,7 +358,7 @@ def _run_reproduction(case: UseCase, workspace: Path) -> dict:
 
     # DERIVE the outcome from actual behavior, then cross-check the declared label.
     caught_ok = case.fact_caught <= broken
-    missed_ok = case.fact_missed <= passed  # drifted, yet re-checked and still VERIFIED
+    missed_ok = case.fact_missed <= verified  # drifted, yet re-checked and still VERIFIED
     if case.solved_status == "solved":
         derived_ok = caught_ok and not case.fact_missed
     elif case.solved_status == "partial":
@@ -366,6 +368,7 @@ def _run_reproduction(case: UseCase, workspace: Path) -> dict:
     return {
         "broken": sorted(broken),
         "passed": sorted(passed),
+        "relocated": sorted(relocated),
         "candidates_rechecked": sorted(candidates),
         "label_matches_actual": derived_ok,
     }
@@ -541,7 +544,9 @@ def main(argv: list[str] | None = None) -> int:
         for row in records:
             f.write(json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n")
     if args.md_out:
-        Path(args.md_out).write_text(render_markdown(summary, records), encoding="utf-8")
+        md_out = Path(args.md_out)
+        md_out.parent.mkdir(parents=True, exist_ok=True)
+        md_out.write_text(render_markdown(summary, records), encoding="utf-8")
 
     print(
         f"realworld-usecases: {summary['candidate_count']} cases · "

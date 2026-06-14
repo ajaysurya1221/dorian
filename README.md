@@ -195,8 +195,8 @@ We also reproduced **public, still-open problem classes** offline as hermetic fi
 issue is the template; the fixture is invented). Of three reproductions: a renamed config filename
 left in the docs and a flipped `InsecureSkipVerify` TLS flag both fold `BROKEN` (**solved**); a major-
 version API rename is caught while a same-name return-type change on a sibling is **missed** — the same
-trigger-vs-truth ceiling, on a real class (**partial**). Two further cases are honest misses
-(**not_solved**).
+trigger-vs-truth ceiling, on a real class (**partial**). Two further cases (documented from public
+sources, not reproduced) are honest misses (**not_solved**).
 
 See [`docs/BENCHMARK_BINDING_LIFECYCLE.md`](docs/BENCHMARK_BINDING_LIFECYCLE.md) and
 [`docs/REALWORLD_USECASES.md`](docs/REALWORLD_USECASES.md) (protocols alongside each); reproduce with
