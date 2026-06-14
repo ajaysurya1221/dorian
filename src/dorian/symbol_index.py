@@ -93,3 +93,26 @@ def claim_symbol_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple
         if paths:
             out[claim.id] = tuple(sorted(paths))
     return out
+
+
+def ambiguous_symbol_mentions(
+    repo: Path, claims: list[Claim]
+) -> dict[str, dict[str, tuple[str, ...]]]:
+    """claim id -> {symbol: defining files} for symbols a LOAD-BEARING claim's text
+    mentions that are defined in MORE THAN ONE tracked file — the ambiguous case the
+    binding fix intentionally skips (a definer is unknowable, so binding one would be
+    false precision). Lets `verify` / `bindings` surface that skip loudly and reviewably
+    instead of hiding it; it never adds a watch. {} on a non-git repo.
+    """
+    try:
+        index = python_symbol_definers(repo)
+    except gitio.GitError:
+        return {}
+    out: dict[str, dict[str, tuple[str, ...]]] = {}
+    for claim in claims:
+        if not claim.load_bearing or not isinstance(claim.text, str):
+            continue
+        ambiguous = {tok: index[tok] for tok in _tokens(claim.text) if len(index.get(tok, ())) > 1}
+        if ambiguous:
+            out[claim.id] = ambiguous
+    return out

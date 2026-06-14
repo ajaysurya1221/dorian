@@ -16,6 +16,7 @@ pathological Python never breaks the index (Test D + pathological-AST test).
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -320,3 +321,62 @@ def test_acceptance_B_c4_definer_rename_breaks_claim(
     assert res.candidates >= 1  # the definer change selected the claim (was 0 before the fix)
     assert "auth-verify-token" in {cid for _, cid, _ in res.broken}  # a real CATCH, not silence
     assert res.exit_code == 4  # load-bearing claim broke -> warrant REVOKED
+
+
+# --- Lim #1 (A3): ambiguous symbol skip is made LOUD, not silent -----------------------
+
+
+def _bindings_flags(fixture_repo: Path, capsys, cid: str) -> list:
+    assert cli.main(["--repo", str(fixture_repo), "--json", "bindings", "docs/design.md"]) == 0
+    diags = json.loads(capsys.readouterr().out)["claims"]
+    return next(c for c in diags if c["claim_id"] == cid)["flags"]
+
+
+def test_ambiguous_mention_is_flagged_loud_not_silent(fixture_repo: Path, capsys) -> None:
+    # two definers for verify_token (ambiguous -> intentionally unbound, low-FP). A
+    # LOAD-BEARING claim mentions it but its checker watches an unrelated file: the skip
+    # must be LOUD — verify WARNs and `dorian bindings` flags it — never silent.
+    write(fixture_repo, "src/dup.py", "def verify_token(token):\n    return bool(token)\n")
+    commit_all(fixture_repo, "add a second verify_token definition (ambiguous)")
+    lb = Claim(
+        id="amb-lb",
+        text="Login is gated by verify_token.",
+        kind="reference",
+        load_bearing=True,
+        checkers=(CheckerSpec(type="C3", program="string:src/routes.py::/v1/login"),),
+    )
+    assert _verify(fixture_repo, [lb]) == 0  # ambiguous symbol still seals; it just isn't watched
+    assert "verify_token" in capsys.readouterr().err  # verify WARNs on the silent-skip
+    assert _warrant(fixture_repo).claims[0].checkers[0].watch == (
+        "src/routes.py",
+    )  # no watch added
+    assert "ambiguous-mention" in _bindings_flags(fixture_repo, capsys, "amb-lb")
+
+
+def test_ambiguous_mention_flag_is_low_noise(fixture_repo: Path, capsys) -> None:
+    write(fixture_repo, "src/dup.py", "def verify_token(token):\n    return bool(token)\n")
+    commit_all(fixture_repo, "add a second verify_token definition (ambiguous)")
+
+    # (a) a NON-load-bearing ambiguous mention is not flagged (the flag is load-bearing-only)
+    nlb = Claim(
+        id="amb-nlb",
+        text="Login is gated by verify_token.",
+        kind="reference",
+        load_bearing=False,
+        checkers=(CheckerSpec(type="C3", program="string:src/routes.py::/v1/login"),),
+    )
+    assert _verify(fixture_repo, [nlb]) == 0
+    capsys.readouterr()
+    assert "ambiguous-mention" not in _bindings_flags(fixture_repo, capsys, "amb-nlb")
+
+    # (b) when a checker ALREADY watches a candidate definer (src/auth.py), it is covered
+    cov = Claim(
+        id="amb-cov",
+        text="Login is gated by verify_token.",
+        kind="fact",
+        load_bearing=True,
+        checkers=(CheckerSpec(type="C3", program="symbol:src/auth.py::verify_token"),),
+    )
+    assert _verify(fixture_repo, [cov]) == 0
+    capsys.readouterr()
+    assert "ambiguous-mention" not in _bindings_flags(fixture_repo, capsys, "amb-cov")

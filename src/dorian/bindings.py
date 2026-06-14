@@ -39,11 +39,14 @@ _GREP_NAMES = frozenset({"grep", "egrep", "fgrep", "rg"})
 
 def analyze(repo: Path, artifact_uri: str) -> list[dict]:
     """Per-claim binding diagnostics for a warranted artifact, in claim order:
-    {claim_id, text, watch, flags, mentions}. Flags (fixed order):
-    'unbacked' | 'single-file' | 'short-literal' | 'unwatched-mention'."""
+    {claim_id, text, watch, flags, mentions}. Flags (fixed order): 'unbacked' |
+    'single-file' | 'short-literal' | 'ambiguous-mention' | 'unwatched-mention'."""
+    from dorian import symbol_index  # lazy: symbol_index imports _tokens from here (cycle)
+
     repo = repo.resolve()
     warrant = Warrant.load(repo / (artifact_uri + ".warrant"))
     entry_uris = {e.id: e.uri for e in warrant.read_set}
+    ambiguous = symbol_index.ambiguous_symbol_mentions(repo, list(warrant.claims))
 
     claim_tokens = {c.id: _tokens(c.text) for c in warrant.claims}
     all_tokens = sorted({t for toks in claim_tokens.values() for t in toks})
@@ -60,6 +63,9 @@ def analyze(repo: Path, artifact_uri: str) -> list[dict]:
             flags.append("single-file")
         if _short_literal(claim):
             flags.append("short-literal")
+        amb = ambiguous.get(claim.id, {})
+        if any(not any(_covered(f, cover) for f in files) for files in amb.values()):
+            flags.append("ambiguous-mention")
         mentions: list[dict] = []
         for tok in claim_tokens[claim.id]:
             if len(mentions) == _MAX_TOKENS:

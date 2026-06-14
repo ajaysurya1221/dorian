@@ -191,6 +191,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
             if path not in paths:
                 paths.append(path)
         readset = parse_manual(paths, repo)
+        # a load-bearing claim naming an AMBIGUOUS symbol (>1 definer) is left unbound; do
+        # not let that skip be silent — warn so the author binds it explicitly (see A3)
+        ambiguous = symbol_index.ambiguous_symbol_mentions(repo, claims)
     except (ValueError, OSError, gitio.GitError) as exc:
         print(f"dorian verify: {exc}", file=sys.stderr)
         return EXIT_USAGE
@@ -214,6 +217,14 @@ def cmd_verify(args: argparse.Namespace) -> int:
     except SealError as exc:
         print(f"dorian verify: {exc}", file=sys.stderr)
         return EXIT_REVOKED
+    for cid, symbols in ambiguous.items():
+        for sym, files in symbols.items():
+            print(
+                f"dorian verify: warning: load-bearing claim {cid!r} mentions ambiguous symbol "
+                f"{sym!r} (defined in {len(files)} files); left unbound — name the file in a "
+                "checker or qualify the reference",
+                file=sys.stderr,
+            )
     backed = sum(1 for c in claims if c.backed)
     print(warrant.id)
     print(
