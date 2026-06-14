@@ -29,7 +29,7 @@ from dorian.capture.manual import parse_manual
 from dorian.capture.transcript import parse_transcript
 from dorian.cli import EXIT_DEGRADED, EXIT_OK, EXIT_REVOKED, EXIT_SCOPE, EXIT_USAGE
 from dorian.extract import ExtractUnavailable, extract_claims, extract_claims_consensus
-from dorian.model import IntegrityError, ReadSet, Warrant, sha256_hex
+from dorian.model import IntegrityError, ReadSet, ReadSetEntry, Warrant, sha256_hex
 from dorian.report import audit_lines, report_events, report_since
 from dorian.revalidate import ChangedPathsError, render_json, render_md, render_text, revalidate
 from dorian.seal import ScopeConfigError, ScopeViolation, SealError, referenced_paths, seal_artifact
@@ -423,8 +423,10 @@ def cmd_rebind(args: argparse.Namespace) -> int:
     before the symbol index existed so a future change to a mentioned symbol's defining
     file re-checks the claim. Re-runs every checker, so a claim that has SINCE become
     false refuses the re-seal (exit 4) and is never laundered into a fresh TRUSTED. The
-    watch only ever widens (existing watches are kept). C1 span claims bind a read-set
-    entry, not a file, and are not auto-rebindable (exit 2)."""
+    original read-set and producing-run identity are kept verbatim and the watch only ever
+    WIDENS (the newly bound definer files are added to both); when nothing new binds, rebind
+    is an idempotent no-op that leaves the sidecar and its id untouched. C1 span claims bind
+    a read-set entry, not a file, and are not auto-rebindable (exit 2)."""
     repo = _repo(args)
     if _missing_repo(repo, "rebind"):
         return EXIT_USAGE
@@ -443,16 +445,41 @@ def cmd_rebind(args: argparse.Namespace) -> int:
         print(f"dorian rebind: corrupt warrant sidecar: {exc}", file=sys.stderr)
         return EXIT_REVOKED
     claims = list(old.claims)
+    symbol_watch = symbol_index.claim_symbol_watch_paths(repo, claims)
+    new_paths = {p for ps in symbol_watch.values() for p in ps}
+    already_watched = {w for c in claims for spec in c.checkers for w in spec.watch}
+    if new_paths <= already_watched:
+        # nothing new to bind: an idempotent no-op. Leave the sidecar (and its id)
+        # untouched rather than minting a fresh id and re-stamping the supersede chain.
+        print(old.id)
+        print(f"{uri}.warrant already covers its symbol-definer watches; nothing to rebind")
+        return EXIT_OK
+    # Preserve the original read-set and producing-run identity verbatim (the warrant's
+    # hashed record of what the run read is an honesty artifact); only ADD the newly bound
+    # definer files, under non-colliding ids so each claim's supports references stay valid.
+    old_entries = list(old.read_set)
+    existing_uris = {e.uri for e in old_entries}
     try:
-        paths = referenced_paths(claims)
-        symbol_watch = symbol_index.claim_symbol_watch_paths(repo, claims)
-        for path in sorted({p for ps in symbol_watch.values() for p in ps}):
-            if path not in paths:
-                paths.append(path)
-        readset = parse_manual(paths, repo)
-    except (ValueError, OSError, gitio.GitError) as exc:
+        head = gitio.head_ref(repo)
+        added: list[ReadSetEntry] = []
+        for path in sorted(p for p in new_paths if p not in existing_uris):
+            h = gitio.working_hash(repo, path, None)
+            if h is None:
+                raise ValueError(f"missing file: {path}")
+            added.append(
+                ReadSetEntry(
+                    id=f"rs-{len(old_entries) + len(added)}",
+                    uri=path,
+                    selector=None,
+                    hash=h,
+                    version=head,
+                    scope="project",
+                )
+            )
+    except (OSError, ValueError, gitio.GitError) as exc:
         print(f"dorian rebind: {exc}", file=sys.stderr)
         return EXIT_USAGE
+    readset = ReadSet(entries=tuple(old_entries + added), produced_by=old.produced_by)
     try:
         warrant = seal_artifact(
             repo, uri, readset, claims, supersede=old.id, extra_watch=symbol_watch

@@ -569,6 +569,46 @@ def test_rebind_refuses_to_launder_a_now_false_claim(fixture_repo: Path) -> None
     assert cli.main(["--repo", str(fixture_repo), "rebind", "docs/design.md"]) == 4
 
 
+def test_rebind_preserves_producer_and_keeps_captured_readset(fixture_repo: Path) -> None:
+    # a warrant whose producing run was a real agent (not "manual") and which captured a
+    # dependency (src/extra.py) that no checker names. rebind widens the symbol watch but
+    # must NOT falsify the producer or silently drop the captured read-set entry: the
+    # warrant's hashed "what this run read" record is an honesty artifact, and the command's
+    # own docstring promises existing watches are kept.
+    from dataclasses import replace
+
+    from dorian.capture.manual import parse_manual
+    from dorian.model import ProducedBy
+    from dorian.seal import seal_artifact
+
+    write(fixture_repo, "src/extra.py", "WIDGET = 1\n")  # defines no symbol; pure read-set dep
+    commit_all(fixture_repo, "add a captured-but-unwatched dependency")
+    rs = parse_manual(["src/routes.py", "src/extra.py"], fixture_repo)
+    rs = replace(rs, produced_by=ProducedBy(runner="agent-x", captured_at="2026-01-01T00:00:00Z"))
+    old = seal_artifact(fixture_repo, "docs/design.md", rs, [LOGIN_CLAIM])
+
+    assert cli.main(["--repo", str(fixture_repo), "rebind", "docs/design.md"]) == 0
+    new = _warrant(fixture_repo)
+    assert new.produced_by.runner == "agent-x"  # producer preserved, not rewritten to "manual"
+    uris = {e.uri for e in new.read_set}
+    assert "src/extra.py" in uris  # deliberately-captured dependency is NOT dropped
+    assert "src/auth.py" in uris  # the new symbol definer is added
+    assert new.claims[0].checkers[0].watch == ("src/routes.py", "src/auth.py")  # widened
+    assert new.supersedes == old.id  # lineage preserved
+
+
+def test_rebind_is_idempotent_when_nothing_new_to_widen(fixture_repo: Path) -> None:
+    # the first rebind widens (mints a new id superseding the pre-fix warrant); a second
+    # rebind has nothing new to bind, so it is a no-op that keeps the same content-addressed
+    # id rather than churning the sidecar and growing the supersede chain on every run.
+    _seal_prefix_style(fixture_repo)
+    assert cli.main(["--repo", str(fixture_repo), "rebind", "docs/design.md"]) == 0
+    id_after_first = _warrant(fixture_repo).id
+
+    assert cli.main(["--repo", str(fixture_repo), "rebind", "docs/design.md"]) == 0
+    assert _warrant(fixture_repo).id == id_after_first  # second rebind is an idempotent no-op
+
+
 def test_revalidate_stays_symbol_blind() -> None:
     # the permanent design constraint: revalidate never scans symbols / imports the index;
     # it works only because rebind (or verify) baked better watches into the sidecar.
