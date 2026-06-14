@@ -571,6 +571,7 @@ _BENCH_DISPATCH: dict[str, tuple[str, bool]] = {
     "mutation": ("bench.controlled_mutation", False),
     "large-mutation": ("bench.large_mutation", False),
     "binding-lifecycle": ("bench.binding_lifecycle", False),
+    "realworld-usecases": ("bench.realworld_usecases", False),
     "churn": ("bench.churn", False),
 }
 
