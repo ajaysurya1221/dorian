@@ -311,8 +311,16 @@ claims.
   event: a flag only — downstream is never re-checked and its states are untouched. Re-seal with
   `seal --supersede <old-id>` so downstream warrants sealed against the old id stay reachable.
 - `dorian bindings <artifact>` — binding-quality diagnostics (unbacked, single-file, short-literal,
-  unwatched-mention). Informational, never a gate; output carries file paths only, never matched
-  content.
+  ambiguous-mention, trigger-only-symbol, unwatched-mention). Informational, never a gate; output
+  carries file paths only, never matched content. `ambiguous-mention` surfaces a load-bearing claim
+  whose symbol is defined in more than one file (so no definer is auto-watched); `trigger-only-symbol`
+  marks a watch added only as a re-check *trigger* that no checker actually exercises.
+- `dorian bind-suggest --claims claims.json` — read-only preview of the symbol-definer files `verify`
+  would auto-bind for each claim (and the ambiguous symbols it would skip). Writes nothing, never a gate.
+- `dorian rebind <artifact>` — re-derive a warrant's symbol-definer watches with the current binding
+  logic and re-seal it (born-verifiable, superseding the old id), so a warrant sealed before the symbol
+  index existed gains the wider watches. The watch only ever widens; a claim that has since become false
+  refuses the re-seal (exit 4) rather than being laundered into a fresh trusted state.
 - `dorian suggest-data-checks <path> [--columns ...] [--out f]` — born-verifiable C5 checker
   suggestions from a data file's current state, for review and pasting into a claim's `checkers` list.
 - `dorian report --audit` — the full event log as `dorian-audit-v1` JSONL, byte-identical across

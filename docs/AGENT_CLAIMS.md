@@ -150,7 +150,9 @@ After writing `claims.json`:
 
 1. `dorian verify <artifact> --claims claims.json` — require **exit 0**.
 2. `dorian bindings <artifact>` — resolve every flag (`unbacked`, `single-file`,
-   `short-literal`, `unwatched-mention`) before considering the claim sealed.
+   `short-literal`, `ambiguous-mention`, `trigger-only-symbol`, `unwatched-mention`) before
+   considering the claim sealed. Preview what `verify` will auto-bind first with
+   `dorian bind-suggest --claims claims.json` (read-only).
 
 `bindings` is your deterministic false-confidence linter — a strong smell-detector, not a
 proof. No model runs at check time, ever.
