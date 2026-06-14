@@ -33,6 +33,28 @@ _PATH_RE = re.compile(r"\b(?:[\w.-]+/)+[\w.-]*\.\w+\b")  # has '/' + dot-extensi
 _SNAKE_RE = re.compile(r"\b[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+\b")
 _CAMEL_RE = re.compile(r"\b[A-Za-z][a-z0-9]+(?:[A-Z][a-z0-9]+)+\b")
 _MIN_IDENT = 4  # snake/Camel identifiers shorter than this are noise
+_IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*$")  # a single identifier span
+
+# Bare common words inside backticks are markup ("the `config` file", "a `list`"),
+# not symbol references; binding one to a same-named one-definer symbol is a false
+# BROKEN / false restricted-scope-refusal risk. snake_case / CamelCase spans are still
+# admitted (real identifiers); this set blocks only bare common words.
+_BACKTICK_STOPWORDS = frozenset(
+    {
+        "list",
+        "run",
+        "get",
+        "set",
+        "put",
+        "post",
+        "config",
+        "class",
+        "function",
+        "token",
+        "route",
+        "handler",
+    }
+)
 
 _GREP_NAMES = frozenset({"grep", "egrep", "fgrep", "rg"})
 
@@ -110,10 +132,22 @@ def _checker_named_files(claim: Claim, entry_uris: dict[str, str]) -> set[str]:
         elif spec.type == "C3":
             named.add(rest.partition("::")[0] if prefix in ("symbol", "string", "regex") else rest)
         elif spec.type == "C4" and prefix == "pytest":
-            named.add(rest.partition("::")[0])
+            named.add(rest.partition("::")[0].strip())  # parity with seal._derive_watch
         elif spec.type == "C5":
             named.update(_c5_data_paths(prefix, rest))
     return {f for f in named if f}
+
+
+def _backtick_binds(tok: str) -> bool:
+    """A backtick span is a candidate identifier only when it is a single
+    identifier-shaped token of >= _MIN_IDENT chars that is not a bare common word.
+    snake_case / CamelCase spans always pass (real identifiers); markup around an
+    English word ('`config`', '`token`') does not — binding it is a false-positive risk."""
+    if len(tok) < _MIN_IDENT or not _IDENT_RE.match(tok):
+        return False
+    if _SNAKE_RE.fullmatch(tok) or _CAMEL_RE.fullmatch(tok):
+        return True
+    return tok.lower() not in _BACKTICK_STOPWORDS
 
 
 def _tokens(text: str) -> list[str]:
@@ -131,7 +165,9 @@ def _tokens(text: str) -> list[str]:
             out.append(tok)
 
     for m in _BACKTICK_RE.finditer(text):
-        add(m.group(1))
+        tok = m.group(1).strip()
+        if _backtick_binds(tok):
+            add(tok)
     for m in _PATH_RE.finditer(text):
         add(m.group(0))
     for rx in (_SNAKE_RE, _CAMEL_RE):

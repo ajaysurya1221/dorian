@@ -664,3 +664,70 @@ def test_revalidate_stays_symbol_blind() -> None:
     src = (Path(_rv.__file__)).read_text(encoding="utf-8")
     assert "symbol_index" not in src
     assert "import ast" not in src and "\nimport ast" not in src
+
+
+# --- Phase-0 nit 2: a backticked common word must not bind (false-BROKEN / false-exit-6 risk) -
+
+_CONFIG_CLAIM = Claim(
+    id="cfg",
+    text="The `config` value is read at startup.",
+    kind="fact",
+    load_bearing=True,
+    checkers=(CheckerSpec(type="C3", program="string:src/routes.py::/v1/login"),),
+)
+
+
+def test_backticked_common_word_does_not_auto_bind(fixture_repo: Path) -> None:
+    # a unique symbol literally named config exists, yet a backticked common word must
+    # NOT create a definer watch -> markup of an English word is not a symbol reference.
+    write(fixture_repo, "src/settings.py", "def config():\n    return {}\n")
+    commit_all(fixture_repo, "add a function literally named config")
+    assert symbol_index.python_symbol_definers(fixture_repo)["config"] == ("src/settings.py",)
+    assert symbol_index.claim_symbol_watch_paths(fixture_repo, [_CONFIG_CLAIM]) == {}
+
+
+def test_backticked_common_word_does_not_falsely_refuse_restricted_seal(
+    fixture_repo: Path,
+) -> None:
+    # the papercut: config defined in a RESTRICTED file would, pre-guard, bind and make
+    # verify fail closed (exit 6) on a file the claim never meaningfully named.
+    write(fixture_repo, "src/secret_cfg.py", "def config():\n    return {}\n")
+    write(
+        fixture_repo,
+        "pyproject.toml",
+        '[project]\nname = "x"\nversion = "0"\n\n'
+        '[tool.dorian.scopes]\nrestricted = ["src/secret_cfg.py"]\n',
+    )
+    commit_all(fixture_repo, "restricted file defining config()")
+    assert _verify(fixture_repo, [_CONFIG_CLAIM]) == 0  # was exit 6 before the guard
+
+
+def test_backticked_real_identifier_still_binds(fixture_repo: Path) -> None:
+    # positive guard: the fix must not over-correct — a real identifier in backticks
+    # (here also snake_case) still binds its unique definer.
+    claim = Claim(
+        id="vt",
+        text="Login uses `verify_token` for auth.",
+        kind="reference",
+        load_bearing=True,
+        checkers=(CheckerSpec(type="C3", program="string:src/routes.py::/v1/login"),),
+    )
+    assert symbol_index.claim_symbol_watch_paths(fixture_repo, [claim]) == {"vt": ("src/auth.py",)}
+
+
+# --- Phase-0 nit 3: an ambiguous console-script target is not auto-bound (untested branch) ----
+
+
+def test_pyproject_script_ambiguous_target_is_not_bound(fixture_repo: Path) -> None:
+    # 'pkg.cli' resolves to TWO tracked files that both define main -> the target is
+    # ambiguous, so pyproject_script_definers must reject it (mirrors the ambiguous-symbol
+    # skip: a wrong watch is a false-BROKEN risk). The rejection branch was untested.
+    write(fixture_repo, "pkg/cli.py", "def main():\n    return 0\n")
+    write(fixture_repo, "src/pkg/cli.py", "def main():\n    return 0\n")
+    write(
+        fixture_repo,
+        "pyproject.toml",
+        '[project]\nname = "x"\nversion = "0"\n\n[project.scripts]\ndorian-demo = "pkg.cli:main"\n',
+    )
+    commit_all(fixture_repo, "console script with an ambiguous target module")
+    assert symbol_index.pyproject_script_definers(fixture_repo) == {}
