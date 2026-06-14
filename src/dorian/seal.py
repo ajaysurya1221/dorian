@@ -18,6 +18,7 @@ from __future__ import annotations
 import fnmatch
 import os
 import tomllib
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -117,6 +118,15 @@ def _derive_watch(spec: CheckerSpec, readset: ReadSet) -> CheckerSpec:
             raise SealError("C5 shell checker requires watch")
         watch = tuple(_c5_data_paths(form, rest))
     return replace(spec, watch=watch)
+
+
+def _add_watch(spec: CheckerSpec, extra: tuple[str, ...]) -> CheckerSpec:
+    """Append symbol-definer watch paths (from symbol_index.claim_symbol_watch_paths)
+    the checker did not already name: existing order preserved, then the new sorted
+    paths, deduped. Strictly additive — it only ever widens a watch set, so it can
+    add a missed re-check trigger but never remove or rewrite an existing one."""
+    new = tuple(p for p in extra if p not in spec.watch)
+    return replace(spec, watch=spec.watch + new) if new else spec
 
 
 def _c5_data_paths(form: str, rest: str) -> list[str]:
@@ -244,8 +254,15 @@ def seal_artifact(
     supersede: str | None = None,
     allow_restricted: bool = False,
     no_quotes: bool = False,
+    extra_watch: Mapping[str, tuple[str, ...]] | None = None,
 ) -> Warrant:
     """Scope-lint the read-set, run every checker, then write the sidecar + index.
+
+    extra_watch (claim id -> repo-relative paths) widens a backed claim's checker
+    watch set with files the claim depends on but its checker did not name — the
+    symbol-definer binding `dorian verify` derives from claim text. It is purely
+    additive (never narrows a watch) and is not applied on the explicit `seal`
+    path, so `seal --readset` semantics are unchanged.
 
     With no_quotes the sealed sidecar is content-free: every claim anchor keeps
     its line numbers but its quote is dropped (claim text stays — it is the
@@ -291,15 +308,18 @@ def seal_artifact(
     if no_quotes:
         claims = [replace(c, anchor=replace(c.anchor, quote="")) if c.anchor else c for c in claims]
 
-    # 1. derive empty checker watch lists from programs, and the supports
-    #    binding a C5 snapshot program needs (suggest-data-checks round trip)
-    sealed_claims = [
-        replace(
-            _derive_supports(c, readset),
-            checkers=tuple(_derive_watch(s, readset) for s in c.checkers),
-        )
-        for c in claims
-    ]
+    # 1. derive empty checker watch lists from programs, the supports binding a
+    #    C5 snapshot program needs (suggest-data-checks round trip), and — when the
+    #    caller passes extra_watch — the symbol-definer files a claim mentions but
+    #    its checker never named (additive; widens the watch, never narrows it)
+    sealed_claims = []
+    for c in claims:
+        derived = _derive_supports(c, readset)
+        checkers = tuple(_derive_watch(s, readset) for s in derived.checkers)
+        extra = extra_watch.get(c.id) if extra_watch else None
+        if extra:
+            checkers = tuple(_add_watch(s, extra) for s in checkers)
+        sealed_claims.append(replace(derived, checkers=checkers))
 
     # 2. run EVERY checker; FAIL or ERROR refuses the seal and writes nothing
     for claim in sealed_claims:

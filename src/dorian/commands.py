@@ -23,7 +23,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from dorian import bindings, claims_io, datachecks, gitio, store
+from dorian import bindings, claims_io, datachecks, gitio, store, symbol_index
 from dorian.blast import blast_conn
 from dorian.capture.manual import parse_manual
 from dorian.capture.transcript import parse_transcript
@@ -182,7 +182,15 @@ def cmd_verify(args: argparse.Namespace) -> int:
     try:
         artifact_uri = _artifact_uri(repo, args.artifact)
         claims = claims_io.load_claims(Path(args.claims))
-        readset = parse_manual(referenced_paths(claims), repo)
+        # widen the auto-captured read-set with the files that DEFINE symbols the
+        # claims mention (even when no checker named them): the symbol-definer watch
+        # the seal adds is then also captured + hashed + scope-linted honestly
+        paths = referenced_paths(claims)
+        symbol_watch = symbol_index.claim_symbol_watch_paths(repo, claims)
+        for path in sorted({p for ps in symbol_watch.values() for p in ps}):
+            if path not in paths:
+                paths.append(path)
+        readset = parse_manual(paths, repo)
     except (ValueError, OSError, gitio.GitError) as exc:
         print(f"dorian verify: {exc}", file=sys.stderr)
         return EXIT_USAGE
@@ -195,6 +203,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
             supersede=args.supersede,
             allow_restricted=args.allow_restricted,
             no_quotes=args.no_quotes,
+            extra_watch=symbol_watch,
         )
     except ScopeViolation as exc:  # before SealError: scope refusal is exit 6, not 4
         print(f"dorian verify: {exc}", file=sys.stderr)

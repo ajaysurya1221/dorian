@@ -323,8 +323,9 @@ claims.
   (the warrant id changes accordingly).
 - Seal-time scope lint: `[tool.dorian.scopes] restricted = [globs]` in the *target* repo's
   pyproject.toml refuses to seal read-sets touching restricted paths (exit 6); `--allow-restricted`
-  overrides and is receipted in the sealed event. (It restricts which files a claim may *name*, not
-  what an executed checker may read or write — it is not a sandbox.)
+  overrides and is receipted in the sealed event. (It restricts the auto-captured read-set — the files
+  a claim's checkers name, plus the file `verify` binds from a symbol the claim mentions — not what an
+  executed checker may read or write; it is not a sandbox.)
 - `dorian bench large-mutation` — the v0.7.0 controlled-mutation benchmark (numbers-only aggregate +
   stratified summary; [`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md)). `dorian bench mutation`
   is the earlier, smaller benchmark; `dorian bench churn` measures extraction stability.
