@@ -26,6 +26,7 @@ better watch set is baked into the sealed sidecar at verify time.
 from __future__ import annotations
 
 import ast
+import tomllib
 from pathlib import Path
 
 from dorian import gitio
@@ -63,6 +64,59 @@ def python_symbol_definers(repo: Path) -> dict[str, tuple[str, ...]]:
     return {name: tuple(sorted(files)) for name, files in sorted(definers.items())}
 
 
+def _module_candidate_files(module: str, tracked: set[str]) -> list[str]:
+    """Tracked .py files whose repo-relative path matches a dotted MODULE by path tail
+    (so 'pkg.cli' matches 'pkg/cli.py', 'src/pkg/cli.py', or 'pkg/cli/__init__.py'). A
+    pure string match — it never imports, executes, or consults sys.path."""
+    tail = module.replace(".", "/")
+    wants = (tail + ".py", tail + "/__init__.py")
+    return sorted(f for f in tracked if any(f == w or f.endswith("/" + w) for w in wants))
+
+
+def pyproject_script_definers(
+    repo: Path, definers: dict[str, tuple[str, ...]] | None = None
+) -> dict[str, tuple[str, ...]]:
+    """Console-script name (from [project.scripts] / [project.gui-scripts] in
+    pyproject.toml) -> the single tracked .py file that defines its `module:function`
+    target. Unambiguous by construction (TOML keys are unique; the target is one
+    module:function); a target whose module/function does not resolve to a tracked def
+    is skipped. {} when there is no pyproject, no scripts, or it is malformed.
+    """
+    pp = repo / "pyproject.toml"
+    if not pp.is_file():
+        return {}
+    try:
+        data = tomllib.loads(pp.read_text(encoding="utf-8"))
+    except (tomllib.TOMLDecodeError, OSError, UnicodeDecodeError):
+        return {}
+    project = data.get("project")
+    if not isinstance(project, dict):
+        return {}
+    entries: dict[str, str] = {}
+    for table in ("scripts", "gui-scripts"):
+        t = project.get(table)
+        if isinstance(t, dict):
+            for k, v in t.items():
+                if isinstance(k, str) and isinstance(v, str):
+                    entries[k] = v
+    if not entries:
+        return {}
+    if definers is None:
+        definers = python_symbol_definers(repo)
+    tracked = set(gitio.ls_files(repo))
+    out: dict[str, tuple[str, ...]] = {}
+    for name, target in entries.items():
+        module, sep, func = target.partition(":")
+        if not module or not sep or not func:
+            continue
+        func_name = func.split(".", 1)[0]  # 'obj.attr' -> 'obj'; usually a bare function name
+        candidates = _module_candidate_files(module, tracked)
+        confirmed = [f for f in candidates if f in definers.get(func_name, ())]
+        if len(confirmed) == 1:
+            out[name] = (confirmed[0],)
+    return out
+
+
 def claim_symbol_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple[str, ...]]:
     """claim id -> the sorted, unique defining files to add to that claim's watch
     set: for every identifier-shaped token in the claim text that names a symbol
@@ -83,6 +137,7 @@ def claim_symbol_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple
         index = python_symbol_definers(repo)
     except gitio.GitError:
         return {}
+    scripts = pyproject_script_definers(repo, index)  # console-script name -> target file
     out: dict[str, tuple[str, ...]] = {}
     for claim in claims:
         paths: set[str] = set()
@@ -90,6 +145,8 @@ def claim_symbol_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple
             files = index.get(token)
             if files is not None and len(files) == 1:
                 paths.add(files[0])
+            elif token in scripts:
+                paths.add(scripts[token][0])
         if paths:
             out[claim.id] = tuple(sorted(paths))
     return out

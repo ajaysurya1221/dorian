@@ -435,3 +435,59 @@ def test_bind_suggest_shows_ambiguous_and_degrades_on_non_git(
     nongit = tmp_path / "x"
     nongit.mkdir()
     assert _bind_suggest(fixture_repo, capsys, [LOGIN_CLAIM], repo=nongit) == []
+
+
+# --- Lim #2 (B2): pyproject [project.scripts] -> target-file index --------------------------
+
+_SCRIPT_PROJECT = (
+    '[project]\nname = "x"\nversion = "0"\n\n[project.scripts]\nmytool = "pkg.cli:main"\n'
+)
+_SCRIPT_CLAIM = Claim(
+    id="cli-claim",
+    text="The `mytool` command is the entry point.",
+    kind="reference",
+    load_bearing=True,
+    checkers=(CheckerSpec(type="C3", program="string:src/routes.py::/v1/login"),),
+)
+
+
+def test_pyproject_script_binds_target_file(fixture_repo: Path) -> None:
+    # a console-script entry point names module:function; a claim mentioning the script
+    # binds its target file (unambiguous by construction — TOML keys can't collide).
+    write(fixture_repo, "pkg/cli.py", "def main():\n    return 0\n")
+    write(fixture_repo, "pyproject.toml", _SCRIPT_PROJECT)
+    commit_all(fixture_repo, "add a console-script entry point")
+    assert _verify(fixture_repo, [_SCRIPT_CLAIM]) == 0
+    w = _warrant(fixture_repo)
+    assert w.claims[0].checkers[0].watch == ("src/routes.py", "pkg/cli.py")
+    assert "pkg/cli.py" in {e.uri for e in w.read_set}
+
+
+def test_pyproject_script_restricted_target_refuses_seal(fixture_repo: Path) -> None:
+    write(fixture_repo, "pkg/cli.py", "def main():\n    return 0\n")
+    write(
+        fixture_repo,
+        "pyproject.toml",
+        _SCRIPT_PROJECT + '\n[tool.dorian.scopes]\nrestricted = ["pkg/cli.py"]\n',
+    )
+    commit_all(fixture_repo, "console script with a restricted target")
+    cp = fixture_repo / "claims.json"
+    claims_io.save_claims(cp, [_SCRIPT_CLAIM])
+    base = ["--repo", str(fixture_repo), "verify", "docs/design.md", "--claims", str(cp)]
+    assert cli.main(base) == 6  # the inferred script target is restricted -> fail closed
+    assert cli.main([*base, "--allow-restricted"]) == 0
+
+
+def test_pyproject_script_rename_target_makes_candidate(fixture_repo: Path) -> None:
+    write(fixture_repo, "pkg/cli.py", "def main():\n    return 0\n")
+    write(fixture_repo, "pyproject.toml", _SCRIPT_PROJECT)
+    commit_all(fixture_repo, "console script")
+    assert _verify(fixture_repo, [_SCRIPT_CLAIM]) == 0
+    base = gitio.head_ref(fixture_repo)
+    write(fixture_repo, "pkg/cli.py", "def renamed():\n    return 0\n")  # target gone
+    res = revalidate(fixture_repo, since=base)
+    assert res.candidates >= 1  # the target-file change selected the claim
+    rechecked = {
+        cid for grp in (res.passed, res.broken, res.relocated, res.errored) for _, cid, _ in grp
+    }
+    assert "cli-claim" in rechecked
