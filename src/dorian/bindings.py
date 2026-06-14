@@ -40,7 +40,8 @@ _GREP_NAMES = frozenset({"grep", "egrep", "fgrep", "rg"})
 def analyze(repo: Path, artifact_uri: str) -> list[dict]:
     """Per-claim binding diagnostics for a warranted artifact, in claim order:
     {claim_id, text, watch, flags, mentions}. Flags (fixed order): 'unbacked' |
-    'single-file' | 'short-literal' | 'ambiguous-mention' | 'unwatched-mention'."""
+    'single-file' | 'short-literal' | 'ambiguous-mention' | 'trigger-only-symbol' |
+    'unwatched-mention'."""
     from dorian import symbol_index  # lazy: symbol_index imports _tokens from here (cycle)
 
     repo = repo.resolve()
@@ -66,6 +67,11 @@ def analyze(repo: Path, artifact_uri: str) -> list[dict]:
         amb = ambiguous.get(claim.id, {})
         if any(not any(_covered(f, cover) for f in files) for files in amb.values()):
             flags.append("ambiguous-mention")
+        named = _checker_named_files(claim, entry_uris)
+        if claim.load_bearing and any(
+            w not in named for spec in claim.checkers for w in spec.watch
+        ):
+            flags.append("trigger-only-symbol")
         mentions: list[dict] = []
         for tok in claim_tokens[claim.id]:
             if len(mentions) == _MAX_TOKENS:
@@ -85,6 +91,29 @@ def analyze(repo: Path, artifact_uri: str) -> list[dict]:
             }
         )
     return diags
+
+
+def _checker_named_files(claim: Claim, entry_uris: dict[str, str]) -> set[str]:
+    """The files a claim's checker PROGRAMS name (the truth they verify), independent of
+    symbol-definer watch paths added at verify time. A watch path NOT in this set is a
+    re-check TRIGGER that no checker exercises — the binding fix's trigger != truth gap,
+    which the 'trigger-only-symbol' flag surfaces."""
+    from dorian.seal import _c5_data_paths  # lazy: reuse the canonical C5 path grammar
+
+    named: set[str] = set()
+    for spec in claim.checkers:
+        prefix, _, rest = spec.program.partition(":")
+        if spec.type == "C1":
+            uri = entry_uris.get(spec.program)
+            if uri:
+                named.add(uri)
+        elif spec.type == "C3":
+            named.add(rest.partition("::")[0] if prefix in ("symbol", "string", "regex") else rest)
+        elif spec.type == "C4" and prefix == "pytest":
+            named.add(rest.partition("::")[0])
+        elif spec.type == "C5":
+            named.update(_c5_data_paths(prefix, rest))
+    return {f for f in named if f}
 
 
 def _tokens(text: str) -> list[str]:

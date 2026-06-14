@@ -491,3 +491,43 @@ def test_pyproject_script_rename_target_makes_candidate(fixture_repo: Path) -> N
         cid for grp in (res.passed, res.broken, res.relocated, res.errored) for _, cid, _ in grp
     }
     assert "cli-claim" in rechecked
+
+
+# --- Lim #5 (E1): trigger-only coverage is made visible (advisory, never a gate) -----------
+
+
+def test_trigger_only_symbol_flag_when_no_checker_exercises_definer(
+    fixture_repo: Path, capsys
+) -> None:
+    # a LOAD-BEARING claim mentions verify_token (unique in src/auth.py); its checker
+    # inspects routes.py, so src/auth.py is a re-check TRIGGER no checker verifies — the
+    # gap the binding fix leaves (trigger != truth). It must be VISIBLE, not silent.
+    lb = Claim(
+        id="trig",
+        text="Login is gated by verify_token.",
+        kind="reference",
+        load_bearing=True,
+        checkers=(CheckerSpec(type="C3", program="string:src/routes.py::/v1/login"),),
+    )
+    assert _verify(fixture_repo, [lb]) == 0
+    capsys.readouterr()
+    assert "trigger-only-symbol" in _bindings_flags(fixture_repo, capsys, "trig")
+    # advisory only: the flag changes NO state — the claim is VERIFIED, warrant TRUSTED
+    assert cli.main(["--repo", str(fixture_repo), "--json", "status", "docs/design.md"]) == 0
+    assert json.loads(capsys.readouterr().out)["warrants"][0]["claim_states"] == {"VERIFIED": 1}
+
+
+def test_trigger_only_flag_clears_when_a_checker_names_the_definer(
+    fixture_repo: Path, capsys
+) -> None:
+    # a checker that DIRECTLY verifies the symbol's file is truth-cover, not trigger-only
+    cov = Claim(
+        id="cov",
+        text="Login is gated by verify_token.",
+        kind="fact",
+        load_bearing=True,
+        checkers=(CheckerSpec(type="C3", program="symbol:src/auth.py::verify_token"),),
+    )
+    assert _verify(fixture_repo, [cov]) == 0
+    capsys.readouterr()
+    assert "trigger-only-symbol" not in _bindings_flags(fixture_repo, capsys, "cov")
