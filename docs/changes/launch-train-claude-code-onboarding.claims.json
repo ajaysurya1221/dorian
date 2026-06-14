@@ -1,0 +1,39 @@
+{
+  "claims": [
+    {
+      "id": "use-with-claude-code-doc-added",
+      "text": "The Claude Code workflow pack doc exists.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "path:docs/USE_WITH_CLAUDE_CODE.md" }]
+    },
+    {
+      "id": "example-pack-added",
+      "text": "The runnable Claude Code example pack's claims.json exists.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "path:examples/claude-code/claims.json" }]
+    },
+    {
+      "id": "public-benchmark-protocol-added",
+      "text": "The public-repo micro-benchmark protocol doc exists.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "path:docs/PUBLIC_BENCHMARK_PROTOCOL.md" }]
+    },
+    {
+      "id": "trusted-base-action-design-added",
+      "text": "The trusted-base Action design doc exists.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "path:docs/TRUSTED_BASE_ACTION_DESIGN.md" }]
+    },
+    {
+      "id": "readme-claude-code-section",
+      "text": "The README has a 'Using dorian with Claude Code' section.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "regex:README.md::Using dorian with Claude Code" }]
+    }
+  ]
+}

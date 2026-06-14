@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "status": "protocol-only-no-results",
+  "repos": [
+    {
+      "name": "encode/httpx",
+      "url": "https://github.com/encode/httpx",
+      "frozen_sha": "d4961b9f8e7f00b654dbdbf200562bd273f598c7",
+      "license": "BSD-3-Clause",
+      "context": "Widely used Python HTTP client with rich symbols, config constants, and a real test suite.",
+      "public": true,
+      "private": false,
+      "notes": "Pinned public input for future protocol-only benchmark harness."
+    },
+    {
+      "name": "pallets/click",
+      "url": "https://github.com/pallets/click",
+      "frozen_sha": "5df10013f7ed8bad94da1e82d58e3711eec1afb3",
+      "license": "BSD-3-Clause",
+      "context": "Widely used CLI library with a stable public API surface for symbol and path claims.",
+      "public": true,
+      "private": false,
+      "notes": "Pinned public input for future protocol-only benchmark harness."
+    }
+  ]
+}

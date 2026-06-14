@@ -1,0 +1,164 @@
+{
+  "spec_version": "0.1",
+  "warrant": {
+    "id": "sha256:df2fa6d33f757b1f32bca8ccd07a68c117ccfd91cbcfbfcaa276359637aa91fe",
+    "artifact": {
+      "uri": "docs/changes/launch-train-claude-code-onboarding.md",
+      "content_hash": "sha256:aeeda0352eddb9d03564ac888bd7c0ac7b22593a1f6b0605f6644e448b046570",
+      "git_ref": "4ba1b1b0c6971102d590d4bda9ef2df70b55332b"
+    },
+    "produced_by": {
+      "runner": "manual",
+      "captured_at": "2026-06-14T16:54:06.640476+00:00",
+      "run_ref": "",
+      "model": "",
+      "prompt_hash": ""
+    },
+    "read_set": [
+      {
+        "id": "rs-0",
+        "uri": "docs/USE_WITH_CLAUDE_CODE.md",
+        "selector": null,
+        "hash": "sha256:1d8f8212de3023ec50b4261ed8a59a229c4fbcc2b71fc230c6393846267aa713",
+        "version": "4ba1b1b0c6971102d590d4bda9ef2df70b55332b",
+        "scope": "project"
+      },
+      {
+        "id": "rs-1",
+        "uri": "examples/claude-code/claims.json",
+        "selector": null,
+        "hash": "sha256:8db545e37ce72ad4497eb3353060399bef3cf17e80906b3b808870b68675f156",
+        "version": "4ba1b1b0c6971102d590d4bda9ef2df70b55332b",
+        "scope": "project"
+      },
+      {
+        "id": "rs-2",
+        "uri": "docs/PUBLIC_BENCHMARK_PROTOCOL.md",
+        "selector": null,
+        "hash": "sha256:67ea1bac5c203ab1ad70cef997f5daaf1a4676ea13e45c75551c64f0807bf06f",
+        "version": "4ba1b1b0c6971102d590d4bda9ef2df70b55332b",
+        "scope": "project"
+      },
+      {
+        "id": "rs-3",
+        "uri": "docs/TRUSTED_BASE_ACTION_DESIGN.md",
+        "selector": null,
+        "hash": "sha256:a80956764a296c77072de279da6f18219e5b9446cd2fdc6e5f91858468465fb7",
+        "version": "4ba1b1b0c6971102d590d4bda9ef2df70b55332b",
+        "scope": "project"
+      },
+      {
+        "id": "rs-4",
+        "uri": "README.md",
+        "selector": null,
+        "hash": "sha256:2e513678add37c93481788ce2d03e97ad8bbcee9d923969a7e4d3f6319279d5c",
+        "version": "4ba1b1b0c6971102d590d4bda9ef2df70b55332b",
+        "scope": "project"
+      }
+    ],
+    "claims": [
+      {
+        "id": "use-with-claude-code-doc-added",
+        "text": "The Claude Code workflow pack doc exists.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "path:docs/USE_WITH_CLAUDE_CODE.md",
+            "expect": "exit:0",
+            "watch": [
+              "docs/USE_WITH_CLAUDE_CODE.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "example-pack-added",
+        "text": "The runnable Claude Code example pack's claims.json exists.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "path:examples/claude-code/claims.json",
+            "expect": "exit:0",
+            "watch": [
+              "examples/claude-code/claims.json"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "public-benchmark-protocol-added",
+        "text": "The public-repo micro-benchmark protocol doc exists.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "path:docs/PUBLIC_BENCHMARK_PROTOCOL.md",
+            "expect": "exit:0",
+            "watch": [
+              "docs/PUBLIC_BENCHMARK_PROTOCOL.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "trusted-base-action-design-added",
+        "text": "The trusted-base Action design doc exists.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "path:docs/TRUSTED_BASE_ACTION_DESIGN.md",
+            "expect": "exit:0",
+            "watch": [
+              "docs/TRUSTED_BASE_ACTION_DESIGN.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "readme-claude-code-section",
+        "text": "The README has a 'Using dorian with Claude Code' section.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:README.md::Using dorian with Claude Code",
+            "expect": "exit:0",
+            "watch": [
+              "README.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      }
+    ],
+    "derives_from": [],
+    "fold_policy": {
+      "revoke_on": "load_bearing_broken",
+      "degrade_on": "any_stale_or_broken"
+    },
+    "sealed_at": "2026-06-14T16:54:06Z",
+    "supersedes": null
+  }
+}

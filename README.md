@@ -32,6 +32,13 @@ caller.* Some of that is already false; the rest goes false on the next commit �
 the whole time. `dorian` turns each checkable claim into a deterministic, token-free check that holds
 now and is re-checked on every future change, so a confident summary doesn't quietly become a lie.
 
+> **Local-first and token-free.** dorian runs offline against your git repo — a CLI and your
+> commits, nothing else — with **zero model tokens at check time**, so the checker can't be talked
+> past by the code it verifies. Because checker programs are *executable* (C4 runs `pytest`, C5
+> `shell:` runs a command), it is built for **trusted, internal repositories** — not public CI
+> taking forked pull requests. Pairs naturally with a coding agent such as **Claude Code**
+> ([how](#using-dorian-with-claude-code)).
+
 ## Table of contents
 
 - [The 60-second aha](#the-60-second-aha)
@@ -40,6 +47,7 @@ now and is re-checked on every future change, so a confident summary doesn't qui
 - [Who verifies the verifier?](#who-verifies-the-verifier)
 - [Why not just watch files?](#why-not-just-watch-files)
 - [How it works](#how-it-works)
+- [Using dorian with Claude Code](#using-dorian-with-claude-code)
 - [What gets committed](#what-gets-committed)
 - [Getting started](#getting-started)
 - [Writing claims an agent can be held to](#writing-claims-an-agent-can-be-held-to)
@@ -230,6 +238,26 @@ dorian report --audit
 For a C1 *span* claim (a quoted slice of the artifact itself), the read-set can't be derived from the
 claim, so use the lower-level two-step instead: `dorian capture` to build the read-set, then
 `dorian seal`.
+
+## Using dorian with Claude Code
+
+The intended loop is an agent-in, checker-out handshake: a coding agent writes the change *and* the
+`claims.json` for what it just did, dorian verifies those claims against the real code, and then
+keeps re-checking them on every later commit. Nothing about dorian is Claude-specific — any agent (or
+you) can emit the claims — but the canonical setup is **Claude Code**:
+
+1. After a change, have the agent emit a `claims.json` of the checkable things it just claimed. The
+   paste-ready prompt, a runnable example pack, and a `settings.json` permissions sample live in
+   [`docs/USE_WITH_CLAUDE_CODE.md`](docs/USE_WITH_CLAUDE_CODE.md) and
+   [`examples/claude-code/`](examples/claude-code/).
+2. `dorian verify <artifact> --claims claims.json` — born-verifiable: the seal is refused (exit 4,
+   nothing written) if any claim is already false.
+3. `dorian revalidate --since <base>` on every later PR re-checks only the claims whose watched files
+   changed — zero model tokens — and folds the warrant to REVOKED the instant one stops being true.
+
+> **An agent-emitted `claims.json` is executable input.** `dorian verify` *runs* every checker, and
+> C4 (`pytest:`) / C5 `shell:` execute code — review it exactly as you review agent-emitted code, and
+> never run `verify` on claims from an untrusted source.
 
 ## What gets committed
 

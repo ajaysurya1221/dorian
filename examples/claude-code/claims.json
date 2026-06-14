@@ -1,0 +1,18 @@
+{
+  "claims": [
+    {
+      "id": "login-handler-added",
+      "text": "app.py defines a login_handler.",
+      "kind": "behavior",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "symbol:app.py::login_handler" }]
+    },
+    {
+      "id": "login-timeout-30s",
+      "text": "The login request timeout is 30 seconds.",
+      "kind": "quantity",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "regex:app.py::LOGIN_TIMEOUT\\s*=\\s*30\\b" }]
+    }
+  ]
+}
