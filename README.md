@@ -165,6 +165,43 @@ performance claim. See [`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md) (p
 [`docs/BENCHMARK_PROTOCOL_v0.7.0.md`](docs/BENCHMARK_PROTOCOL_v0.7.0.md)); reproduce with
 `dorian bench large-mutation`, and measure your own repos with the harness in `bench/`.
 
+## Binding is a re-check trigger, not a behavior proof
+
+When a claim mentions a Python symbol defined in exactly one file, `dorian` also **watches that
+defining file** — so a change there *re-checks* the claim, even when no checker named that file. This
+closes a silent-skip gap, but it is the honest half of the story: **binding widens when a claim is
+re-checked; the checker still decides whether it's true.** A watched file changing never makes a claim
+`BROKEN` by itself.
+
+The binding-lifecycle benchmark measures exactly that split over **808 (artifact, mutation) pairs**
+across 63 invented domains, with two mechanically-frozen labels per edit — *should re-check* and
+*should alarm*:
+
+- **Re-check (trigger) coverage** rose from **0.54** selection recall for a pre-binding,
+  checker-path-only watcher to **1.00** for binding — it re-checks **286** stale-trigger pairs the
+  old watcher silently skipped — and it does so at higher precision (**1.00**) than the rejected
+  "watch any file containing the token" shortcut (**0.92**).
+- **Alarm (truth) precision stayed 1.00** (zero false `BROKEN` over all 808 pairs): the extra
+  re-checks from benign churn pass quietly; `ERRORED` is reported separately and is never an alarm.
+- **The ceiling is shown, not hidden.** On a "gutted-body" edit (the symbol still exists, its
+  behavior changed), the binding fires the re-check but an existence checker yields **zero** `BROKEN`
+  — only a behavior checker (a `pytest:` test) on the same edit catches it. Binding is trigger
+  coverage, **not** behavior proof.
+- **Ambiguity is skipped, not guessed.** A symbol defined in more than one file is left unwatched
+  (a wrong watch is a false alarm); the benchmark scores that as an honest miss rather than crediting
+  it as a win.
+
+We also reproduced **public, still-open problem classes** offline as hermetic fixtures (the public
+issue is the template; the fixture is invented). Of three reproductions: a renamed config filename
+left in the docs and a flipped `InsecureSkipVerify` TLS flag both fold `BROKEN` (**solved**); a major-
+version API rename is caught while a same-name return-type change on a sibling is **missed** — the same
+trigger-vs-truth ceiling, on a real class (**partial**). Two further cases are honest misses
+(**not_solved**).
+
+See [`docs/BENCHMARK_BINDING_LIFECYCLE.md`](docs/BENCHMARK_BINDING_LIFECYCLE.md) and
+[`docs/REALWORLD_USECASES.md`](docs/REALWORLD_USECASES.md) (protocols alongside each); reproduce with
+`dorian bench binding-lifecycle` and `dorian bench realworld-usecases`.
+
 ## How it works
 
 1. **Write `claims.json`** — your agent emits it as it works, or you write it by hand
@@ -337,6 +374,10 @@ claims.
 - `dorian bench large-mutation` — the v0.7.0 controlled-mutation benchmark (numbers-only aggregate +
   stratified summary; [`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md)). `dorian bench mutation`
   is the earlier, smaller benchmark; `dorian bench churn` measures extraction stability.
+- `dorian bench binding-lifecycle` (`--quick` for a CI subset) — the two-layer trigger-vs-truth
+  benchmark for symbol binding ([`docs/BENCHMARK_BINDING_LIFECYCLE.md`](docs/BENCHMARK_BINDING_LIFECYCLE.md)).
+  `dorian bench realworld-usecases` runs the offline public-case reproductions
+  ([`docs/REALWORLD_USECASES.md`](docs/REALWORLD_USECASES.md)).
 
 Exit codes: `0` ok/TRUSTED · `2` usage/infra (incl. a C1 or C5 `shell:` claim handed to `verify`) ·
 `3` DEGRADED · `4` REVOKED/integrity · `5` ERRORED-only (checkers could not run — never conflated with
@@ -362,11 +403,15 @@ work perishable, so you find out when it expired.
 
 - **Real catches on real repos** — the dogfood above made the loop usable; next is using it daily and
   recording the breaks it catches that would otherwise have shipped.
-- **Closing the binding gap** — today a claim's checker can miss the file that actually defines its
-  fact, letting a warrant read TRUSTED while reality drifted; a symbol→defining-file index is the next
-  correctness investment ([`docs/NEXT_ALGORITHMIC_BETS.md`](docs/NEXT_ALGORITHMIC_BETS.md)).
-- **A public benchmark on real repositories** — extending the synthetic mechanism demonstration to
-  frozen public-repo SHAs with manual claims and reproducible known-truth labels
+- **The binding gap, narrowed and measured** — a symbol→defining-file index now re-checks a claim
+  when its symbol's definer changes, closing the silent-skip *trigger* gap
+  ([`docs/BENCHMARK_BINDING_LIFECYCLE.md`](docs/BENCHMARK_BINDING_LIFECYCLE.md)). What remains is the
+  honest ceiling: a definer change triggers a re-check, but only a behavior checker proves a behavior
+  change (the gutted-body case), and ambiguous or non-Python symbols are still left for explicit
+  binding ([`docs/NEXT_ALGORITHMIC_BETS.md`](docs/NEXT_ALGORITHMIC_BETS.md)).
+- **A public benchmark on real repositories** — the offline public-case reproductions
+  ([`docs/REALWORLD_USECASES.md`](docs/REALWORLD_USECASES.md)) reproduce real problem *classes*; the
+  next rung is frozen public-repo SHAs with manual claims and reproducible known-truth labels
   ([`docs/SOLO_VALIDATION_LADDER.md`](docs/SOLO_VALIDATION_LADDER.md)).
 - **Tagged release and PyPI trusted publishing.**
 
