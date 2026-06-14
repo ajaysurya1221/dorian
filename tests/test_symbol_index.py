@@ -609,6 +609,53 @@ def test_rebind_is_idempotent_when_nothing_new_to_widen(fixture_repo: Path) -> N
     assert _warrant(fixture_repo).id == id_after_first  # second rebind is an idempotent no-op
 
 
+def test_rebind_refuses_c1_span_claims(fixture_repo: Path) -> None:
+    # C1 span claims bind a read-set entry (an artifact span), not a code file, so they are
+    # not auto-rebindable; rebind must refuse with a usage error (exit 2) and write nothing,
+    # rather than silently re-seal or no-op (the command's documented contract).
+    from dorian.capture.manual import parse_manual
+    from dorian.model import Anchor, CheckerSpec, Claim
+    from dorian.seal import seal_artifact
+
+    c1 = Claim(
+        id="span",
+        text="Token verification lives in src/auth.py and uses RS256.",
+        kind="fact",
+        load_bearing=True,
+        anchor=Anchor(3, 3, "uses RS256"),
+        supports=("rs-0",),
+        checkers=(CheckerSpec(type="C1", program="rs-0"),),
+    )
+    seal_artifact(
+        fixture_repo, "docs/design.md", parse_manual(["docs/design.md:L3-3"], fixture_repo), [c1]
+    )
+    before = (fixture_repo / "docs/design.md.warrant").read_bytes()
+
+    assert cli.main(["--repo", str(fixture_repo), "rebind", "docs/design.md"]) == 2
+    assert (fixture_repo / "docs/design.md.warrant").read_bytes() == before  # sidecar untouched
+
+
+def test_rebind_assigns_collision_free_readset_ids(fixture_repo: Path) -> None:
+    # a read-set with NON-contiguous ids (rs-0, rs-2) must not collide when rebind appends the
+    # new definer entry: new ids are derived to avoid every existing id, not from list length.
+    from dataclasses import replace
+
+    from dorian.capture.manual import parse_manual
+    from dorian.seal import seal_artifact
+
+    write(fixture_repo, "src/extra.py", "WIDGET = 1\n")
+    commit_all(fixture_repo, "add a read-set dependency")
+    rs = parse_manual(["src/routes.py", "src/extra.py"], fixture_repo)
+    e0, e1 = rs.entries
+    rs = replace(rs, entries=(e0, replace(e1, id="rs-2")))  # non-contiguous: rs-0, rs-2
+    seal_artifact(fixture_repo, "docs/design.md", rs, [LOGIN_CLAIM])
+
+    assert cli.main(["--repo", str(fixture_repo), "rebind", "docs/design.md"]) == 0
+    ids = [e.id for e in _warrant(fixture_repo).read_set]
+    assert len(ids) == len(set(ids))  # no duplicate ids (a len-based scheme would reuse rs-2)
+    assert "src/auth.py" in {e.uri for e in _warrant(fixture_repo).read_set}  # definer added
+
+
 def test_revalidate_stays_symbol_blind() -> None:
     # the permanent design constraint: revalidate never scans symbols / imports the index;
     # it works only because rebind (or verify) baked better watches into the sidecar.

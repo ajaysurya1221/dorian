@@ -445,6 +445,15 @@ def cmd_rebind(args: argparse.Namespace) -> int:
         print(f"dorian rebind: corrupt warrant sidecar: {exc}", file=sys.stderr)
         return EXIT_REVOKED
     claims = list(old.claims)
+    if any(spec.type == "C1" for c in claims for spec in c.checkers):
+        # C1 span claims bind a read-set entry (an artifact span), not a code file, so the
+        # symbol index has nothing to widen — refuse rather than silently reseal/no-op.
+        print(
+            "dorian rebind: C1 span claims bind a read-set entry, not a file; "
+            "rebind them with `dorian capture` + `dorian seal`",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
     symbol_watch = symbol_index.claim_symbol_watch_paths(repo, claims)
     new_paths = {p for ps in symbol_watch.values() for p in ps}
     already_watched = {w for c in claims for spec in c.checkers for w in spec.watch}
@@ -459,6 +468,8 @@ def cmd_rebind(args: argparse.Namespace) -> int:
     # definer files, under non-colliding ids so each claim's supports references stay valid.
     old_entries = list(old.read_set)
     existing_uris = {e.uri for e in old_entries}
+    used_ids = {e.id for e in old_entries}
+    next_idx = 0
     try:
         head = gitio.head_ref(repo)
         added: list[ReadSetEntry] = []
@@ -466,9 +477,13 @@ def cmd_rebind(args: argparse.Namespace) -> int:
             h = gitio.working_hash(repo, path, None)
             if h is None:
                 raise ValueError(f"missing file: {path}")
+            while f"rs-{next_idx}" in used_ids:  # avoid every existing id (ids may be sparse)
+                next_idx += 1
+            entry_id = f"rs-{next_idx}"
+            used_ids.add(entry_id)
             added.append(
                 ReadSetEntry(
-                    id=f"rs-{len(old_entries) + len(added)}",
+                    id=entry_id,
                     uri=path,
                     selector=None,
                     hash=h,
