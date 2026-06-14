@@ -118,6 +118,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     bd.add_argument("artifact")
 
+    bs = sub.add_parser(
+        "bind-suggest",
+        help="read-only: the symbol-definer files `verify` would auto-bind for each"
+        " claim (and ambiguous symbols it would skip); writes nothing, never a gate",
+    )
+    bs.add_argument("--claims", required=True, help="claims.json")
+
+    rb = sub.add_parser(
+        "rebind",
+        help="re-derive a warrant's symbol-definer watches with the current binding"
+        " logic and re-seal it (born-verifiable, superseding the old id)",
+    )
+    rb.add_argument("artifact")
+
     rv = sub.add_parser("revalidate", help="incremental re-check after changes")
     rv.add_argument("--since", help="git ref to diff from (e.g. HEAD~1)")
     rv.add_argument("--changed-paths", help="file listing changed paths (one per line)")

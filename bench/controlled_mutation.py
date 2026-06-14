@@ -309,6 +309,25 @@ def _write(repo: Path, rel: str, content: str) -> None:
     p.write_text(content, encoding="utf-8", newline="\n")
 
 
+def _rmtree(path: Path) -> None:
+    """Robust teardown of a transient git fixture repo. After a commit, git can
+    briefly hold files under .git (auto-gc / fsmonitor), so shutil.rmtree races
+    with "Directory not empty" / vanished-file errors on loaded CI runners. Retry
+    a few times, then give up cleanly — the parent workspace is an ephemeral tmp
+    dir removed wholesale, so leftover cruft never affects the (in-memory) result."""
+    import time
+
+    for _ in range(6):
+        try:
+            shutil.rmtree(path)
+            return
+        except FileNotFoundError:
+            return
+        except OSError:
+            time.sleep(0.15)
+    shutil.rmtree(path, ignore_errors=True)
+
+
 def _changed_line_ranges(repo: Path, since: str, path: str) -> set[int]:
     """Old-side (t0) line numbers touched in `path` between `since` and HEAD,
     parsed from `git diff -U0` hunk headers. A pure insertion (old count 0)
@@ -700,7 +719,7 @@ def _run_mutation(template: Path, work_root: Path, t0: str, mut: dict) -> dict:
     """Apply one mutation to a fresh copy and score all three detectors."""
     work = work_root / mut["id"]
     if work.exists():
-        shutil.rmtree(work)
+        _rmtree(work)
     shutil.copytree(template, work)
 
     mut["apply"](work)
@@ -735,7 +754,7 @@ def _run_mutation(template: Path, work_root: Path, t0: str, mut: dict) -> dict:
                 "errored": sorted(errored),
             }
         )
-    shutil.rmtree(work)
+    _rmtree(work)
     return {"records": records, "rename_detected": bool(renames)}
 
 
@@ -871,7 +890,7 @@ def run_benchmark(workspace: Path) -> dict:
     workspace.mkdir(parents=True, exist_ok=True)
     template = workspace / "t0"
     if template.exists():
-        shutil.rmtree(template)
+        _rmtree(template)
     t0 = build_fixture(template)
     work_root = workspace / "work"
     work_root.mkdir(exist_ok=True)
@@ -882,7 +901,7 @@ def run_benchmark(workspace: Path) -> dict:
         records.extend(out["records"])
         if mut.get("expect_rename") and not out["rename_detected"]:
             raise RuntimeError(f"rename mutation {mut['id']!r} produced no git rename")
-    shutil.rmtree(template)
+    _rmtree(template)
     return compute(records)
 
 

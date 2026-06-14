@@ -365,3 +365,55 @@ def test_cmd_bindings_exits_zero_even_when_flagged(fixture_repo: Path, capsys) -
     out = capsys.readouterr().out
     assert "flags: unbacked" in out
     assert "1 claim(s), 1 flagged" in out
+
+
+# --- Phase-0 nit 1: C4 nodeid whitespace parity with seal._derive_watch -----------------
+
+
+def test_checker_named_files_strips_c4_nodeid_whitespace() -> None:
+    """seal._derive_watch strips the C4 nodeid's file part; _checker_named_files
+    must strip it too. A whitespace-padded pytest nodeid otherwise yields
+    named=' tests/x.py' != watch='tests/x.py', a spurious 'trigger-only-symbol'
+    advisory flag. Content-free: asserts the path string only."""
+    spec = CheckerSpec(
+        type="C4",
+        program="pytest: tests/test_auth.py::test_login ",
+        watch=("tests/test_auth.py",),  # what _derive_watch stores (stripped)
+    )
+    claim = Claim(id="c", text="x", kind="behavior", load_bearing=True, checkers=(spec,))
+    named = bindings._checker_named_files(claim, {})
+    assert named == {"tests/test_auth.py"}  # stripped, not ' tests/test_auth.py'
+    # parity with the stored watch => the trigger-only-symbol predicate cannot fire
+    assert all(w in named for s in claim.checkers for w in s.watch)
+
+
+# --- Phase-0 nit 2: backticked common words are not binding tokens -----------------------
+
+
+def test_backticked_common_word_is_not_a_token() -> None:
+    """A bare common word in backticks ('`config`', '`list`', '`token`', '`handler`')
+    is markup, not a symbol reference: it must not become a candidate token, or it would
+    bind a one-definer symbol and risk a false BROKEN. Real identifiers — snake_case,
+    CamelCase, and non-common bare idents like 'cert' — still tokenize."""
+    assert bindings._tokens("The `config` and `list` and `token` and `handler`.") == []
+    assert bindings._tokens("Login uses `verify_token` and `TokenVerifier`.") == [
+        "verify_token",
+        "TokenVerifier",
+    ]
+    assert bindings._tokens("The `cert` rotates.") == ["cert"]  # not common: still a token
+
+
+def test_checker_named_files_counts_c5_shell_explicit_watch() -> None:
+    """A C5 shell checker derives no data path (_c5_data_paths returns [] for shell),
+    so its EXPLICIT watch is what it exercises. _checker_named_files must count that
+    watch, or a load-bearing shell claim gets a spurious 'trigger-only-symbol' flag."""
+    spec = CheckerSpec(
+        type="C5",
+        program="shell:grep -q rotate data/policy.csv",
+        watch=("data/policy.csv",),
+        expect="exit:0",
+    )
+    claim = Claim(id="c", text="x", kind="fact", load_bearing=True, checkers=(spec,))
+    named = bindings._checker_named_files(claim, {})
+    assert named == {"data/policy.csv"}  # the shell checker's explicit watch is named
+    assert all(w in named for s in claim.checkers for w in s.watch)  # => no spurious flag

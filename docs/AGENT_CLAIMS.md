@@ -26,8 +26,9 @@ duplicate (a second copy would be exactly the drift dorian exists to catch):
 > `shell:` execute code**: pytest collection imports the target module and any `conftest.py`, and
 > `shell:` runs its command. Review an agent-emitted `claims.json` exactly as you would review
 > agent-emitted code, and never run `verify` on claims from an untrusted source.
-> `[tool.dorian.scopes]` restricts which files a claim may *name*, not what an executed checker may
-> read or write — it is not a sandbox. See the Action's
+> `[tool.dorian.scopes]` restricts the auto-captured read-set — files a claim's checkers name, plus
+> the file `verify` binds from a symbol the claim mentions — not what an executed checker may read or
+> write; it is not a sandbox. See the Action's
 > [security notes](../action/README.md#security-checker-execution-and-untrusted-pull-requests).
 
 ## 1. The `claims.json` shape
@@ -149,7 +150,9 @@ After writing `claims.json`:
 
 1. `dorian verify <artifact> --claims claims.json` — require **exit 0**.
 2. `dorian bindings <artifact>` — resolve every flag (`unbacked`, `single-file`,
-   `short-literal`, `unwatched-mention`) before considering the claim sealed.
+   `short-literal`, `ambiguous-mention`, `trigger-only-symbol`, `unwatched-mention`) before
+   considering the claim sealed. Preview what `verify` will auto-bind first with
+   `dorian bind-suggest --claims claims.json` (read-only).
 
 `bindings` is your deterministic false-confidence linter — a strong smell-detector, not a
 proof. No model runs at check time, ever.
