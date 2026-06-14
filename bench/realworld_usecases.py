@@ -43,7 +43,14 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from bench.binding_lifecycle import Artifact, BClaim, _git, _seal_bound, _write  # noqa: E402
+from bench.binding_lifecycle import (  # noqa: E402
+    Artifact,
+    BClaim,
+    _git,
+    _rmtree,
+    _seal_bound,
+    _write,
+)
 from dorian.model import CheckerSpec, Claim  # noqa: E402
 from dorian.revalidate import revalidate  # noqa: E402
 
@@ -328,7 +335,7 @@ def _cases() -> list[UseCase]:
 def _run_reproduction(case: UseCase, workspace: Path) -> dict:
     repo = workspace / case.case_id
     if repo.exists():
-        shutil.rmtree(repo)
+        _rmtree(repo)
     repo.mkdir(parents=True)
     _git(repo, "init", "-q", "-b", "main")
     for rel, content in case.files.items():
@@ -354,7 +361,7 @@ def _run_reproduction(case: UseCase, workspace: Path) -> dict:
     candidates = {
         cid for grp in (res.passed, res.broken, res.relocated, res.errored) for _, cid, _ in grp
     }
-    shutil.rmtree(repo)
+    _rmtree(repo)
 
     # DERIVE the outcome from actual behavior, then cross-check the declared label.
     caught_ok = case.fact_caught <= broken

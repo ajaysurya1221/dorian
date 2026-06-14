@@ -208,6 +208,25 @@ def _write(repo: Path, rel: str, content: str) -> None:
     p.write_text(content, encoding="utf-8")
 
 
+def _rmtree(path: Path) -> None:
+    """Robust teardown of a transient git fixture repo. After a commit, git can
+    briefly hold files under .git (auto-gc / fsmonitor), so shutil.rmtree races
+    with "Directory not empty" / vanished-file errors on loaded CI runners. Retry
+    a few times, then give up cleanly — the parent workspace is an ephemeral tmp
+    dir removed wholesale, so leftover cruft never affects the (in-memory) result."""
+    import time
+
+    for _ in range(6):
+        try:
+            shutil.rmtree(path)
+            return
+        except FileNotFoundError:
+            return
+        except OSError:
+            time.sleep(0.15)
+    shutil.rmtree(path, ignore_errors=True)
+
+
 # --- detectors ------------------------------------------------------------------
 
 
@@ -285,7 +304,7 @@ def _run_mutation(
     against t0, and score every detector for every artifact in the domain."""
     work = work_root / f"{domain.name}__{mut.id}"
     if work.exists():
-        shutil.rmtree(work)
+        _rmtree(work)
     shutil.copytree(template, work)
 
     mut.apply(work)  # type: ignore[operator]
@@ -335,7 +354,7 @@ def _run_mutation(
                 "changed_files": sorted(changed),
             }
         )
-    shutil.rmtree(work)
+    _rmtree(work)
     return records
 
 
@@ -628,13 +647,13 @@ def run_benchmark(workspace: Path, quick: bool = False) -> tuple[dict, list[dict
     for domain in domains:
         template = workspace / f"t0__{domain.name}"
         if template.exists():
-            shutil.rmtree(template)
+            _rmtree(template)
         t0 = _seal_domain(template, domain)
         work_root = workspace / "work"
         work_root.mkdir(exist_ok=True)
         for mut in domain.mutations:
             records.extend(_run_mutation(template, work_root, t0, domain, mut))
-        shutil.rmtree(template)
+        _rmtree(template)
     records.sort(key=lambda r: (r["domain"], r["mutation"], r["artifact"]))
     return compute(records, domains), records
 
