@@ -570,6 +570,7 @@ def cmd_report(args: argparse.Namespace) -> int:
 _BENCH_DISPATCH: dict[str, tuple[str, bool]] = {
     "mutation": ("bench.controlled_mutation", False),
     "large-mutation": ("bench.large_mutation", False),
+    "binding-lifecycle": ("bench.binding_lifecycle", False),
     "churn": ("bench.churn", False),
 }
 
