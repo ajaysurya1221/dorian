@@ -380,6 +380,43 @@ def cmd_bindings(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_bind_suggest(args: argparse.Namespace) -> int:
+    """Read-only: for each claim, the symbol-definer files `verify` would auto-bind
+    (excluding ones a checker already names) plus any AMBIGUOUS symbols it would skip.
+    Lets an explicit `seal --readset` author add the binding deliberately. Writes
+    nothing, runs no checker, never a gate (exit 0); usage problems exit 2."""
+    repo = _repo(args)
+    if _missing_repo(repo, "bind-suggest"):
+        return EXIT_USAGE
+    try:
+        claims = claims_io.load_claims(Path(args.claims))
+    except (ValueError, OSError) as exc:
+        print(f"dorian bind-suggest: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    watch = symbol_index.claim_symbol_watch_paths(repo, claims)
+    ambiguous = symbol_index.ambiguous_symbol_mentions(repo, claims)
+    suggestions: list[dict] = []
+    for c in claims:
+        try:
+            covered = set(referenced_paths([c]))
+        except ValueError:
+            covered = set()  # C1 span / C5 shell: no auto-derivable read-set to compare
+        bind = [f for f in watch.get(c.id, ()) if f not in covered]
+        amb = {s: list(files) for s, files in ambiguous.get(c.id, {}).items()}
+        if bind or amb:
+            suggestions.append({"claim_id": c.id, "bind": bind, "ambiguous": amb})
+    if args.json:
+        print(json.dumps({"suggestions": suggestions}, sort_keys=True))
+        return EXIT_OK
+    for s in suggestions:
+        if s["bind"]:
+            print(f"{s['claim_id']}  bind: {', '.join(s['bind'])}")
+        for sym, files in sorted(s["ambiguous"].items()):
+            print(f"{s['claim_id']}  ambiguous: {sym} ({len(files)} definers, unbound)")
+    print(f"{len(suggestions)} claim(s) with binding suggestions")
+    return EXIT_OK
+
+
 def cmd_revalidate(args: argparse.Namespace) -> int:
     repo = _repo(args)
     changed_file = Path(args.changed_paths) if args.changed_paths else None

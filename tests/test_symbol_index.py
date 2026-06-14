@@ -380,3 +380,58 @@ def test_ambiguous_mention_flag_is_low_noise(fixture_repo: Path, capsys) -> None
     assert _verify(fixture_repo, [cov]) == 0
     capsys.readouterr()
     assert "ambiguous-mention" not in _bindings_flags(fixture_repo, capsys, "amb-cov")
+
+
+# --- Lim #4 (D): read-only `dorian bind-suggest` -------------------------------------------
+
+
+def _bind_suggest(
+    fixture_repo: Path, capsys, claims: list[Claim], repo: Path | None = None
+) -> list:
+    target = repo or fixture_repo
+    cp = target / "claims.json"
+    claims_io.save_claims(cp, claims)
+    rc = cli.main(["--repo", str(target), "--json", "bind-suggest", "--claims", str(cp)])
+    assert rc == 0  # informational, never a gate
+    return json.loads(capsys.readouterr().out)["suggestions"]
+
+
+def test_bind_suggest_emits_unique_definer_not_already_covered(fixture_repo: Path, capsys) -> None:
+    # LOGIN_CLAIM mentions verify_token (unique in src/auth.py); its checker names
+    # routes.py, not auth.py -> bind-suggest suggests src/auth.py.
+    sugg = _bind_suggest(fixture_repo, capsys, [LOGIN_CLAIM])
+    assert next(s for s in sugg if s["claim_id"] == "login-gate")["bind"] == ["src/auth.py"]
+    assert not (fixture_repo / "docs/design.md.warrant").exists()  # read-only: nothing written
+
+    # a claim whose checker ALREADY names the definer is not suggested (no redundant noise)
+    cov = Claim(
+        id="cov",
+        text="Login is gated by verify_token.",
+        kind="fact",
+        load_bearing=False,
+        checkers=(CheckerSpec(type="C3", program="symbol:src/auth.py::verify_token"),),
+    )
+    sugg2 = _bind_suggest(fixture_repo, capsys, [cov])
+    assert all(s["claim_id"] != "cov" or s["bind"] == [] for s in sugg2)
+
+
+def test_bind_suggest_shows_ambiguous_and_degrades_on_non_git(
+    fixture_repo: Path, capsys, tmp_path: Path
+) -> None:
+    write(fixture_repo, "src/dup.py", "def verify_token(token):\n    return bool(token)\n")
+    commit_all(fixture_repo, "ambiguous verify_token")
+    lb = Claim(
+        id="amb",
+        text="Login is gated by verify_token.",
+        kind="fact",
+        load_bearing=True,
+        checkers=(CheckerSpec(type="C3", program="string:src/routes.py::/v1/login"),),
+    )
+    s = next(x for x in _bind_suggest(fixture_repo, capsys, [lb]) if x["claim_id"] == "amb")
+    assert s["bind"] == []  # ambiguous -> not bound (low-FP)
+    assert "verify_token" in s["ambiguous"]
+
+    # a non-git repo degrades to no suggestions, exit 0 (never blocks on the index)
+    nongit = tmp_path / "x"
+    nongit.mkdir()
+    assert _bind_suggest(fixture_repo, capsys, [LOGIN_CLAIM], repo=nongit) == []
