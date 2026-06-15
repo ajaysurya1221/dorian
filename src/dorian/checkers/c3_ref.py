@@ -20,21 +20,29 @@ operands, paths that resolve outside the repo, and invalid or oversized
 (>500 chars) regex patterns are ERROR('bad_program'): a degenerate program must
 never produce a vacuous PASS.
 
-Residual regex risk: `regex:` patterns are length-bounded (500 chars) and
-compile-guarded, but catastrophic backtracking WITHIN that bound is NOT
-mitigated — C3 runs in-process and ignores ctx.timeout_s, so a pathological
-nested-quantifier pattern (e.g. '(a+)+$') in a reviewed claims.json can stall
-revalidate indefinitely. Reviewers should prefer tolerant-but-anchored
-patterns (literal anchors with bounded flexible gaps, e.g. 'TIMEOUT\\s*=\\s*30')
-over nested or unbounded quantifiers.
+Regex DoS mitigation: `regex:` patterns are length-bounded (500 chars) and
+compile-guarded, AND the match itself runs in a spawned worker process under a
+hard wall-clock timeout (the checker's spec.timeout_s, default 30s). A
+catastrophic-backtracking pattern (e.g. '(a+)+$' against a non-matching tail) is
+killed when the timeout elapses and reported as ERROR('regex_timeout') — never a
+silent stall and never a PASS/FAIL. The process boundary is what makes the
+timeout enforceable: a thread or in-process signal cannot interrupt a C-level
+re.search(). Reviewers should still prefer tolerant-but-anchored patterns
+(literal anchors with bounded flexible gaps, e.g. 'TIMEOUT\\s*=\\s*30') over
+nested or unbounded quantifiers; the timeout is a backstop, not a license.
+Residual: the per-check process spawn adds latency (roughly 50-150ms per `regex:`
+check on spawn platforms, scaling with the number of regex checks in a run) to
+`regex:` checks only; non-regex C3 forms are unaffected and stay fully in-process.
 """
 
 from __future__ import annotations
 
 import difflib
+import multiprocessing
 import re
 from pathlib import Path
 
+from dorian._regex_worker import MATCH, NO_MATCH, WORKER_ERROR, search_worker
 from dorian.checkers import registry
 from dorian.checkers.base import CheckContext, CheckResult, Verdict, resolve_path
 from dorian.model import CheckerSpec, lf_normalize
@@ -43,6 +51,7 @@ _MAX_PATTERN_LEN = 500  # cheap guard against catastrophic patterns
 _NEAR_MISS_RATIO = 0.8
 _NEAR_MISS_MAX_FILE_BYTES = 1 << 20  # 1 MiB: bound the per-line scan
 _NEAR_MISS_MIN_LITERAL = 4  # tiny literals near-match everything
+_REGEX_TERM_GRACE_S = 1.0  # SIGTERM grace before SIGKILL on a runaway match
 
 
 def _contained_path(ctx: CheckContext, uri: str) -> Path | None:
@@ -69,6 +78,38 @@ def _near_miss(text: str, literal: str) -> tuple[int, float] | None:
         if ratio >= _NEAR_MISS_RATIO and (best is None or ratio > best[1]):
             best = (lineno, ratio)
     return best
+
+
+def _search_with_timeout(needle: str, flags: int, text: str, timeout_s: int) -> str:
+    """Run re.search in a spawned worker killed after timeout_s. Returns one of
+    'match' | 'nomatch' | 'timeout' | 'worker_error' | 'spawn_error'. The worker
+    is the ONLY way to bound catastrophic backtracking: the OS can kill a process
+    mid-match, where a thread or signal cannot interrupt a C-level re.search().
+
+    The three non-result outcomes are kept distinct so a real timeout is not
+    confused with an environment failure: 'timeout' = we killed a still-running
+    match; 'worker_error' = the worker caught an exception (pre-compiled, so rare);
+    'spawn_error' = the child exited without ever setting a result (a bootstrap/
+    spawn failure, e.g. an embedder without a spawn-safe __main__ guard)."""
+    mp = multiprocessing.get_context("spawn")
+    result = mp.Value("b", -1)  # -1 survives iff the worker never set it
+    proc = mp.Process(target=search_worker, args=(needle, flags, text, result), daemon=True)
+    proc.start()
+    proc.join(timeout_s)
+    if proc.is_alive():
+        proc.terminate()  # SIGTERM: kills a backtracking match the GIL can't stop
+        proc.join(_REGEX_TERM_GRACE_S)
+        if proc.is_alive():
+            proc.kill()  # escalate if SIGTERM was ignored
+            proc.join()
+        return "timeout"
+    if result.value == MATCH:
+        return "match"
+    if result.value == NO_MATCH:
+        return "nomatch"
+    if result.value == WORKER_ERROR:
+        return "worker_error"
+    return "spawn_error"  # value still -1: the worker bootstrap never ran search
 
 
 def _string_fail(path: Path, text: str, literal: str) -> CheckResult:
@@ -128,10 +169,24 @@ def check(ctx: CheckContext, spec: CheckerSpec) -> CheckResult:
         return CheckResult(Verdict.FAIL, detail="symbol_missing")
 
     if prefix == "regex":
-        assert pattern is not None  # set above for every regex program
-        if pattern.search(text):
+        assert pattern is not None  # compiled above to validate before we spawn
+        status = _search_with_timeout(needle, re.MULTILINE, text, spec.timeout_s)
+        if status == "match":
             return CheckResult(Verdict.PASS)
-        return CheckResult(Verdict.FAIL, detail="regex_missing")
+        if status == "nomatch":
+            return CheckResult(Verdict.FAIL, detail="regex_missing")
+        if status == "timeout":
+            return CheckResult(
+                Verdict.ERROR,
+                detail=f"regex_timeout (>{spec.timeout_s}s — catastrophic backtracking?)",
+            )
+        if status == "spawn_error":
+            return CheckResult(
+                Verdict.ERROR,
+                detail="regex_spawn_error (regex worker process failed to start;"
+                " an embedder needs a spawn-safe __main__ guard)",
+            )
+        return CheckResult(Verdict.ERROR, detail="regex_error")
 
     if needle in text:
         return CheckResult(Verdict.PASS)

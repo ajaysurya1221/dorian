@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 from dorian import cli, store
@@ -70,6 +71,25 @@ def test_c3_regex_over_length_cap_is_error_redos_guard(fixture_repo: Path) -> No
     # a within-cap, well-anchored pattern still works (sanity)
     ok = _run_c3(fixture_repo, r"regex:src/auth.py::RS256")
     assert ok.verdict is Verdict.PASS
+
+
+def test_c3_within_cap_catastrophic_regex_is_bounded_by_timeout(fixture_repo: Path) -> None:
+    """The real ReDoS risk is backtracking WITHIN the 500-char cap. The match runs
+    in a worker process killed at spec.timeout_s, so a pathological pattern ERRORs
+    with regex_timeout instead of stalling — never a silent hang, never PASS/FAIL."""
+    (fixture_repo / "evil.txt").write_text(("a" * 50) + "b\n", encoding="utf-8")
+    claim = Claim(
+        id="c",
+        text="x",
+        kind="reference",
+        load_bearing=False,
+        checkers=(CheckerSpec(type="C3", program=r"regex:evil.txt::(a+)+$", timeout_s=2),),
+    )
+    start = time.monotonic()
+    res = run_checker(CheckContext(repo=fixture_repo, claim=claim), 0)
+    assert res.verdict is Verdict.ERROR  # bounded: killed, not stalled or passed
+    assert "regex_timeout" in res.detail
+    assert time.monotonic() - start < 15, "regex timeout did not bound the match"
 
 
 def test_checker_subprocess_env_is_stripped(fixture_repo: Path) -> None:

@@ -1,0 +1,70 @@
+# PyPI publish via Trusted Publishing (OIDC) — MANUAL ONLY.
+#
+# This workflow does NOT run on push or tag. It runs only when a maintainer
+# triggers it by hand (workflow_dispatch) against a tag, and only after the PyPI
+# side is configured:
+#   1. Create a PyPI Trusted Publisher for project `dorian-vwp` pointing at this
+#      repo + workflow `publish.yml` + environment `pypi` (no API token anywhere).
+#   2. Create a GitHub Environment named `pypi` with required-reviewer protection.
+# Until both exist, the publish step has no credentials and cannot upload.
+#
+# It deliberately uses OIDC (id-token: write) instead of a stored token, and
+# never triggers from an arbitrary branch — see docs/RELEASE_CHECKLIST.md.
+name: publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag to build and publish (e.g. v0.10.0)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist + wheel
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+          python -m twine check dist/*
+      - name: Verify the built version matches the tag
+        run: |
+          python - <<'PY'
+          import os, pathlib, tomllib
+          tag = os.environ["REF"].lstrip("v")
+          ver = tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]
+          assert ver == tag, f"tag {tag!r} != pyproject version {ver!r}"
+          print(f"ok: building {ver}")
+          PY
+        env:
+          REF: ${{ inputs.ref }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    # the environment gates publishing behind required reviewers and is the
+    # subject the PyPI Trusted Publisher is bound to
+    environment: pypi
+    permissions:
+      id-token: write  # OIDC: mint a short-lived token, no stored secret
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI (Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1

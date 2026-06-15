@@ -1,0 +1,44 @@
+name: False pass / false confidence
+description: A claim stayed TRUSTED (or sealed) when the underlying fact was actually false or unverified.
+labels: [false-pass, accuracy]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        This is the most important report dorian can get: a verdict that said
+        "true" when it wasn't. It usually means a **weak binding** (the watched
+        source didn't include the file that defines the fact) or a **checker too
+        weak** to see the change (the trigger-vs-truth ceiling).
+  - type: input
+    id: version
+    attributes:
+      label: dorian version
+    validations:
+      required: true
+  - type: textarea
+    id: claim
+    attributes:
+      label: The claim and its checker(s)
+      description: The natural-language claim plus the `type:program` of each checker.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: why_false
+    attributes:
+      label: Why the fact was actually false / unverified
+      description: What changed in the source that the verdict missed.
+    validations:
+      required: true
+  - type: dropdown
+    id: suspected
+    attributes:
+      label: Suspected cause
+      options: ["Weak binding (watched file didn't define the fact)", "Checker too weak (e.g. symbol exists but behavior changed)", "Not sure"]
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command + exit code
+      placeholder: dorian revalidate --since HEAD~1  (exit 0)

@@ -1,0 +1,63 @@
+name: Benchmark / reproduction submission
+description: A reproducible public-repo case for the micro-benchmark (a real catch, a false alarm, or a clean case).
+labels: [benchmark, reproduction]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        See docs/PUBLIC_BENCHMARK_PROTOCOL.md and bench/public/manifest.example.json.
+        Submissions must be reproducible from frozen inputs; results are scoped to
+        those inputs, never a broad real-world claim (docs/VALIDATION_HONESTY.md).
+  - type: input
+    id: repo
+    attributes:
+      label: Public repo URL
+    validations:
+      required: true
+  - type: input
+    id: base_sha
+    attributes:
+      label: Frozen base SHA
+    validations:
+      required: true
+  - type: input
+    id: head
+    attributes:
+      label: Head SHA or patch
+      description: A frozen head SHA, or a patch applied to base (preferred for injected mutations).
+    validations:
+      required: true
+  - type: textarea
+    id: claims
+    attributes:
+      label: claims.json
+      render: json
+    validations:
+      required: true
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Which layer does this exercise?
+      options: ["trigger/selection", "truth/alarm", "both"]
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: Expected outcome
+      description: e.g. "claim X selected and BROKEN" / "no claim selected"
+    validations:
+      required: true
+  - type: input
+    id: license
+    attributes:
+      label: Repo license
+    validations:
+      required: true
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: What is this case
+      options: ["true catch", "false alarm", "miss", "partial (trigger only)", "clean (no break)"]
+    validations:
+      required: true

@@ -257,7 +257,11 @@ you) can emit the claims — but the canonical setup is **Claude Code**:
 
 > **An agent-emitted `claims.json` is executable input.** `dorian verify` *runs* every checker, and
 > C4 (`pytest:`) / C5 `shell:` execute code — review it exactly as you review agent-emitted code, and
-> never run `verify` on claims from an untrusted source.
+> never run `verify` on claims from an untrusted source. When you cannot fully trust the claims, pass
+> `--deny-exec` (on `seal`/`verify`/`revalidate`; env `DORIAN_DENY_EXEC=1`): it refuses to run the
+> executable families, so a blocked claim ERRORs — it never seals and never silently passes. deny-exec
+> is fail-closed, **not a sandbox**; see [SECURITY.md](SECURITY.md) and
+> [docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md).
 
 ## What gets committed
 
@@ -321,8 +325,8 @@ jobs:
 ### Try it in 30 seconds
 
 A self-contained run on a throwaway repo — copy-paste it; it leaves nothing behind but a
-temp directory. (This exact sequence is pinned by a black-box test, so it is guaranteed to
-work, not just illustrative.)
+temp directory. (This exact sequence is pinned by a black-box test, so it is executable and
+kept working, not just illustrative.)
 
 ```bash
 tmp=$(mktemp -d) && cd "$tmp" && git init -q
@@ -361,7 +365,8 @@ path/symbol/string/regex, C4 `pytest:<nodeid>`, C5 typed data) are documented in
 > **Checker programs are executable.** `dorian verify` *runs* every checker at seal time. C3 and typed
 > C5 only inspect files, but C4 (`pytest:`) and C5 `shell:` execute code — review an agent-emitted
 > `claims.json` exactly as you would review agent-emitted code, and never run `verify` on claims from
-> an untrusted source.
+> an untrusted source. In untrusted contexts add `--deny-exec` to refuse the executable families
+> (fail-closed, not a sandbox — see [SECURITY.md](SECURITY.md)).
 
 ## Command surface
 
@@ -397,6 +402,10 @@ claims.
   runs; checker details truncated to 160 chars to bound source-content carryover.
 - `dorian revalidate --format md|json` — `md` is the PR-comment body posted by the
   [GitHub Action](action/) (`action/action.yml`, composite, no third-party actions).
+- `dorian verify … --deny-exec` (also on `seal`/`revalidate`; env `DORIAN_DENY_EXEC=1`) — refuse to
+  *run* the executable checker families (C4 pytest, C5 shell): they ERROR instead of executing, so a
+  blocked claim never seals and never silently passes revalidate. `--deny-shell` is the narrower form
+  (blocks C5 shell, still allows C4). For untrusted/fork contexts; fail-closed, not a sandbox.
 - `dorian seal --no-quotes` — content-free sidecars: anchor line numbers stay, quotes are dropped
   (the warrant id changes accordingly).
 - Seal-time scope lint: `[tool.dorian.scopes] restricted = [globs]` in the *target* repo's

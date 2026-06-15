@@ -44,12 +44,18 @@ both `TIMEOUT = 30` and `TIMEOUT=30`). When a `string:` check FAILs but a line
 nearly matches, the detail carries a near-miss hint (line number and
 similarity ratio only, never file content) pointing at `regex:`.
 
-Residual risk: `regex:` patterns are length-bounded (500 chars) and
-compile-guarded, but catastrophic backtracking within that bound is NOT
-mitigated — C3 runs in-process and ignores `timeout_s`, so a pathological
-nested-quantifier pattern (e.g. `(a+)+$`) in a reviewed claims.json can stall
-revalidate. Prefer literal anchors with bounded flexible gaps. Derived watch:
-the referenced file (the `path:` operand, or `<file>`).
+Regex DoS: `regex:` patterns are length-bounded (500 chars) and compile-guarded,
+AND the match runs in a spawned worker process killed at the checker's
+`timeout_s` (default 30s). A pathological nested-quantifier pattern that triggers
+catastrophic backtracking (e.g. `(a+)+$`) is terminated when the timeout elapses
+and reported as ERROR(`regex_timeout`) — never a silent stall and never a
+PASS/FAIL. The process
+boundary is what makes the timeout enforceable (a thread or in-process signal
+cannot interrupt a C-level `re.search()`). Prefer literal anchors with bounded
+flexible gaps anyway; the timeout is a backstop, not a license, and it adds a
+per-check process spawn (~50-150ms, scaling with the number of `regex:` checks)
+to `regex:` checks only. Derived watch: the referenced file (the `path:` operand,
+or `<file>`).
 
 ## C4 — test binding
 

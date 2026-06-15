@@ -1,4 +1,4 @@
-.PHONY: install lint fmt test test-fast coverage bench bench-mutation bench-large-mutation demo
+.PHONY: install lint fmt test test-fast coverage dependency-report bench bench-mutation bench-large-mutation demo
 
 install:
 	uv sync
@@ -20,6 +20,17 @@ test-fast:
 
 coverage:
 	uv run pytest --cov=dorian --cov-report=term-missing --cov-report=html
+
+# auditable dependency posture: reads pyproject.toml, no third-party tooling.
+# The point it makes visible: the core runtime dependency list is empty.
+dependency-report:
+	@uv run python -c "import tomllib,pathlib; d=tomllib.loads(pathlib.Path('pyproject.toml').read_text()); p=d['project']; \
+print('package :', p['name'], p['version']); \
+print('license :', p['license']['text']); \
+print('python  :', p['requires-python']); \
+print('core runtime deps :', p['dependencies'] or '(none — stdlib only)'); \
+[print(f'extra [{k}] :', v) for k,v in d.get('project',{}).get('optional-dependencies',{}).items()]; \
+print('dev :', d.get('dependency-groups',{}).get('dev'))"
 
 bench:
 	uv run python -m bench.replay --config bench/repos.json

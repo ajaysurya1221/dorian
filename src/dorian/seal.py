@@ -35,6 +35,7 @@ from dorian.model import (
     Warrant,
     sha256_hex,
 )
+from dorian.policy import ExecutionPolicy
 
 
 class SealError(Exception):
@@ -271,6 +272,7 @@ def seal_artifact(
     no_quotes: bool = False,
     extra_watch: Mapping[str, tuple[str, ...]] | None = None,
     binding_gate: str = "off",
+    policy: ExecutionPolicy | None = None,
 ) -> Warrant:
     """Scope-lint the read-set, run every checker, then write the sidecar + index.
 
@@ -346,9 +348,14 @@ def seal_artifact(
             checkers = tuple(_add_watch(s, extra) for s in checkers)
         sealed_claims.append(replace(derived, checkers=checkers))
 
-    # 2. run EVERY checker; FAIL or ERROR refuses the seal and writes nothing
+    # 2. run EVERY checker; FAIL or ERROR refuses the seal and writes nothing.
+    #    Under deny-exec/deny-shell, a blocked C4/C5-shell checker ERRORs here,
+    #    so the warrant is never born trusted with an un-run executable claim.
+    exec_policy = policy if policy is not None else ExecutionPolicy()
     for claim in sealed_claims:
-        ctx = CheckContext(repo=repo, claim=claim, supports=_supports(claim, readset))
+        ctx = CheckContext(
+            repo=repo, claim=claim, supports=_supports(claim, readset), policy=exec_policy
+        )
         for i, _ in enumerate(claim.checkers):
             result = run_checker(ctx, i)
             if result.verdict is Verdict.FAIL:
