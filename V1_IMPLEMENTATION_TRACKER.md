@@ -103,7 +103,7 @@ Categories: IMPL=must-implement · TEST=must-test regression · DOC=must-documen
 | WP2 | checker-strength / claim-risk linter | DONE (strength.py; surfaced in `bindings` + binding-gate warn; 19 tests) |
 | WP3 | Python structural checkers (py-signature, py-const) | DONE (pyast.py + C3 subgrammars; 27 tests incl. e2e) |
 | WP4 | semantic-context source search (`code:`) | DONE (pyast.code_only_python + C3 `code:`; 12 tests) |
-| WP5 | multi-index binding (config-key) | TODO |
+| WP5 | multi-index binding (config-key) | DONE (symbol_index.config_key_index + claim_watch_paths; TOML/JSON only, YAML excluded = zero-dep; provenance in bind-suggest; ambiguity + unparseable surfaced; 9 tests) |
 | WP6 | C4 test-adequacy lint | DONE (strength.c4_adequacy; folded into WP2 tests) |
 | WP7 | trusted-base checker-source mode | DONE (revalidate --checker-source base + Action checker_trust; 10-case exploit matrix) |
 | WP8 | warrant-quality mutation harness | TODO |

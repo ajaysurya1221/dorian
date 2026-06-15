@@ -26,6 +26,7 @@ better watch set is baked into the sealed sidecar at verify time.
 from __future__ import annotations
 
 import ast
+import json
 import tomllib
 from pathlib import Path
 
@@ -35,6 +36,11 @@ from dorian.model import Claim
 
 _MAX_FILE_BYTES = 1 << 20  # skip files > 1 MiB (mirrors bindings); parsing them is wasteful
 _DEF_NODES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+
+# config-key index: stdlib-parseable formats only. YAML is deliberately excluded —
+# parsing it needs a third-party dep and dorian's core has zero runtime deps.
+_CONFIG_SUFFIXES = (".toml", ".json")
+_MIN_KEY_LEN = 4  # mirror bindings._MIN_IDENT: shorter keys are noise
 
 
 def python_symbol_definers(repo: Path) -> dict[str, tuple[str, ...]]:
@@ -149,6 +155,106 @@ def claim_symbol_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple
                 paths.add(scripts[token][0])
         if paths:
             out[claim.id] = tuple(sorted(paths))
+    return out
+
+
+def _walk_keys(obj: object):
+    """Yield every string dict-key in a nested TOML/JSON structure (recursively)."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(k, str):
+                yield k
+            yield from _walk_keys(v)
+    elif isinstance(obj, list):
+        for item in obj:
+            yield from _walk_keys(item)
+
+
+def config_key_index(repo: Path) -> tuple[dict[str, tuple[str, ...]], tuple[str, ...]]:
+    """(key -> sorted tracked .toml/.json files defining it, sorted unparseable files).
+
+    Keys shorter than _MIN_KEY_LEN are dropped as noise. A supported config file that
+    fails to parse is returned in the second element — a LOUD diagnostic, never a
+    silent skip that would hide a missed binding. YAML is not indexed (no runtime dep).
+    """
+    repo = repo.resolve()
+    keys: dict[str, set[str]] = {}
+    unparseable: list[str] = []
+    try:
+        tracked = gitio.ls_files(repo)
+    except gitio.GitError:
+        return ({}, ())  # not a git checkout: degrade to no index (never blocks)
+    for rel in tracked:
+        if not rel.endswith(_CONFIG_SUFFIXES):
+            continue
+        path = repo / rel
+        try:
+            if not path.is_file() or path.stat().st_size > _MAX_FILE_BYTES:
+                continue
+            raw = path.read_text(encoding="utf-8")
+            data = tomllib.loads(raw) if rel.endswith(".toml") else json.loads(raw)
+        except (
+            OSError,
+            UnicodeDecodeError,
+            tomllib.TOMLDecodeError,
+            json.JSONDecodeError,
+            RecursionError,
+        ):
+            unparseable.append(rel)
+            continue
+        for key in _walk_keys(data):
+            if len(key) >= _MIN_KEY_LEN:
+                keys.setdefault(key, set()).add(rel)
+    return ({k: tuple(sorted(v)) for k, v in sorted(keys.items())}, tuple(sorted(unparseable)))
+
+
+def claim_config_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple[str, ...]]:
+    """claim id -> the config file(s) to add to its watch set: for every identifier-shaped
+    token in the claim text that is a config key defined in EXACTLY ONE tracked .toml/.json.
+    Ambiguous keys (>1 file) are skipped (see ambiguous_config_mentions). Additive and
+    trigger-only — a config change re-checks the claim; the checker still decides truth."""
+    claim_tokens = {c.id: _tokens(c.text) for c in claims if isinstance(c.text, str)}
+    if not any(claim_tokens.values()):
+        return {}
+    index, _ = config_key_index(repo)
+    out: dict[str, tuple[str, ...]] = {}
+    for claim in claims:
+        paths: set[str] = set()
+        for token in claim_tokens.get(claim.id, ()):
+            files = index.get(token)
+            if files is not None and len(files) == 1:
+                paths.add(files[0])
+        if paths:
+            out[claim.id] = tuple(sorted(paths))
+    return out
+
+
+def claim_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple[str, ...]]:
+    """All deterministic re-check watches dorian binds per claim: Python symbol-definer
+    files + pyproject console scripts (claim_symbol_watch_paths) UNION config-key files
+    (claim_config_watch_paths). Union, sorted, deduped. Conservative and additive — it
+    only ever widens the re-check trigger set; it never proves a claim true."""
+    merged: dict[str, set[str]] = {}
+    for source in (claim_symbol_watch_paths(repo, claims), claim_config_watch_paths(repo, claims)):
+        for cid, paths in source.items():
+            merged.setdefault(cid, set()).update(paths)
+    return {cid: tuple(sorted(paths)) for cid, paths in merged.items()}
+
+
+def ambiguous_config_mentions(
+    repo: Path, claims: list[Claim]
+) -> dict[str, dict[str, tuple[str, ...]]]:
+    """claim id -> {config key: defining files} for keys a LOAD-BEARING claim mentions
+    that are defined in MORE THAN ONE tracked config file — the ambiguous case binding
+    skips. Lets verify/bind-suggest surface the skip rather than guess. {} if none."""
+    index, _ = config_key_index(repo)
+    out: dict[str, dict[str, tuple[str, ...]]] = {}
+    for claim in claims:
+        if not claim.load_bearing or not isinstance(claim.text, str):
+            continue
+        ambiguous = {tok: index[tok] for tok in _tokens(claim.text) if len(index.get(tok, ())) > 1}
+        if ambiguous:
+            out[claim.id] = ambiguous
     return out
 
 

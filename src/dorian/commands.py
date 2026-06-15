@@ -247,14 +247,17 @@ def cmd_verify(args: argparse.Namespace) -> int:
         # claims mention (even when no checker named them): the symbol-definer watch
         # the seal adds is then also captured + hashed + scope-linted honestly
         paths = referenced_paths(claims)
-        symbol_watch = symbol_index.claim_symbol_watch_paths(repo, claims)
+        # multi-index binding: Python symbol-definers + pyproject scripts + config keys
+        symbol_watch = symbol_index.claim_watch_paths(repo, claims)
         for path in sorted({p for ps in symbol_watch.values() for p in ps}):
             if path not in paths:
                 paths.append(path)
         readset = parse_manual(paths, repo)
-        # a load-bearing claim naming an AMBIGUOUS symbol (>1 definer) is left unbound; do
-        # not let that skip be silent — warn so the author binds it explicitly (see A3)
+        # a load-bearing claim naming an AMBIGUOUS symbol/config key (>1 definer) is left
+        # unbound; do not let that skip be silent — warn so the author binds it explicitly
         ambiguous = symbol_index.ambiguous_symbol_mentions(repo, claims)
+        ambiguous_config = symbol_index.ambiguous_config_mentions(repo, claims)
+        _, unparseable_config = symbol_index.config_key_index(repo)
     except (ValueError, OSError, gitio.GitError) as exc:
         print(f"dorian verify: {exc}", file=sys.stderr)
         return EXIT_USAGE
@@ -293,6 +296,20 @@ def cmd_verify(args: argparse.Namespace) -> int:
                 "checker or qualify the reference",
                 file=sys.stderr,
             )
+    for cid, cfg in ambiguous_config.items():
+        for key, files in cfg.items():
+            print(
+                f"dorian verify: warning: load-bearing claim {cid!r} mentions config key "
+                f"{key!r} (defined in {len(files)} config files); left unbound — name the file "
+                "in a checker",
+                file=sys.stderr,
+            )
+    for cfg_path in unparseable_config:
+        print(
+            f"dorian verify: warning: config file {cfg_path!r} could not be parsed; its keys "
+            "are not indexed for binding (a claim mentioning them may be silently unbound)",
+            file=sys.stderr,
+        )
     backed = sum(1 for c in claims if c.backed)
     print(warrant.id)
     print(
@@ -482,8 +499,12 @@ def cmd_bind_suggest(args: argparse.Namespace) -> int:
     except (ValueError, OSError) as exc:
         print(f"dorian bind-suggest: {exc}", file=sys.stderr)
         return EXIT_USAGE
+    # multi-index binding with provenance: symbol-definer/script vs config-key
     watch = symbol_index.claim_symbol_watch_paths(repo, claims)
+    config_watch = symbol_index.claim_config_watch_paths(repo, claims)
     ambiguous = symbol_index.ambiguous_symbol_mentions(repo, claims)
+    ambiguous_config = symbol_index.ambiguous_config_mentions(repo, claims)
+    _, unparseable_config = symbol_index.config_key_index(repo)
     suggestions: list[dict] = []
     for c in claims:
         try:
@@ -491,17 +512,38 @@ def cmd_bind_suggest(args: argparse.Namespace) -> int:
         except ValueError:
             covered = set()  # C1 span / C5 shell: no auto-derivable read-set to compare
         bind = [f for f in watch.get(c.id, ()) if f not in covered]
+        bind_config = [f for f in config_watch.get(c.id, ()) if f not in covered]
         amb = {s: list(files) for s, files in ambiguous.get(c.id, {}).items()}
-        if bind or amb:
-            suggestions.append({"claim_id": c.id, "bind": bind, "ambiguous": amb})
+        amb_cfg = {k: list(files) for k, files in ambiguous_config.get(c.id, {}).items()}
+        if bind or bind_config or amb or amb_cfg:
+            suggestions.append(
+                {
+                    "claim_id": c.id,
+                    "bind": bind,  # symbol-definer / console-script provenance
+                    "bind_config": bind_config,  # config-key provenance
+                    "ambiguous": amb,
+                    "ambiguous_config": amb_cfg,
+                }
+            )
     if args.json:
-        print(json.dumps({"suggestions": suggestions}, sort_keys=True))
+        print(
+            json.dumps(
+                {"suggestions": suggestions, "unparseable_config": list(unparseable_config)},
+                sort_keys=True,
+            )
+        )
         return EXIT_OK
     for s in suggestions:
         if s["bind"]:
-            print(f"{s['claim_id']}  bind: {', '.join(s['bind'])}")
+            print(f"{s['claim_id']}  bind (symbol): {', '.join(s['bind'])}")
+        if s["bind_config"]:
+            print(f"{s['claim_id']}  bind (config): {', '.join(s['bind_config'])}")
         for sym, files in sorted(s["ambiguous"].items()):
-            print(f"{s['claim_id']}  ambiguous: {sym} ({len(files)} definers, unbound)")
+            print(f"{s['claim_id']}  ambiguous symbol: {sym} ({len(files)} definers, unbound)")
+        for key, files in sorted(s["ambiguous_config"].items()):
+            print(f"{s['claim_id']}  ambiguous config: {key} ({len(files)} files, unbound)")
+    for cfg in unparseable_config:
+        print(f"unparseable config (keys not indexed for binding): {cfg}")
     print(f"{len(suggestions)} claim(s) with binding suggestions")
     return EXIT_OK
 
@@ -543,7 +585,7 @@ def cmd_rebind(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return EXIT_USAGE
-    symbol_watch = symbol_index.claim_symbol_watch_paths(repo, claims)
+    symbol_watch = symbol_index.claim_watch_paths(repo, claims)  # symbol-definer + config-key
     new_paths = {p for ps in symbol_watch.values() for p in ps}
     already_watched = {w for c in claims for spec in c.checkers for w in spec.watch}
     if new_paths <= already_watched:
