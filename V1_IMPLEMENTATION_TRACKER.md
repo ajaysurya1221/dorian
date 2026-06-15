@@ -108,6 +108,12 @@ Categories: IMPL=must-implement · TEST=must-test regression · DOC=must-documen
 | WP7 | trusted-base checker-source mode | DONE (revalidate --checker-source base + Action checker_trust; 10-case exploit matrix) |
 | WP8 | warrant-quality mutation harness | DONE (bench/warrant_quality.py; `dorian bench warrant-quality`; deterministic, offline, never mutates real repo; trigger vs verdict; ERROR bucket distinct; honest scope = structural/existence forms scored, others reported strength-only; 7 tests) |
 | WP9 | current-version benchmark results | TODO |
-| WP10 | V1 release prep / decision | TODO |
+| WP10 | V1 release prep / decision | DONE — version surfaces synced to `1.0.0rc1` (pyproject/__init__/uv.lock); no tag/push/publish. All gates pass; adversarial-review BLOCK resolved. |
 
-Commits so far: `58b39e2` (WP3/4/2/6), trusted-base (WP7) next.
+Branch `dorian-v1-strengthening`, 9 commits off `main`:
+`58b39e2` WP3/4/2/6 · `6a8298c` WP7 · `04ab60b` WP5 · `2a66a49` WP8 · `4e586a7` WP9/WP1 ·
+`2a4befa` byte-match fix · `a6595ba` adversarial-review BLOCK fixes · `b7376e7` bump 1.0.0rc1 ·
+`4710604` benchmark re-stamp.
+
+Adversarial review (5 lenses, BLOCK): 6 must-fixes + 2 hygiene items all resolved with
+regression tests. Final gate: ruff clean, 658 non-slow pass, 733 total (incl slow) green.
