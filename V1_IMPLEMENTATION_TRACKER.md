@@ -99,7 +99,7 @@ Categories: IMPL=must-implement · TEST=must-test regression · DOC=must-documen
 
 | WP | Title | Status |
 |---|---|---|
-| WP1 | docs/evidence hygiene | TODO |
+| WP1 | docs/evidence hygiene | DONE (trust-state legend; historical banners on v0.7.0/0.9.0 benchmark docs; docs/V1_SCOPE.md; README command-surface + new-forms + historical labels; benchmark-evidence wording tests) |
 | WP2 | checker-strength / claim-risk linter | DONE (strength.py; surfaced in `bindings` + binding-gate warn; 19 tests) |
 | WP3 | Python structural checkers (py-signature, py-const) | DONE (pyast.py + C3 subgrammars; 27 tests incl. e2e) |
 | WP4 | semantic-context source search (`code:`) | DONE (pyast.code_only_python + C3 `code:`; 12 tests) |

@@ -103,6 +103,12 @@ fold      sha256:7920c71b5a6a9c8e WARRANTED -> REVOKED
 The summary still reads perfectly. Its portrait flipped to **REVOKED** — and every artifact whose
 warrant was built on it is flagged `recalled`, so nobody builds on a claim that silently went false.
 
+> **Trust states.** A warrant is born **WARRANTED**. Each `revalidate` folds it to **TRUSTED**
+> (all re-checked claims hold), **DEGRADED** or **REVOKED** (a claim broke — DEGRADED for a
+> non-load-bearing break, REVOKED for a load-bearing one), or **UNKNOWN** (a checker could not
+> run — ERROR is never silently green and never counted as broken). So `WARRANTED -> REVOKED`
+> above is the born state folding on its first revalidation.
+
 ## We ran this on dorian itself
 
 The `verify` and `revalidate` output above is exactly what dorian prints, shown for an illustrative
@@ -169,7 +175,10 @@ path-scope watcher (58 → 5 false alarms) and **10.4x** versus the stronger lin
 1.00 by construction here; the meaningful axis is their precision.)
 
 These numbers describe a synthetic fixture suite, not your repository, and are not a universal
-performance claim. See [`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md) (protocol:
+performance claim. The headline figures were **measured at v0.7.0** and are **historical**; the
+current version reproduces them unchanged (240 pairs, P=R=0.93) — see the version-stamped
+[`docs/BENCHMARK_CURRENT.md`](docs/BENCHMARK_CURRENT.md). See
+[`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md) (protocol:
 [`docs/BENCHMARK_PROTOCOL_v0.7.0.md`](docs/BENCHMARK_PROTOCOL_v0.7.0.md)); reproduce with
 `dorian bench large-mutation`, and measure your own repos with the harness in `bench/`.
 
@@ -207,6 +216,8 @@ trigger-vs-truth ceiling, on a real class (**partial**). Two further cases (docu
 sources, not reproduced) are honest misses (**not_solved**). These are scoped reproductions of public
 problem classes — not universal validation.
 
+The 808-pair figures above were **measured at dorian 0.9.0** and are **historical**; the
+current-version rerun (same protocol) is in [`docs/BENCHMARK_CURRENT.md`](docs/BENCHMARK_CURRENT.md).
 See [`docs/BENCHMARK_BINDING_LIFECYCLE.md`](docs/BENCHMARK_BINDING_LIFECYCLE.md) and
 [`docs/REALWORLD_USECASES.md`](docs/REALWORLD_USECASES.md) (protocols alongside each); reproduce with
 `dorian bench binding-lifecycle` and `dorian bench realworld-usecases`.
@@ -359,8 +370,10 @@ A warrant is worth only what its checkers actually catch. The full authoring con
 load-bearing claim, **bind** the file that would change if the claim went false, **prefer**
 shape-tolerant checks like `regex:`/`symbol:`/typed-C5 over brittle `string:`) — lives in
 [`docs/AGENT_CLAIMS.md`](docs/AGENT_CLAIMS.md). Checker program grammars (C1 span, C3
-path/symbol/string/regex, C4 `pytest:<nodeid>`, C5 typed data) are documented in
-[`spec/checkers.md`](spec/checkers.md).
+path/symbol/string/regex plus the V1 structural forms `py-signature:`/`py-const:` and the
+comment/docstring-stripped `code:`, C4 `pytest:<nodeid>`, C5 typed data) are documented in
+[`spec/checkers.md`](spec/checkers.md). What V1 strengthening does and does not promise is in
+[`docs/V1_SCOPE.md`](docs/V1_SCOPE.md).
 
 > **Checker programs are executable.** `dorian verify` *runs* every checker at seal time. C3 and typed
 > C5 only inspect files, but C4 (`pytest:`) and C5 `shell:` execute code — review an agent-emitted
@@ -386,12 +399,16 @@ claims.
   event: a flag only — downstream is never re-checked and its states are untouched. Re-seal with
   `seal --supersede <old-id>` so downstream warrants sealed against the old id stay reachable.
 - `dorian bindings <artifact>` — binding-quality diagnostics (unbacked, single-file, short-literal,
-  ambiguous-mention, trigger-only-symbol, unwatched-mention). Informational, never a gate; output
-  carries file paths only, never matched content. `ambiguous-mention` surfaces a load-bearing claim
-  whose symbol is defined in more than one file (so no definer is auto-watched); `trigger-only-symbol`
-  marks a watch added only as a re-check *trigger* that no checker actually exercises.
-- `dorian bind-suggest --claims claims.json` — read-only preview of the symbol-definer files `verify`
-  would auto-bind for each claim (and the ambiguous symbols it would skip). Writes nothing, never a gate.
+  ambiguous-mention, trigger-only-symbol, unwatched-mention) **plus per-claim checker-strength and
+  claim-risk** (it classifies each checker's *truth strength* and flags adequacy mismatches — a
+  `behavior` claim backed only by an existence checker, a vacuous pytest node). Informational, never a
+  gate; output carries file paths only, never matched content.
+- `dorian bind-suggest --claims claims.json` — read-only preview of the files `verify` would auto-bind
+  for each claim, **with provenance** (symbol-definer vs config-key), the ambiguous symbols/keys it
+  would skip, and any unparseable config file. Writes nothing, never a gate.
+- `dorian revalidate --checker-source base` (also Action `checker_trust: base`; default `head`) —
+  resolve each claim's checker spec from the `--since` base ref so a PR-added or PR-modified executable
+  checker is never executed (public/fork PRs). Fail-closed, **not a sandbox** — pair with `--deny-exec`.
 - `dorian rebind <artifact>` — re-derive a warrant's symbol-definer watches with the current binding
   logic and re-seal it (born-verifiable, superseding the old id), so a warrant sealed before the symbol
   index existed gains the wider watches. The watch only ever widens; a claim that has since become false
@@ -420,6 +437,9 @@ claims.
   benchmark for symbol binding ([`docs/BENCHMARK_BINDING_LIFECYCLE.md`](docs/BENCHMARK_BINDING_LIFECYCLE.md)).
   `dorian bench realworld-usecases` runs the offline public-case reproductions
   ([`docs/REALWORLD_USECASES.md`](docs/REALWORLD_USECASES.md)).
+- `dorian bench warrant-quality <artifact>` — offline per-claim mutation scoring: for each claim, does
+  its checker catch the drift it implies (caught / missed / brittle / ceiling)? Deterministic, never
+  mutates the real repo. Separates trigger from verdict; see [`docs/V1_SCOPE.md`](docs/V1_SCOPE.md).
 
 Exit codes: `0` ok/TRUSTED · `2` usage/infra (incl. a C1 or C5 `shell:` claim handed to `verify`) ·
 `3` DEGRADED · `4` REVOKED/integrity · `5` ERRORED-only (checkers could not run — never conflated with
