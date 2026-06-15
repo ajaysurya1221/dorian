@@ -36,8 +36,9 @@ now and is re-checked on every future change, so a confident summary doesn't qui
 > commits, nothing else — with **zero model tokens at check time**, so the checker can't be talked
 > past by the code it verifies. Because checker programs are *executable* (C4 runs `pytest`, C5
 > `shell:` runs a command), it is built for **trusted, internal repositories** — not public CI
-> taking forked pull requests. Pairs naturally with a coding agent such as **Claude Code**
-> ([how](#using-dorian-with-claude-code)).
+> taking forked pull requests by default (for public/fork PRs, `checker_trust: base` runs only
+> base-approved checker specs — a trust root, still not a sandbox). Pairs naturally with a coding
+> agent such as **Claude Code** ([how](#using-dorian-with-claude-code)).
 
 ## Table of contents
 
@@ -475,7 +476,8 @@ work perishable, so you find out when it expired.
   ([`docs/REALWORLD_USECASES.md`](docs/REALWORLD_USECASES.md)) reproduce real problem *classes*; the
   next rung is frozen public-repo SHAs with manual claims and reproducible known-truth labels
   ([`docs/SOLO_VALIDATION_LADDER.md`](docs/SOLO_VALIDATION_LADDER.md)).
-- **Tagged release and PyPI trusted publishing.**
+- **PyPI trusted publishing** — tagged releases now ship (latest: **`v1.0.0rc1`**, a V1 release
+  candidate / prerelease); publishing `dorian-vwp` to PyPI via a Trusted Publisher is next.
 
 Non-goals stay non-goals: no servers, no dashboards, no hosted control plane, no model at check time.
 Local-first is the design center.
