@@ -1,0 +1,44 @@
+{
+  "claims": [
+    {
+      "id": "cli-exposes-binding-gate",
+      "text": "The CLI exposes a --binding-gate option.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "regex:src/dorian/cli.py::--binding-gate" }]
+    },
+    {
+      "id": "bindings-candidate-analyzer",
+      "text": "bindings has an in-memory candidate analyzer.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "symbol:src/dorian/bindings.py::analyze_candidate" }]
+    },
+    {
+      "id": "seal-binding-gate-error",
+      "text": "The fail gate raises a dedicated seal-layer error that the command layer catches.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "symbol:src/dorian/seal.py::BindingGateError" },
+        { "type": "C3", "program": "regex:src/dorian/commands.py::BindingGateError" }
+      ]
+    },
+    {
+      "id": "high-risk-policy-defined",
+      "text": "bindings defines the fail-policy set used by --binding-gate fail.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "regex:src/dorian/bindings.py::HIGH_RISK_FLAGS\\s*=\\s*frozenset" }
+      ]
+    },
+    {
+      "id": "tests-cover-no-sidecar",
+      "text": "A test covers fail mode writing no sidecar.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "regex:tests/test_binding_gate.py::no_sidecar" }]
+    }
+  ]
+}

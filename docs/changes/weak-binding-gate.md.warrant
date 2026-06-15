@@ -1,0 +1,173 @@
+{
+  "spec_version": "0.1",
+  "warrant": {
+    "id": "sha256:871a54a0b9dcb92b89f1d8c266e04d9702b33e1a4984e06d7e78cbeaa3782c0d",
+    "artifact": {
+      "uri": "docs/changes/weak-binding-gate.md",
+      "content_hash": "sha256:fb86344f5b47fc61e7fd02694365f61732aaddf8994da190aa95d78bdff3187d",
+      "git_ref": "8339e131a32f52ae6475d2d5fc2b8d3a1f175d21"
+    },
+    "produced_by": {
+      "runner": "manual",
+      "captured_at": "2026-06-15T01:39:23.014624+00:00",
+      "run_ref": "",
+      "model": "",
+      "prompt_hash": ""
+    },
+    "read_set": [
+      {
+        "id": "rs-0",
+        "uri": "src/dorian/cli.py",
+        "selector": null,
+        "hash": "sha256:3de8c34ad3703f8bb33b3465200488c8594f99500d4102364a2cfc71b6f8eafb",
+        "version": "8339e131a32f52ae6475d2d5fc2b8d3a1f175d21",
+        "scope": "project"
+      },
+      {
+        "id": "rs-1",
+        "uri": "src/dorian/bindings.py",
+        "selector": null,
+        "hash": "sha256:67244fa9ef06aecbd837d93e8e5c8f8dde1c4c5b48a209f0ecd06b8bc68b9e04",
+        "version": "8339e131a32f52ae6475d2d5fc2b8d3a1f175d21",
+        "scope": "project"
+      },
+      {
+        "id": "rs-2",
+        "uri": "src/dorian/seal.py",
+        "selector": null,
+        "hash": "sha256:742b38ff628d017eb44d4c1874269bb6fece01d541ce5ba236a96cd040bff2c2",
+        "version": "8339e131a32f52ae6475d2d5fc2b8d3a1f175d21",
+        "scope": "project"
+      },
+      {
+        "id": "rs-3",
+        "uri": "src/dorian/commands.py",
+        "selector": null,
+        "hash": "sha256:e2c3db1d94d75555185e5dce3ba321d57d8876d215655000790964170970b5c8",
+        "version": "8339e131a32f52ae6475d2d5fc2b8d3a1f175d21",
+        "scope": "project"
+      },
+      {
+        "id": "rs-4",
+        "uri": "tests/test_binding_gate.py",
+        "selector": null,
+        "hash": "sha256:164c1d4880e3b32c3f321ebbf354c02a9af6a42d49a00e7f88d973e4f2fa5205",
+        "version": "8339e131a32f52ae6475d2d5fc2b8d3a1f175d21",
+        "scope": "project"
+      }
+    ],
+    "claims": [
+      {
+        "id": "cli-exposes-binding-gate",
+        "text": "The CLI exposes a --binding-gate option.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:src/dorian/cli.py::--binding-gate",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/cli.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "bindings-candidate-analyzer",
+        "text": "bindings has an in-memory candidate analyzer.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "symbol:src/dorian/bindings.py::analyze_candidate",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/bindings.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "seal-binding-gate-error",
+        "text": "The fail gate raises a dedicated seal-layer error that the command layer catches.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "symbol:src/dorian/seal.py::BindingGateError",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/seal.py"
+            ],
+            "timeout_s": 30
+          },
+          {
+            "type": "C3",
+            "program": "regex:src/dorian/commands.py::BindingGateError",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/commands.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "high-risk-policy-defined",
+        "text": "bindings defines the fail-policy set used by --binding-gate fail.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:src/dorian/bindings.py::HIGH_RISK_FLAGS\\s*=\\s*frozenset",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/bindings.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "tests-cover-no-sidecar",
+        "text": "A test covers fail mode writing no sidecar.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:tests/test_binding_gate.py::no_sidecar",
+            "expect": "exit:0",
+            "watch": [
+              "tests/test_binding_gate.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      }
+    ],
+    "derives_from": [],
+    "fold_policy": {
+      "revoke_on": "load_bearing_broken",
+      "degrade_on": "any_stale_or_broken"
+    },
+    "sealed_at": "2026-06-15T01:39:23Z",
+    "supersedes": null
+  }
+}

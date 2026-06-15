@@ -32,7 +32,14 @@ from dorian.extract import ExtractUnavailable, extract_claims, extract_claims_co
 from dorian.model import IntegrityError, ReadSet, ReadSetEntry, Warrant, sha256_hex
 from dorian.report import audit_lines, report_events, report_since
 from dorian.revalidate import ChangedPathsError, render_json, render_md, render_text, revalidate
-from dorian.seal import ScopeConfigError, ScopeViolation, SealError, referenced_paths, seal_artifact
+from dorian.seal import (
+    BindingGateError,
+    ScopeConfigError,
+    ScopeViolation,
+    SealError,
+    referenced_paths,
+    seal_artifact,
+)
 
 # What store.sync propagates from Warrant.load on a corrupt sidecar: tampered id
 # (IntegrityError), non-JSON (JSONDecodeError is a ValueError), valid JSON of the
@@ -61,6 +68,38 @@ def _load_readset(path: Path) -> ReadSet:
         return ReadSet.load(path)
     except (KeyError, TypeError) as exc:
         raise ValueError(f"{path}: malformed read-set (missing or bad field: {exc})") from None
+
+
+def _emit_binding_gate_warnings(prog: str, repo: Path, artifact_uri: str, mode: str) -> None:
+    """After a successful seal under --binding-gate warn|fail, print the weak-binding
+    diagnostics for review (stderr). Reuses the file-backed analyzer, so output matches
+    `dorian bindings`. Informational only — exit stays 0; weak binding is a
+    false-confidence smell, never proof a claim is false."""
+    try:
+        diags = bindings.analyze(repo, artifact_uri)
+    except (gitio.GitError, *_SIDECAR_ERRORS):
+        print(
+            f"{prog}: warning: --binding-gate={mode} diagnostics could not be read back; "
+            "seal remains valid",
+            file=sys.stderr,
+        )
+        return
+    for line in bindings.weak_binding_lines(diags):
+        print(f"{prog}: weak binding: {line}", file=sys.stderr)
+    flagged = sum(1 for d in diags if d["flags"])
+    high = len(bindings.blocking_findings(diags))
+    print(
+        f"{prog}: --binding-gate={mode}: {flagged} claim(s) flagged, {high} high-risk"
+        " (weak binding is a review smell, not proof a claim is false)",
+        file=sys.stderr,
+    )
+
+
+def _print_binding_gate_refusal(prog: str, exc: BindingGateError) -> None:
+    """--binding-gate=fail refused: print each blocking claim, then the refusal."""
+    for line in bindings.weak_binding_lines(exc.findings):
+        print(f"{prog}: weak binding: {line}", file=sys.stderr)
+    print(f"{prog}: {exc}", file=sys.stderr)
 
 
 def cmd_capture(args: argparse.Namespace) -> int:
@@ -155,6 +194,7 @@ def cmd_seal(args: argparse.Namespace) -> int:
             supersede=args.supersede,
             allow_restricted=args.allow_restricted,
             no_quotes=args.no_quotes,
+            binding_gate=args.binding_gate,
         )
     except ScopeViolation as exc:  # before SealError: scope refusal is exit 6, not 4
         print(f"dorian seal: {exc}", file=sys.stderr)
@@ -162,9 +202,14 @@ def cmd_seal(args: argparse.Namespace) -> int:
     except ScopeConfigError as exc:
         print(f"dorian seal: {exc}", file=sys.stderr)
         return EXIT_USAGE
+    except BindingGateError as exc:  # before SealError: same exit 4, with the findings
+        _print_binding_gate_refusal("dorian seal", exc)
+        return EXIT_REVOKED
     except SealError as exc:
         print(f"dorian seal: {exc}", file=sys.stderr)
         return EXIT_REVOKED
+    if args.binding_gate in ("warn", "fail"):
+        _emit_binding_gate_warnings("dorian seal", repo, artifact_uri, args.binding_gate)
     print(warrant.id)
     return EXIT_OK
 
@@ -207,6 +252,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
             allow_restricted=args.allow_restricted,
             no_quotes=args.no_quotes,
             extra_watch=symbol_watch,
+            binding_gate=args.binding_gate,
         )
     except ScopeViolation as exc:  # before SealError: scope refusal is exit 6, not 4
         print(f"dorian verify: {exc}", file=sys.stderr)
@@ -214,6 +260,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
     except ScopeConfigError as exc:
         print(f"dorian verify: {exc}", file=sys.stderr)
         return EXIT_USAGE
+    except BindingGateError as exc:  # before SealError: same exit 4, with the findings
+        _print_binding_gate_refusal("dorian verify", exc)
+        return EXIT_REVOKED
     except SealError as exc:
         print(f"dorian verify: {exc}", file=sys.stderr)
         return EXIT_REVOKED
@@ -231,6 +280,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
         f"verified {backed}/{len(claims)} claim(s) against current sources"
         f" -> {artifact_uri}.warrant"
     )
+    if args.binding_gate in ("warn", "fail"):
+        _emit_binding_gate_warnings("dorian verify", repo, artifact_uri, args.binding_gate)
     return EXIT_OK
 
 

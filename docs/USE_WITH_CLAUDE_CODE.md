@@ -34,6 +34,13 @@ dorian revalidate --since origin/main
 a git ref and re-checks only the intersecting claims. (For a C1 *span* claim — a quoted slice of the
 artifact itself — use `dorian capture` + `dorian seal` instead; `verify` can't derive that read-set.)
 
+> **Optional review gate.** Once you've reviewed the agent-emitted `claims.json`, you can make the
+> seal itself flag or block weak bindings. During early adoption run `dorian verify … --binding-gate
+> warn` (it prints binding diagnostics after sealing, exit 0); switch to `--binding-gate fail` only
+> when you want a stricter gate (it refuses the seal, writing nothing, on a high-risk weak binding).
+> It is **off** by default and never treats weak binding as a claim being false — see
+> [`AGENT_CLAIMS.md`](AGENT_CLAIMS.md).
+
 ## 2. The paste-ready prompt
 
 Give your agent this once you've finished a change and want it held to its summary:

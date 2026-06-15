@@ -372,6 +372,10 @@ claims.
 - `dorian verify <artifact> --claims claims.json` — the one-shot agent-claims entry point:
   auto-derive the read-set from each C3/C4/C5 checker, then seal (born-verifiable). C1 span claims
   use `dorian capture` + `dorian seal` instead.
+- `dorian verify … --binding-gate off|warn|fail` (also on `seal`; default `off`) — an opt-in
+  weak-binding review gate: `warn` prints binding diagnostics after a successful seal; `fail`
+  refuses the seal (writing nothing, exit 4) when a claim carries a high-risk weak-binding flag.
+  It never marks a claim false and never changes trust state; `single-file` is warn-only.
 - `dorian blast <path|warrant-id> [--max-depth N]` — downstream warrants reachable through the
   derives graph. When `revalidate` newly breaks a claim, every downstream warrant gets a `recalled`
   event: a flag only — downstream is never re-checked and its states are untouched. Re-seal with

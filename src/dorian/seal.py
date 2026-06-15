@@ -52,6 +52,21 @@ class ScopeViolation(SealError):
         self.patterns = patterns
 
 
+class BindingGateError(SealError):
+    """--binding-gate=fail refused the seal: high-risk weak-binding diagnostics
+    require review. Carries the blocking findings; NO sidecar is written. Weak
+    binding is a false-CONFIDENCE smell, never a claim being false — so this maps
+    to the existing seal-refused exit (4), not to any trust or claim state."""
+
+    def __init__(self, findings: list[dict]) -> None:
+        self.findings = findings
+        ids = ", ".join(repr(d["claim_id"]) for d in findings)
+        super().__init__(
+            f"--binding-gate=fail refused seal: {len(findings)} claim(s) with high-risk "
+            f"weak-binding diagnostics require review ({ids}); no sidecar written"
+        )
+
+
 class ScopeConfigError(ValueError):
     """[tool.dorian.scopes] could not be read (malformed pyproject.toml): caller
     input, mapped to exit 2 — never a scope violation or a seal refusal."""
@@ -255,8 +270,18 @@ def seal_artifact(
     allow_restricted: bool = False,
     no_quotes: bool = False,
     extra_watch: Mapping[str, tuple[str, ...]] | None = None,
+    binding_gate: str = "off",
 ) -> Warrant:
     """Scope-lint the read-set, run every checker, then write the sidecar + index.
+
+    binding_gate (off | warn | fail; default off) is the opt-in weak-binding review
+    gate. It NEVER changes default behavior, trust/claim state, the schema, or fold
+    policy. 'off' and 'warn' seal exactly as before (warn's diagnostics are printed
+    by the caller after a successful seal). 'fail' computes the same binding
+    diagnostics on the candidate claims AFTER every checker passes but BEFORE any
+    sidecar/store write, and raises BindingGateError (writing nothing) when a claim
+    carries a high-risk weak-binding flag. Weak binding is a false-confidence smell,
+    never proof a claim is false.
 
     extra_watch (claim id -> repo-relative paths) widens a backed claim's checker
     watch set with files the claim depends on but its checker did not name — the
@@ -330,6 +355,24 @@ def seal_artifact(
                 raise SealError(f"FAILED_AT_SEAL: {claim.id}: {result.detail}")
             if result.verdict is Verdict.ERROR:
                 raise SealError(f"ERRORED_AT_SEAL: {claim.id}: {result.detail}")
+
+    # 2.5 opt-in weak-binding gate (default off). Runs AFTER every checker passed
+    #     (so a false claim is still refused first, by step 2) and BEFORE any sidecar
+    #     or store write below — so `fail` is atomic no-write. It only ever REFUSES;
+    #     it never marks a claim broken/false and never touches trust/claim state.
+    #     `warn` does not refuse here: the caller prints its diagnostics post-seal.
+    if binding_gate == "fail":
+        from dorian import bindings  # lazy: bindings lazily imports seal helpers
+
+        diags = bindings.analyze_candidate(
+            repo,
+            artifact_uri=artifact_uri,
+            claims=sealed_claims,
+            entry_uris={e.id: e.uri for e in readset.entries},
+        )
+        blocking = bindings.blocking_findings(diags)
+        if blocking:
+            raise BindingGateError(blocking)
 
     # 3. derives_from: project read-set entries that are themselves warranted
     derives: list[str] = []

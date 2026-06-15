@@ -79,6 +79,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="content-free sidecar: drop anchor quotes (line numbers stay; changes the warrant id)",
     )
+    seal.add_argument(
+        "--binding-gate",
+        choices=["off", "warn", "fail"],
+        default="off",
+        help="opt-in weak-binding review gate (default off): 'warn' prints binding"
+        " diagnostics after a successful seal; 'fail' refuses the seal (writing nothing)"
+        " on a high-risk weak binding. Never marks a claim false; 'single-file' is warn-only.",
+    )
 
     vf = sub.add_parser(
         "verify",
@@ -101,6 +109,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-quotes",
         action="store_true",
         help="content-free sidecar: drop anchor quotes (changes the warrant id)",
+    )
+    vf.add_argument(
+        "--binding-gate",
+        choices=["off", "warn", "fail"],
+        default="off",
+        help="opt-in weak-binding review gate (default off): 'warn' prints binding"
+        " diagnostics after a successful seal; 'fail' refuses the seal (writing nothing)"
+        " on a high-risk weak binding. Never marks a claim false; 'single-file' is warn-only.",
     )
 
     st = sub.add_parser("status", help="trust state of warranted artifacts")

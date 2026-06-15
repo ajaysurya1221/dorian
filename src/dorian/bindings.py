@@ -15,7 +15,8 @@ from __future__ import annotations
 import fnmatch
 import re
 import shlex
-from pathlib import Path
+from collections.abc import Mapping, Sequence
+from pathlib import Path, PurePosixPath
 
 from dorian import gitio
 from dorian.model import Claim, Warrant
@@ -63,21 +64,56 @@ def analyze(repo: Path, artifact_uri: str) -> list[dict]:
     """Per-claim binding diagnostics for a warranted artifact, in claim order:
     {claim_id, text, watch, flags, mentions}. Flags (fixed order): 'unbacked' |
     'single-file' | 'short-literal' | 'ambiguous-mention' | 'trigger-only-symbol' |
-    'unwatched-mention'."""
-    from dorian import symbol_index  # lazy: symbol_index imports _tokens from here (cycle)
-
+    'unwatched-mention'. File-backed: loads the sidecar, then delegates to
+    analyze_candidate (the same logic the seal-time --binding-gate runs in memory)."""
     repo = repo.resolve()
     warrant = Warrant.load(repo / (artifact_uri + ".warrant"))
     entry_uris = {e.id: e.uri for e in warrant.read_set}
-    ambiguous = symbol_index.ambiguous_symbol_mentions(repo, list(warrant.claims))
+    return analyze_candidate(
+        repo, artifact_uri=artifact_uri, claims=list(warrant.claims), entry_uris=entry_uris
+    )
 
-    claim_tokens = {c.id: _tokens(c.text) for c in warrant.claims}
+
+def _claim_input_sidecars(artifact_uri: str) -> set[str]:
+    """Likely human/agent authoring inputs for a warrant.
+
+    These files are not evidence for the claim; scanning them would make a
+    committed claims file self-referentially satisfy or weaken its own binding.
+    """
+    p = PurePosixPath(artifact_uri)
+    out = {
+        (p.parent / "claims.json").as_posix(),
+        p.with_suffix(".claims.json").as_posix(),
+        f"{artifact_uri}.claims.json",
+    }
+    return {x for x in out if x and x != "."}
+
+
+def analyze_candidate(
+    repo: Path,
+    *,
+    artifact_uri: str,
+    claims: Sequence[Claim],
+    entry_uris: Mapping[str, str],
+) -> list[dict]:
+    """The diagnostic core, over CANDIDATE data (the claims plus their read-set
+    entry uris) rather than a written sidecar — so it can run at seal time, before
+    any `.warrant` is dumped, for the opt-in --binding-gate. `analyze` is the
+    file-backed wrapper around this. Output shape and flag set are identical."""
+    from dorian import symbol_index  # lazy: symbol_index imports _tokens from here (cycle)
+
+    repo = repo.resolve()
+    claims = list(claims)
+    ambiguous = symbol_index.ambiguous_symbol_mentions(repo, claims)
+
+    claim_tokens = {c.id: _tokens(c.text) for c in claims}
     all_tokens = sorted({t for toks in claim_tokens.values() for t in toks})
     tracked = gitio.ls_files(repo) if all_tokens else []
-    hits = _scan_files(repo, tracked, all_tokens, skip={artifact_uri})
+    skip = {artifact_uri, *_claim_input_sidecars(artifact_uri)}
+    hits = _scan_files(repo, tracked, all_tokens, skip=skip)
 
     diags: list[dict] = []
-    for claim in warrant.claims:
+    for claim in claims:
         cover = _watch_support(claim, entry_uris)
         flags: list[str] = []
         if not claim.checkers:
@@ -113,6 +149,47 @@ def analyze(repo: Path, artifact_uri: str) -> list[dict]:
             }
         )
     return diags
+
+
+# --- opt-in weak-binding gate policy (seal-time review only; never trust state) ----
+
+GATE_MODES = ("off", "warn", "fail")
+
+# 'single-file' is the EXPECTED shape of an honest one-checker C3 path/symbol/regex
+# claim (the launch-train Dorian-on-Dorian warrant carries five), so it is warn-only —
+# never a default seal refusal. The rest are weak-binding smells worth blocking a
+# strict review gate. Weak binding is a false-CONFIDENCE risk, never proof a claim is
+# false: the gate maps to the seal-refused path (exit 4), never to a claim/trust state.
+HIGH_RISK_FLAGS = frozenset(
+    {"unbacked", "short-literal", "ambiguous-mention", "trigger-only-symbol", "unwatched-mention"}
+)
+
+
+def blocking_findings(diags: list[dict]) -> list[dict]:
+    """Diagnostics carrying at least one HIGH_RISK_FLAGS flag — exactly what
+    --binding-gate=fail refuses on. A claim flagged only 'single-file' is never
+    blocking, so honest one-checker C3 warrants still seal under `fail`."""
+    return [d for d in diags if any(f in HIGH_RISK_FLAGS for f in d["flags"])]
+
+
+def weak_binding_lines(diags: list[dict]) -> list[str]:
+    """One deterministic line per FLAGGED claim for --binding-gate output: claim
+    id, flags, watch paths, and any unwatched mention token -> paths. Content-free:
+    carries repo-relative paths, claim-text tokens, flags, and claim ids only —
+    never a matched line or any file content."""
+    lines: list[str] = []
+    for d in diags:
+        if not d["flags"]:
+            continue
+        parts = [
+            f"claim {d['claim_id']!r}",
+            f"flags={','.join(d['flags'])}",
+            f"watch={','.join(d['watch']) or '-'}",
+        ]
+        for m in d["mentions"]:
+            parts.append(f"unwatched[{m['token']}]={','.join(m['unwatched_files'])}")
+        lines.append(" ".join(parts))
+    return lines
 
 
 def _checker_named_files(claim: Claim, entry_uris: dict[str, str]) -> set[str]:

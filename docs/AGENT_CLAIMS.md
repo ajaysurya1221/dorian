@@ -8,10 +8,11 @@ dorian verify <artifact> --claims claims.json
 ```
 
 **Exit 0** means every *backed* claim held against the real, current sources and a
-`.warrant` sidecar was sealed. **Exit 4** means a claim is false right now — or its
-checker could not run — so the seal is refused and *nothing is written*: fix the claim
-or fix the code. This is the supported way to produce warrant claims. The LLM extractor
-(`--extract`) is frozen (see the bottom of this page).
+`.warrant` sidecar was sealed. **Exit 4** means the seal was refused — a claim is false
+right now, a checker could not run, or `--binding-gate fail` found a high-risk weak
+binding — so *nothing is written*: fix the claim/code/checker, or fix the weak binding.
+This is the supported way to produce warrant claims. The LLM extractor (`--extract`) is
+frozen (see the bottom of this page).
 
 This page is the authoring companion to two references it deliberately does **not**
 duplicate (a second copy would be exactly the drift dorian exists to catch):
@@ -51,15 +52,15 @@ duplicate (a second copy would be exactly the drift dorian exists to catch):
 
 Each claim has **four required fields** and three optional ones:
 
-| field | required | meaning |
-|---|---|---|
-| `id` | yes | stable, kebab/scope-prefixed handle — the store key and the `blast`/`--supersede` handle. Never auto-generated; never renumber. |
-| `text` | yes | the human-auditable assertion, in your words. |
-| `kind` | yes | one of `fact`, `reference`, `behavior`, `quantity`, `decision`. |
-| `load_bearing` | yes | decides REVOKE vs DEGRADE on a future break — see §2. |
-| `anchor` | no (`null`) | line span + quote of the artifact (C1 only). |
-| `supports` | no (`[]`) | read-set entry ids (C1 only; `verify` auto-derives the rest). |
-| `checkers` | no (`[]`) | the deterministic checks (§4–5). A claim with none is **UNBACKED** — see R1. |
+| field          | required    | meaning                                                                                                                         |
+| -------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `id`           | yes         | stable, kebab/scope-prefixed handle — the store key and the `blast`/`--supersede` handle. Never auto-generated; never renumber. |
+| `text`         | yes         | the human-auditable assertion, in your words.                                                                                   |
+| `kind`         | yes         | one of `fact`, `reference`, `behavior`, `quantity`, `decision`.                                                                 |
+| `load_bearing` | yes         | decides REVOKE vs DEGRADE on a future break — see §2.                                                                           |
+| `anchor`       | no (`null`) | line span + quote of the artifact (C1 only).                                                                                    |
+| `supports`     | no (`[]`)   | read-set entry ids (C1 only; `verify` auto-derives the rest).                                                                   |
+| `checkers`     | no (`[]`)   | the deterministic checks (§4–5). A claim with none is **UNBACKED** — see R1.                                                    |
 
 `kind` and `load_bearing` are **not** defaulted, on purpose: `load_bearing` changes what
 a future break *does*, so you must decide it per claim (§2), and `kind` records intent for
@@ -97,16 +98,16 @@ in prose.
 
 ## 4. Picking a checker from your sentence
 
-| Your claim | Use | Avoid | Why |
-|---|---|---|---|
-| "function/class `X` exists" | `C3 symbol:<file>::X` | `C3 string:<file>::def X` | `symbol:` survives reformatting, decorators, `async def`; `string:` breaks on `def  X` and false-passes on a mention in a comment. |
-| "`TIMEOUT` is 30" / any value | `C3 regex:<file>::TIMEOUT\s*=\s*30\b` | `C3 string:<file>::TIMEOUT = 30` | `regex:` tolerates spacing — but **anchor BOTH key and value**: a bare `TIMEOUT` regex still passes after the value changes (a silent false pass). |
-| "config key / identifier present" | `C3 regex:` anchored to the key | `C3 string:` of a short literal | literals < 6 chars near-match everything (flagged `short-literal`); a bare string also survives if it lives only in a comment. |
-| "tests for `X` pass" | `C4 pytest:<file>::<test>` | `C3 string:` of an assert line | `C4` actually runs the test and tells `test_gone` (FAIL) from infra (ERROR); a string only proves text exists. |
-| "file/path exists" | `C3 path:<repo/path>` | a regex on a sibling file | `path:` is existence, rename-resolved. |
-| "table has column / rowcount / domain / freshness" | typed `C5` (`schema:`/`rowcount:`/`domain:`/`freshness:`/`nullrate:`) | `C5 shell:'grep … data.csv'` | typed `C5` parses the data and auto-derives its watch; `nullrate`/`domain`/`freshness` add a no-rows vacuous-truth guard (an empty dataset can't support the claim), while `rowcount`/`schema` do not — bound those deliberately; `shell:` is opaque and needs explicit `watch` + `expect`. |
-| "this exact data file is unchanged" | `C5 snapshot:<path>` | a C1 span on data | `snapshot:` is a content hash. |
-| "this prose span is unchanged" | `C1` span — **`capture` + `seal`, not `verify`** | `string:` of a paragraph | `C1` hashes the span and follows relocation; `verify` rejects C1 (exit 2). |
+| Your claim                                         | Use                                                                   | Avoid                            | Why                                                                                                                                                                                                                                                                                         |
+| -------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "function/class `X` exists"                        | `C3 symbol:<file>::X`                                                 | `C3 string:<file>::def X`        | `symbol:` survives reformatting, decorators, `async def`; `string:` breaks on `def  X` and false-passes on a mention in a comment.                                                                                                                                                          |
+| "`TIMEOUT` is 30" / any value                      | `C3 regex:<file>::TIMEOUT\s*=\s*30\b`                                 | `C3 string:<file>::TIMEOUT = 30` | `regex:` tolerates spacing — but **anchor BOTH key and value**: a bare `TIMEOUT` regex still passes after the value changes (a silent false pass).                                                                                                                                          |
+| "config key / identifier present"                  | `C3 regex:` anchored to the key                                       | `C3 string:` of a short literal  | literals < 6 chars near-match everything (flagged `short-literal`); a bare string also survives if it lives only in a comment.                                                                                                                                                              |
+| "tests for `X` pass"                               | `C4 pytest:<file>::<test>`                                            | `C3 string:` of an assert line   | `C4` actually runs the test and tells `test_gone` (FAIL) from infra (ERROR); a string only proves text exists.                                                                                                                                                                              |
+| "file/path exists"                                 | `C3 path:<repo/path>`                                                 | a regex on a sibling file        | `path:` is existence, rename-resolved.                                                                                                                                                                                                                                                      |
+| "table has column / rowcount / domain / freshness" | typed `C5` (`schema:`/`rowcount:`/`domain:`/`freshness:`/`nullrate:`) | `C5 shell:'grep … data.csv'`     | typed `C5` parses the data and auto-derives its watch; `nullrate`/`domain`/`freshness` add a no-rows vacuous-truth guard (an empty dataset can't support the claim), while `rowcount`/`schema` do not — bound those deliberately; `shell:` is opaque and needs explicit `watch` + `expect`. |
+| "this exact data file is unchanged"                | `C5 snapshot:<path>`                                                  | a C1 span on data                | `snapshot:` is a content hash.                                                                                                                                                                                                                                                              |
+| "this prose span is unchanged"                     | `C1` span — **`capture` + `seal`, not `verify`**                      | `string:` of a paragraph         | `C1` hashes the span and follows relocation; `verify` rejects C1 (exit 2).                                                                                                                                                                                                                  |
 
 Use repo-relative paths only (absolute or `..` are rejected). Prefer literal-anchored regex
 with bounded `\s*` gaps — **never** nested quantifiers like `(a+)+`: `C3` runs in-process,
@@ -157,6 +158,28 @@ After writing `claims.json`:
 `bindings` is your deterministic false-confidence linter — a strong smell-detector, not a
 proof. No model runs at check time, ever.
 
+### Gating on weak bindings (opt-in)
+
+`dorian bindings` only reports. To turn those diagnostics into a seal-time gate, pass
+`--binding-gate` to `verify` (or `seal`):
+
+```bash
+dorian verify <artifact> --claims claims.json --binding-gate warn
+dorian verify <artifact> --claims claims.json --binding-gate fail
+```
+
+- `warn` — after a successful seal, print the weak-binding diagnostics and exit 0 (the
+  sidecar is still written). Good for early adoption.
+- `fail` — refuse the seal (writing **nothing**, exit 4) when a claim carries a **high-risk**
+  flag: `unbacked`, `short-literal`, `ambiguous-mention`, `trigger-only-symbol`, or
+  `unwatched-mention`. Use it once you want a stricter review gate.
+- `off` (default) — unchanged behavior.
+
+`single-file` is **warn-only**: a one-checker C3 `path:`/`symbol:`/`regex:` claim is honest,
+so it never refuses a seal on its own. Weak binding is a false-**confidence** smell — never
+proof a claim is false. The gate never marks a claim BROKEN and never changes any trust or
+claim state; `dorian bindings` stays a pure linter.
+
 ## 10. Worked example
 
 An agent finishing *"added rate-limiting to `/login`, set the timeout to 30s, covered by a
@@ -190,14 +213,14 @@ find out.
 
 ## 11. Exit codes
 
-| exit | meaning |
-|---|---|
-| `0` | sealed; every backed claim held against current sources |
-| `2` | usage — bad JSON, a C1 or C5 `shell:` claim in `verify`, a referenced file missing, artifact outside the repo |
-| `4` | a claim is false (`FAILED_AT_SEAL`) or its checker could not run (`ERRORED_AT_SEAL`); **nothing written** |
-| `6` | a referenced file matches a `[tool.dorian.scopes]` restricted glob without `--allow-restricted` |
+| exit | meaning                                                                                                                                                                       |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | sealed; every backed claim held against current sources                                                                                                                       |
+| `2`  | usage — bad JSON, a C1 or C5 `shell:` claim in `verify`, a referenced file missing, artifact outside the repo                                                                 |
+| `4`  | seal refused — a claim is false (`FAILED_AT_SEAL`), a checker could not run (`ERRORED_AT_SEAL`), or `--binding-gate fail` found a high-risk weak binding; **nothing written** |
+| `6`  | a referenced file matches a `[tool.dorian.scopes]` restricted glob without `--allow-restricted`                                                                               |
 
-Treat exit 4 as "your claim is wrong — fix it," not "retry."
+Treat exit 4 as "the seal was refused — fix the false claim/checker, or under `--binding-gate fail`, fix the weak binding," not "retry."
 
 ---
 
