@@ -3,4 +3,4 @@
 PyPI distribution: `dorian-vwp`; import package: `dorian`; CLI: `dorian`.
 """
 
-__version__ = "0.9.1"
+__version__ = "0.10.0"
