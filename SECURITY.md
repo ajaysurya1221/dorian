@@ -64,14 +64,21 @@ inside your own sandbox (container, restricted user, no secrets in env).
 
 ## Public fork PR CI
 
-dorian does **not** currently advertise a safe public-fork-PR mode. A trusted-base
-Action design (run checkers from the base ref, never from untrusted head, deny-exec
-by default for forks) is documented in
-[docs/TRUSTED_BASE_ACTION_DESIGN.md](docs/TRUSTED_BASE_ACTION_DESIGN.md) but is **not
-yet implemented or tested**. Until it is, the safe answer for public forks is
-`--deny-exec` plus the standard caution that any executed checker still runs with
-the runner's privileges. Do not wire dorian into `pull_request_target` with a
-checkout of untrusted head.
+For public/forked-PR CI, use **trusted-base checker-source mode**:
+`dorian revalidate --checker-source base` (Action input `checker_trust: base`). It
+resolves each claim's checker SPEC from the trusted base ref and runs it against the
+PR-head sources, so a PR-added or PR-modified executable checker is never executed and
+a PR rewriting a checker spec cannot self-attest a verdict (the base-approved spec
+wins). A missing or tampered base sidecar **fails closed** (ERRORED, never executed).
+This is implemented and proven by the test matrix in
+[docs/TRUSTED_BASE_ACTION_DESIGN.md](docs/TRUSTED_BASE_ACTION_DESIGN.md) §6
+(`tests/test_trusted_base.py`).
+
+It is a **checker-source trust root, not a sandbox**: a base-approved `pytest:` checker
+can still import and execute PR-head code. So for fully untrusted forks, combine
+`checker_trust: base` **with `deny_exec: true`** (or external isolation) — any executed
+checker still runs with the runner's privileges. Do not wire dorian into
+`pull_request_target` with a checkout of untrusted head.
 
 ## Supported versions
 

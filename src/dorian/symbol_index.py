@@ -42,6 +42,64 @@ _DEF_NODES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
 _CONFIG_SUFFIXES = (".toml", ".json")
 _MIN_KEY_LEN = 4  # mirror bindings._MIN_IDENT: shorter keys are noise
 
+# Common PEP 621 / packaging / generic config keys are ordinary English words that appear
+# in claim prose constantly. Binding the config file every time one is mentioned is noise —
+# and worse, it can pull a restricted config file (e.g. pyproject.toml) into the scope-linted
+# read-set and newly refuse a previously-clean seal. So the config axis (like the symbol
+# axis's _BACKTICK_STOPWORDS) skips these common keys; specific keys (max_workers, new_login)
+# still bind. Found by adversarial review: a backticked `dependencies` made verify exit 6.
+_CONFIG_KEY_STOPWORDS = frozenset(
+    {
+        "name",
+        "version",
+        "description",
+        "readme",
+        "license",
+        "authors",
+        "maintainers",
+        "keywords",
+        "classifiers",
+        "dependencies",
+        "scripts",
+        "urls",
+        "homepage",
+        "repository",
+        "documentation",
+        "changelog",
+        "requires",
+        "optional",
+        "project",
+        "build",
+        "tool",
+        "include",
+        "exclude",
+        "packages",
+        "source",
+        "target",
+        "default",
+        "type",
+        "format",
+        "title",
+        "summary",
+        "value",
+        "values",
+        "enabled",
+        "disabled",
+        "options",
+        "settings",
+        "config",
+        "email",
+        "data",
+        "files",
+        "module",
+        "modules",
+        "dependency",
+        "group",
+        "groups",
+        "extras",
+    }
+)
+
 
 def python_symbol_definers(repo: Path) -> dict[str, tuple[str, ...]]:
     """Symbol name -> the sorted, unique git-tracked `.py` files that define it
@@ -221,6 +279,8 @@ def claim_config_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple
     for claim in claims:
         paths: set[str] = set()
         for token in claim_tokens.get(claim.id, ()):
+            if token.lower() in _CONFIG_KEY_STOPWORDS:
+                continue  # common config word: prose, not a key to bind (over-binding/scope)
             files = index.get(token)
             if files is not None and len(files) == 1:
                 paths.add(files[0])
@@ -252,7 +312,11 @@ def ambiguous_config_mentions(
     for claim in claims:
         if not claim.load_bearing or not isinstance(claim.text, str):
             continue
-        ambiguous = {tok: index[tok] for tok in _tokens(claim.text) if len(index.get(tok, ())) > 1}
+        ambiguous = {
+            tok: index[tok]
+            for tok in _tokens(claim.text)
+            if tok.lower() not in _CONFIG_KEY_STOPWORDS and len(index.get(tok, ())) > 1
+        }
         if ambiguous:
             out[claim.id] = ambiguous
     return out

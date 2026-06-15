@@ -61,3 +61,16 @@ def test_security_docs_state_public_fork_limitation() -> None:
         assert "--deny-exec" in doc
         assert "not a sandbox" in low
         assert "fork" in low  # public-fork posture is addressed explicitly
+
+
+def test_security_docs_reflect_trusted_base_as_implemented() -> None:
+    """Regression (adversarial review): trusted-base SHIPPED, so the docs users are routed
+    to must not still say it is unimplemented, and must name the actual surface."""
+    sec = (REPO_ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    action_readme = ACTION_README.read_text(encoding="utf-8")
+    for doc in (sec, action_readme):
+        low = doc.lower()
+        assert "not yet implemented" not in low
+        assert "not yet a full public-fork story" not in low
+        # the actual feature is named (Action input and/or CLI flag)
+        assert "checker_trust" in doc or "checker-source" in doc

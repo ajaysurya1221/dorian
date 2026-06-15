@@ -144,6 +144,56 @@ def test_verify_binds_config_and_revalidate_rechecks(tmp_path: Path) -> None:
     assert cli.main(["--repo", str(repo), "revalidate", "--since", base]) == cli.EXIT_REVOKED
 
 
+def test_common_config_key_does_not_bind(tmp_path: Path) -> None:
+    """A common PEP 621 / config word (dependencies, version, name, ...) is English prose,
+    not a specific key to bind — it must NOT auto-watch the config file (over-binding noise,
+    and it can pull a restricted config file into the scope-linted read-set)."""
+    repo = _repo(tmp_path)
+    write(repo, "pyproject.toml", '[project]\nname = "x"\nversion = "0"\ndependencies = []\n')
+    commit_all(repo, "pyproject")
+    claims = [_claim("c", "Updated the `dependencies` and `version`.", "path:pyproject.toml")]
+    assert symbol_index.claim_config_watch_paths(repo, claims) == {}
+    assert symbol_index.ambiguous_config_mentions(repo, claims) == {}
+
+
+def test_specific_config_key_still_binds(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    write(repo, "settings.toml", "[server]\nmax_workers = 4\n")
+    commit_all(repo, "cfg")
+    claims = [_claim("c", "`max_workers` is 4.", "path:settings.toml")]
+    assert symbol_index.claim_config_watch_paths(repo, claims) == {"c": ("settings.toml",)}
+
+
+def test_common_config_word_does_not_newly_refuse_a_clean_seal(tmp_path: Path) -> None:
+    """Backward-compat regression (found by adversarial review): on a repo whose pyproject is
+    under a restricted scope glob, a claim merely backticking `dependencies` must NOT newly
+    refuse `verify` with exit 6 — the checker names note.md, not pyproject.toml."""
+    repo = _repo(tmp_path)
+    write(
+        repo,
+        "pyproject.toml",
+        '[project]\nname = "x"\nversion = "0"\ndependencies = []\n\n'
+        '[tool.dorian.scopes]\nrestricted = ["pyproject.toml"]\n',
+    )
+    write(repo, "note.md", "# n\n\nUpdated the dependencies list.\n")
+    commit_all(repo, "restricted pyproject")
+    claims = {
+        "claims": [
+            {
+                "id": "c",
+                "text": "Updated the `dependencies` list.",
+                "kind": "reference",
+                "load_bearing": False,
+                "checkers": [{"type": "C3", "program": "path:note.md"}],
+            }
+        ]
+    }
+    cp = repo / "claims.json"
+    cp.write_text(json.dumps(claims), encoding="utf-8")
+    rc = cli.main(["--repo", str(repo), "verify", "note.md", "--claims", str(cp)])
+    assert rc == 0  # `dependencies` must not pull restricted pyproject.toml into the read-set
+
+
 def test_bind_suggest_shows_config_provenance(tmp_path: Path, capsys) -> None:
     repo = _repo(tmp_path)
     write(repo, "settings.toml", "[server]\nmax_workers = 4\n")

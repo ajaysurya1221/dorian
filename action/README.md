@@ -59,20 +59,21 @@ caveats:
 1. A `.warrant` file is a **non-obvious executable input**. Reviewers who
    would scrutinize a workflow or `conftest.py` change may wave through a
    "docs-only" diff that swaps a checker `program`.
-2. The verdict is **self-attested by the PR tree**. A PR can rewrite a
-   sidecar so a broken claim re-verifies; the trust root for what "should"
-   be checked is not yet the base branch.
+2. In the default `head` mode the verdict is **self-attested by the PR tree** — a
+   PR can rewrite a sidecar so a broken claim re-verifies. **`checker_trust: base`
+   fixes exactly this** (see below): it sources every checker spec from the base
+   ref, so a PR rewriting a spec can no longer weaken the verdict. Use `head` only
+   for trusted/internal repos.
 
-**deny-exec input (partial mitigation, available now).** Set `deny_exec: true`
-(or `deny_shell: true`) on the Action to refuse the executable checker families
-during revalidation: C4 pytest and C5 shell ERROR instead of executing, so a
-PR-authored sidecar cannot make this Action run its code. It flows through the
-`DORIAN_DENY_EXEC` env fallback; the default `false` preserves today's behavior
-for trusted/internal repos. This is fail-closed but **not a sandbox** and **not
-yet a full public-fork story**: it removes code execution but does not address
-the self-attested-verdict problem (a PR can still rewrite a *non-executable* C3
-claim so a broken fact re-verifies). See `SECURITY.md` and
-`docs/SECURITY_BOUNDARY.md`.
+**deny-exec input.** Set `deny_exec: true` (or `deny_shell: true`) on the Action to
+refuse the executable checker families during revalidation: C4 pytest and C5 shell
+ERROR instead of executing, so a PR-authored sidecar cannot make this Action run its
+code. It flows through the `DORIAN_DENY_EXEC` env fallback; the default `false`
+preserves today's behavior for trusted/internal repos. This is fail-closed but **not
+a sandbox**: on its own it removes code execution but does not address the
+self-attested-verdict problem for *non-executable* checkers — that is what
+`checker_trust: base` adds, and the two compose (use both for untrusted forks). See
+`SECURITY.md` and `docs/SECURITY_BOUNDARY.md`.
 
 ```yaml
 # untrusted / public-fork posture

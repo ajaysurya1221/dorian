@@ -96,11 +96,19 @@ def _mutations(spec: CheckerSpec) -> Iterator[tuple[str, str, str, object]]:
 
 def _run_mutated(repo: Path, claim: Claim, spec_index: int, file: str, mutate, policy) -> Verdict:
     """Run one checker against a throwaway copy of `file` with `mutate` applied. Only the
-    one file the checker reads is materialized — the real repo is never touched."""
-    original = (repo / file).read_text(encoding="utf-8", errors="replace")
+    one file the checker reads is materialized — the real repo is never touched, and a
+    warrant-controlled `file` operand that escapes the repo (e.g. `../`) is refused so the
+    harness cannot read or write outside its sandbox (the checker would ERROR on it anyway)."""
+    repo = repo.resolve()
+    src = (repo / file).resolve()
+    if not src.is_relative_to(repo) or not src.is_file():
+        return Verdict.ERROR  # path escape or missing: do not read/write outside the repo
+    original = src.read_text(encoding="utf-8", errors="replace")
     with tempfile.TemporaryDirectory() as td:
-        work = Path(td)
-        target = work / file
+        work = Path(td).resolve()
+        target = (work / file).resolve()
+        if not target.is_relative_to(work):
+            return Verdict.ERROR  # write would escape the temp sandbox
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(mutate(original), encoding="utf-8")
         ctx = CheckContext(repo=work, claim=claim, policy=policy)

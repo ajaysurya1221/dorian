@@ -43,23 +43,10 @@ def code_only_python(text: str) -> str | None:
     tree = _parse(text)
     if tree is None:
         return None
-    doc_start_lines: set[int] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, _SCOPE_NODES):
-            body = getattr(node, "body", None)
-            if (
-                isinstance(body, list)
-                and body
-                and isinstance(body[0], ast.Expr)
-                and isinstance(body[0].value, ast.Constant)
-                and isinstance(body[0].value.value, str)
-            ):
-                doc_start_lines.add(body[0].value.lineno)
-
     buf = [list(line) for line in text.split("\n")]
 
-    def blank(start: tuple[int, int], end: tuple[int, int]) -> None:
-        (sl, sc), (el, ec) = start, end
+    def blank(sl: int, sc: int, el: int, ec: int) -> None:
+        """Blank the half-open span (sl,sc)..(el,ec) to spaces. Lines 1-based, cols 0-based."""
         for ln in range(sl, el + 1):
             if ln - 1 >= len(buf):
                 break
@@ -69,12 +56,28 @@ def code_only_python(text: str) -> str | None:
             for i in range(lo, min(hi, len(row))):
                 row[i] = " "
 
+    # Docstrings: the first body statement of a module/class/function that is a bare string
+    # OR f-string expression. Blank by the NODE's span (not the whole line), so a real string
+    # literal co-located on the docstring's physical line is preserved; an f-string docstring
+    # (ast.JoinedStr) is blanked just like a plain one.
+    for node in ast.walk(tree):
+        if not isinstance(node, _SCOPE_NODES):
+            continue
+        body = getattr(node, "body", None)
+        if not (isinstance(body, list) and body and isinstance(body[0], ast.Expr)):
+            continue
+        val = body[0].value
+        is_doc = (isinstance(val, ast.Constant) and isinstance(val.value, str)) or isinstance(
+            val, ast.JoinedStr
+        )
+        if is_doc and val.end_lineno is not None and val.end_col_offset is not None:
+            blank(val.lineno, val.col_offset, val.end_lineno, val.end_col_offset)
+
+    # Comments: char-accurate via tokenize.
     try:
         for tok in tokenize.generate_tokens(io.StringIO(text).readline):
-            if tok.type == tokenize.COMMENT or (
-                tok.type == tokenize.STRING and tok.start[0] in doc_start_lines
-            ):
-                blank(tok.start, tok.end)
+            if tok.type == tokenize.COMMENT:
+                blank(tok.start[0], tok.start[1], tok.end[0], tok.end[1])
     except (tokenize.TokenError, IndentationError, SyntaxError):
         pass  # ast parsed cleanly; a tokenizer hiccup leaves best-effort blanking
     return "\n".join("".join(row) for row in buf)
@@ -251,14 +254,23 @@ def check_signature(text: str, needle: str) -> tuple[str, str]:
 
     if async_required and not isinstance(fn, ast.AsyncFunctionDef):
         return ("FAIL", f"signature_mismatch: {qualname} is not async")
-    mismatch = _compare_params(_params(pfn), _params(fn))
-    if mismatch:
-        return ("FAIL", f"signature_mismatch: {qualname}: {mismatch}")
-    if arrow:
-        want_ret = ast.unparse(pfn.returns) if pfn.returns else None
-        got_ret = ast.unparse(fn.returns) if fn.returns else None
-        if want_ret != got_ret:
-            return ("FAIL", f"signature_mismatch: {qualname}: return {got_ret!r} != {want_ret!r}")
+    # normalization/comparison can hit RecursionError/MemoryError on a pathological
+    # (but parseable) signature, e.g. a deeply nested annotation — honor pyast's own
+    # ERROR contract here rather than relying on the run_checker safety net.
+    try:
+        mismatch = _compare_params(_params(pfn), _params(fn))
+        if mismatch:
+            return ("FAIL", f"signature_mismatch: {qualname}: {mismatch}")
+        if arrow:
+            want_ret = ast.unparse(pfn.returns) if pfn.returns else None
+            got_ret = ast.unparse(fn.returns) if fn.returns else None
+            if want_ret != got_ret:
+                return (
+                    "FAIL",
+                    f"signature_mismatch: {qualname}: return {got_ret!r} != {want_ret!r}",
+                )
+    except _PARSE_ERRORS:
+        return ("ERROR", f"signature_uncomparable: {qualname} has a pathological signature")
     return ("PASS", f"signature ok: {qualname}")
 
 
@@ -288,6 +300,9 @@ def check_const(text: str, needle: str) -> tuple[str, str]:
         got = ast.literal_eval(rhs)
     except _PARSE_ERRORS:
         return ("ERROR", f"non_literal: {qualname} is not a literal constant")
-    if got == want:
+    # value AND type must match: Python `==` conflates 30/30.0, 1/True, 0/False, so a
+    # type-only drift (a bool flag becoming an int, an int becoming a float) would wrongly
+    # PASS the tier sold as the strong value verifier. Compare type first.
+    if type(got) is type(want) and got == want:
         return ("PASS", f"const ok: {qualname} == {expected}")
     return ("FAIL", f"const_value_mismatch: {qualname} != {expected}")

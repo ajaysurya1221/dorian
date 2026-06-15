@@ -232,6 +232,21 @@ def test_py_const_comment_and_docstring_survival_does_not_pass(tmp_path: Path) -
     assert _run(tmp_path, "py-const:c.py::TIMEOUT::30").verdict is Verdict.FAIL
 
 
+def test_py_const_rejects_value_type_drift(tmp_path: Path) -> None:
+    """The 'strong value verifier' must not let a value's TYPE drift past on Python ==:
+    30 != 30.0, 1 != True, 0 != False. Otherwise a bool flag silently becoming an int, or
+    an int timeout becoming a float, would re-verify green."""
+    _w(tmp_path, "c.py", "TIMEOUT = 30.0\nFLAG = 1\nZERO = 0\n")
+    assert _run(tmp_path, "py-const:c.py::TIMEOUT::30").verdict is Verdict.FAIL  # int vs float
+    assert _run(tmp_path, "py-const:c.py::FLAG::True").verdict is Verdict.FAIL  # int vs bool
+    assert _run(tmp_path, "py-const:c.py::ZERO::False").verdict is Verdict.FAIL  # int vs bool
+    # same value AND type still passes
+    _w(tmp_path, "c.py", "TIMEOUT = 30\nRATE = 0.5\nFLAG = True\n")
+    assert _run(tmp_path, "py-const:c.py::TIMEOUT::30").verdict is Verdict.PASS
+    assert _run(tmp_path, "py-const:c.py::RATE::0.5").verdict is Verdict.PASS
+    assert _run(tmp_path, "py-const:c.py::FLAG::True").verdict is Verdict.PASS
+
+
 # --- end-to-end: the new forms bind, seal born-verifiable, and re-check ---------
 
 
@@ -288,3 +303,47 @@ def test_structural_forms_verify_seal_and_revalidate(fixture_repo: Path) -> None
     apply_three_change_commit(fixture_repo)
     rc = cli.main(["--repo", str(fixture_repo), "revalidate", "--since", base])
     assert rc == cli.EXIT_REVOKED  # a load-bearing claim broke -> exit 4
+
+
+def test_new_form_error_folds_to_errored_not_broken(fixture_repo: Path) -> None:
+    """A py-const claim whose RHS becomes NON-LITERAL on a later edit ERRORs (the value
+    cannot be determined) — it must fold to ERRORED (exit 5), never BROKEN. Pins the
+    ERROR-never-BROKEN invariant end-to-end for the new C3 forms."""
+    import json
+
+    from conftest import commit_all, git, write
+    from dorian import cli
+    from dorian.revalidate import revalidate
+
+    claims = {
+        "claims": [
+            {
+                "id": "timeout",
+                "text": "The default request timeout is 30 seconds.",
+                "kind": "quantity",
+                "load_bearing": True,
+                "checkers": [{"type": "C3", "program": "py-const:src/config.py::TIMEOUT::30"}],
+            }
+        ]
+    }
+    (fixture_repo / "claims.json").write_text(json.dumps(claims), encoding="utf-8")
+    base = git(fixture_repo, "rev-parse", "HEAD")
+    assert (
+        cli.main(
+            [
+                "--repo",
+                str(fixture_repo),
+                "verify",
+                "docs/design.md",
+                "--claims",
+                str(fixture_repo / "claims.json"),
+            ]
+        )
+        == 0
+    )
+    write(fixture_repo, "src/config.py", "TIMEOUT = compute_timeout()\nRETRIES = 3\n")
+    commit_all(fixture_repo, "timeout becomes a non-literal")
+    res = revalidate(fixture_repo, since=base)
+    assert {cid for _, cid, _ in res.errored} == {"timeout"}
+    assert res.broken == []  # ERROR is never BROKEN
+    assert res.exit_code == cli.EXIT_ERRORED

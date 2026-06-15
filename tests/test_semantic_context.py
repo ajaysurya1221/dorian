@@ -104,3 +104,21 @@ def test_code_bad_regex_is_error(tmp_path: Path) -> None:
 
 def test_code_path_escape_is_error(tmp_path: Path) -> None:
     assert _run(tmp_path, "code:../../etc/passwd::root").verdict is Verdict.ERROR
+
+
+def test_code_ignores_fstring_docstring_survival(tmp_path: Path) -> None:
+    """A fact surviving only in an f-string used as a (dead) doc statement must FAIL —
+    docstring detection must not be fooled by the f-string (ast.JoinedStr) form."""
+    _w(
+        tmp_path,
+        "m.py",
+        'def handler():\n    f"""serves /v1/login historically {1}."""\n    return 200\n',
+    )
+    assert _run(tmp_path, "code:m.py::/v1/login").verdict is Verdict.FAIL
+
+
+def test_code_keeps_real_string_co_located_on_docstring_line(tmp_path: Path) -> None:
+    """A genuine string literal sharing a physical line with a docstring must be KEPT —
+    docstring blanking is by AST node span, not by whole line."""
+    _w(tmp_path, "m.py", 'class C:\n    """DOC"""; ROUTE = "/v1/keepme"\n')
+    assert _run(tmp_path, "code:m.py::/v1/keepme").verdict is Verdict.PASS
