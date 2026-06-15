@@ -74,3 +74,30 @@ def test_security_docs_reflect_trusted_base_as_implemented() -> None:
         assert "not yet a full public-fork story" not in low
         # the actual feature is named (Action input and/or CLI flag)
         assert "checker_trust" in doc or "checker-source" in doc
+
+
+def test_no_live_doc_calls_trusted_base_unimplemented() -> None:
+    """Release-audit regression: trusted-base shipped in V1, so NO live doc may still
+    describe it as unimplemented/design-only. A prior pass fixed SECURITY.md and
+    action/README.md but missed START_HERE.md and ROADMAP_BACKLOG.md — this scans every
+    live doc (README, SECURITY, action README, docs/*.md). Archival change-notes
+    (docs/changes/) and history (docs/history/) are dated snapshots, intentionally excluded
+    (docs/*.md does not recurse into them)."""
+    import re
+
+    stale = re.compile(
+        r"not\s+(yet\s+)?implemented|design[- ]only|\(not implemented\)", re.IGNORECASE
+    )
+    live = [REPO_ROOT / "README.md", REPO_ROOT / "SECURITY.md", ACTION_README]
+    live += sorted((REPO_ROOT / "docs").glob("*.md"))
+    offenders = []
+    for path in live:
+        if not path.is_file():
+            continue
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            low = line.lower()
+            if ("trusted-base" in low or "trusted base" in low) and stale.search(line):
+                offenders.append(f"{path.relative_to(REPO_ROOT)}:{i}: {line.strip()}")
+    assert not offenders, "live doc(s) still call trusted-base unimplemented:\n" + "\n".join(
+        offenders
+    )

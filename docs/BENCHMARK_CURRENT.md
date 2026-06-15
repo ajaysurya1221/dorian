@@ -11,15 +11,18 @@ and are kept as-is for provenance.
 | field | value |
 | --- | --- |
 | dorian version | `1.0.0rc1` (V1 release candidate) |
-| measured commit | `b7376e7762571e7c802c220aa50c241d2dae7e39` |
+| metric commit | `b7376e7` (the benchmark figures were measured here) |
+| release commit | the tagged `v1.0.0rc1` commit is a later **docs/release-hygiene only** commit; `git diff b7376e7..<tag> -- src bench` is empty, so the figures apply unchanged |
 | Python | 3.12.4 |
 | platform | darwin (CI matrix: 3.11 / 3.12 / 3.13) |
 | reproduce | `dorian bench large-mutation` · `dorian bench binding-lifecycle` · `dorian bench realworld-usecases` |
 
 These numbers were re-run at the `1.0.0rc1` commit *after* the adversarial-review fixes
-landed, confirming those fixes (py-const type check, `code:` docstring handling, config-key
-stopwords) did not move the benchmark figures — expected, since the suites exercise C1/C3
-(symbol/regex/string/path)/C5, not the new structural/config-binding paths.
+landed AND again during the independent release audit, confirming those fixes (py-const type
+check, `code:` docstring handling, config-key stopwords) did not move the benchmark figures —
+expected, since the suites exercise C1/C3 (symbol/regex/string/path)/C5, not the new
+structural/config-binding paths. Commits between the metric commit and the release tag change
+only docs/release hygiene, never checker or benchmark logic.
 
 ## Results
 

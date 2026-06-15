@@ -34,12 +34,14 @@ def test_historical_benchmark_docs_are_labeled_historical() -> None:
 
 
 def test_current_benchmark_doc_is_version_and_commit_stamped() -> None:
+    import re
     import tomllib
 
     doc = _read("docs/BENCHMARK_CURRENT.md")
     version = tomllib.loads(_read("pyproject.toml"))["project"]["version"]
     assert version in doc, f"current benchmark doc must stamp the live version {version!r}"
-    assert "measured commit" in doc.lower()
+    # must be commit-stamped (metric/release commit) — accept any 7+ hex SHA reference
+    assert "commit" in doc.lower() and re.search(r"\b[0-9a-f]{7,40}\b", doc)
     assert "Python" in doc  # environment summary
     assert "reproduce" in doc.lower()
     # the mandatory non-overclaim block

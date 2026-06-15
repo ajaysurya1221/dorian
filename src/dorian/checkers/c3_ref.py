@@ -16,12 +16,18 @@ the grammar prefix and the file are split off, the remainder is the operand):
                                 documented ceiling — only a C4 test catches that.
 - py-const:<file>::<qualname>::<literal>       structural (Python AST): the named
                                 module/class assignment has the stated LITERAL value
-                                (compared by value, so quote style / int base / spacing
-                                are tolerated, and a comment/docstring mention cannot
-                                pass). FAIL on a value drift; ERROR on a non-literal RHS.
+                                (compared by value AND type, so quote style / int base /
+                                spacing are tolerated but 30 != 30.0 and 1 != True, and a
+                                comment/docstring mention cannot pass). FAIL on a value
+                                drift; ERROR on a non-literal RHS.
+- code:<file>::<pattern>        semantic regex (Python-only): re.search over the file with
+                                comments and docstrings BLANKED (a fact surviving only in a
+                                comment/docstring FAILs; real string literals are kept).
+                                Same 500-char cap + worker-process timeout as `regex:`;
+                                ERROR('code_unparseable') on a non-parseable / non-Python target.
 
-The `py-*` structural forms parse the file's AST (`dorian.pyast`); they read only and
-never execute the target. See `dorian/pyast.py` and `spec/checkers.md`.
+The `py-*` structural and `code:` semantic forms parse the file's AST (`dorian.pyast`);
+they read only and never execute the target. See `dorian/pyast.py` and `spec/checkers.md`.
 
 `regex:` is the shape-tolerant form: prefer it over `string:` for facts that must
 survive reformatting (the v0.0 false-positive class — e.g. 'TIMEOUT\\s*=\\s*30'

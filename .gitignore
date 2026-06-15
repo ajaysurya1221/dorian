@@ -15,3 +15,14 @@ bench/real/
 .DS_Store
 /assets/
 .env
+
+# tool working dirs (not release content)
+.claude/
+.gitnexus/
+
+# internal program/audit working docs — provenance only, never shipped in the release
+/RESEARCH_REPORT_DORIAN_0_11_0.md
+/V1_IMPLEMENTATION_TRACKER.md
+/V1_ALIGNMENT_REPORT.md
+/AUDIT_RELEASE_GATE.md
+/GITHUB_RELEASE_NOTES.md

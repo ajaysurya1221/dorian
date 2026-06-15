@@ -124,6 +124,31 @@ def test_deterministic_output(wq, tmp_path: Path) -> None:
     assert (repo / "src/config.py").read_text() == "TIMEOUT = 30\n"
 
 
+def test_path_escape_operand_does_not_escape_sandbox(wq, tmp_path: Path) -> None:
+    """A warrant-controlled `../`-escaping file operand must not make the harness read or
+    write outside the repo/temp sandbox — the module docstring advertises containment."""
+    from dorian.model import CheckerSpec, Claim
+
+    repo = _repo(tmp_path)
+    # a file OUTSIDE the repo the mutation must never read or rewrite
+    outside = tmp_path / "outside.py"
+    outside.write_text("LIMIT = 5\n", encoding="utf-8")
+    outside_mtime = outside.stat().st_mtime
+    claim = Claim(
+        id="esc",
+        text="x",
+        kind="quantity",
+        load_bearing=True,
+        checkers=(CheckerSpec(type="C3", program="py-const:../outside.py::LIMIT::5"),),
+    )
+    verdict = wq._run_mutated(
+        repo, claim, 0, "../outside.py", lambda t: t + "\nX=1\n", ExecutionPolicy()
+    )
+    assert verdict.value == "ERROR"  # refused, not run against the out-of-repo file
+    assert outside.read_text(encoding="utf-8") == "LIMIT = 5\n"  # untouched
+    assert outside.stat().st_mtime == outside_mtime  # not even rewritten
+
+
 def test_cli_smoke_json(wq, tmp_path: Path, capsys) -> None:
     from dorian import cli
 

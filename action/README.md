@@ -126,7 +126,7 @@ Hard rules either way:
 | --------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
 | `fail_on`       | `revoked`                                    | when to fail the step: `revoked` (exit 4 only), `degraded` (3 or 4), `never` |
 | `base`          | `${{ github.event.pull_request.base.sha }}`  | git ref passed to `dorian revalidate --since`                            |
-| `install`       | `dorian-vwp`                                 | pip spec; pin `dorian-vwp==0.6.*`, or `.` for checkout installs          |
+| `install`       | `dorian-vwp`                                 | pip spec; until the first PyPI release use the git source spec (below), or `.` for checkout installs |
 | `deny_exec`     | `false`                                      | refuse to run executable checkers (C4 pytest, C5 shell): they ERROR. For untrusted/fork PRs; fail-closed, not a sandbox |
 | `deny_shell`    | `false`                                      | narrower than `deny_exec`: block only C5 shell, still allow C4 pytest    |
 | `checker_trust` | `head`                                       | `head` runs the checked-out checker spec (trusted repos); `base` runs the base-ref spec so PR-authored executable checkers never run (public/fork PRs) |

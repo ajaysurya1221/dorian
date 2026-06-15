@@ -23,8 +23,9 @@ inputs:
     default: ${{ github.event.pull_request.base.sha }}
   install:
     description: >-
-      pip requirement spec for dorian. Pin a release ('dorian-vwp==0.6.*')
-      or pass '.' to install the checked-out source.
+      pip requirement spec for dorian. Until the first PyPI release, use a git
+      source spec ('dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'),
+      pass '.' to install the checked-out source, or pin a tag once published.
     required: false
     default: dorian-vwp
   deny_exec:
