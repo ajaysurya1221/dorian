@@ -197,7 +197,8 @@ def _checker_named_files(claim: Claim, entry_uris: dict[str, str]) -> set[str]:
     symbol-definer watch paths added at verify time. A watch path NOT in this set is a
     re-check TRIGGER that no checker exercises — the binding fix's trigger != truth gap,
     which the 'trigger-only-symbol' flag surfaces."""
-    from dorian.seal import _c5_data_paths  # lazy: reuse the canonical C5 path grammar
+    # lazy: reuse seal's canonical C3 file-operand form set and C5 path grammar
+    from dorian.seal import _C3_FILE_OPERAND_FORMS, _c5_data_paths
 
     named: set[str] = set()
     for spec in claim.checkers:
@@ -207,7 +208,7 @@ def _checker_named_files(claim: Claim, entry_uris: dict[str, str]) -> set[str]:
             if uri:
                 named.add(uri)
         elif spec.type == "C3":
-            named.add(rest.partition("::")[0] if prefix in ("symbol", "string", "regex") else rest)
+            named.add(rest.partition("::")[0] if prefix in _C3_FILE_OPERAND_FORMS else rest)
         elif spec.type == "C4" and prefix == "pytest":
             named.add(rest.partition("::")[0].strip())  # parity with seal._derive_watch
         elif spec.type == "C5":

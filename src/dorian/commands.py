@@ -23,7 +23,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from dorian import bindings, claims_io, datachecks, gitio, store, symbol_index
+from dorian import bindings, claims_io, datachecks, gitio, store, strength, symbol_index
 from dorian.blast import blast_conn
 from dorian.capture.manual import parse_manual
 from dorian.capture.transcript import parse_transcript
@@ -94,6 +94,18 @@ def _emit_binding_gate_warnings(prog: str, repo: Path, artifact_uri: str, mode: 
         " (weak binding is a review smell, not proof a claim is false)",
         file=sys.stderr,
     )
+    # checker-strength / claim-risk is the truth-axis companion to binding flags:
+    # binding says WHEN a claim re-checks; strength says whether the checker can
+    # falsify it. Advisory only — never changes the seal verdict or exit code.
+    try:
+        claims = list(Warrant.load(repo / (artifact_uri + ".warrant")).claims)
+    except (gitio.GitError, *_SIDECAR_ERRORS):
+        return
+    sdiags = strength.analyze(repo, claims, {d["claim_id"]: d["flags"] for d in diags})
+    print(f"{prog}: {strength.summary_line(sdiags)}", file=sys.stderr)
+    for s in sdiags:
+        for note in s["adequacy"]:
+            print(f"{prog}: {s['claim_id']}: {note}", file=sys.stderr)
 
 
 def _print_binding_gate_refusal(prog: str, exc: BindingGateError) -> None:
@@ -425,6 +437,19 @@ def cmd_bindings(args: argparse.Namespace) -> int:
     except _SIDECAR_ERRORS as exc:
         print(f"dorian bindings: corrupt warrant sidecar: {exc}", file=sys.stderr)
         return EXIT_REVOKED
+    # attach the truth-axis diagnostics (checker strength + claim risk) per claim:
+    # binding flags say WHEN a claim re-checks, strength says whether the checker can
+    # falsify it. Advisory; never a gate (bindings always exits 0 when readable).
+    try:
+        claims = list(Warrant.load(repo / (uri + ".warrant")).claims)
+        sdiags = {
+            s["claim_id"]: s
+            for s in strength.analyze(repo, claims, {d["claim_id"]: d["flags"] for d in diags})
+        }
+    except _SIDECAR_ERRORS:
+        sdiags = {}
+    for d in diags:
+        d["strength"] = sdiags.get(d["claim_id"])
     if args.json:
         print(json.dumps({"artifact_uri": uri, "claims": diags}, sort_keys=True))
         return EXIT_OK
@@ -434,6 +459,12 @@ def cmd_bindings(args: argparse.Namespace) -> int:
         print(f"{d['claim_id']}  flags: {', '.join(d['flags']) or 'none'}")
         for m in d["mentions"]:
             print(f"  {m['token']} -> unwatched: {', '.join(m['unwatched_files'])}")
+        s = d.get("strength")
+        if s:
+            reasons = f" ({', '.join(s['reasons'])})" if s["reasons"] else ""
+            print(f"  strength: {s['strength']}  risk: {s['risk']}{reasons}")
+            for note in s["adequacy"]:
+                print(f"  {note}")
     print(f"{len(diags)} claim(s), {flagged} flagged")
     return EXIT_OK
 

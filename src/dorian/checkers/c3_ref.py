@@ -7,6 +7,21 @@ the grammar prefix and the file are split off, the remainder is the operand):
 - string:<file>::<literal>      PASS iff the literal substring is present.
 - regex:<file>::<pattern>       PASS iff re.search(pattern, text, re.MULTILINE)
                                 hits the LF-normalized file text.
+- py-signature:<file>::<qualname>::<sigspec>   structural (Python AST): the named
+                                function/method has the stated parameters (and, when
+                                given, annotations/defaults/return/async). FAIL on a
+                                signature drift; ERROR on an unparseable target or
+                                malformed spec. Stronger than `symbol:` (which is
+                                existence-only); the body-only "gutted" change is the
+                                documented ceiling — only a C4 test catches that.
+- py-const:<file>::<qualname>::<literal>       structural (Python AST): the named
+                                module/class assignment has the stated LITERAL value
+                                (compared by value, so quote style / int base / spacing
+                                are tolerated, and a comment/docstring mention cannot
+                                pass). FAIL on a value drift; ERROR on a non-literal RHS.
+
+The `py-*` structural forms parse the file's AST (`dorian.pyast`); they read only and
+never execute the target. See `dorian/pyast.py` and `spec/checkers.md`.
 
 `regex:` is the shape-tolerant form: prefer it over `string:` for facts that must
 survive reformatting (the v0.0 false-positive class — e.g. 'TIMEOUT\\s*=\\s*30'
@@ -42,10 +57,15 @@ import multiprocessing
 import re
 from pathlib import Path
 
+from dorian import pyast
 from dorian._regex_worker import MATCH, NO_MATCH, WORKER_ERROR, search_worker
 from dorian.checkers import registry
 from dorian.checkers.base import CheckContext, CheckResult, Verdict, resolve_path
 from dorian.model import CheckerSpec, lf_normalize
+
+# C3 grammar prefixes. `path` takes a bare path; the rest take `<file>::<operand>`.
+_FILE_OPERAND_FORMS = ("symbol", "string", "regex", "py-signature", "py-const", "code")
+_VERDICT = {"PASS": Verdict.PASS, "FAIL": Verdict.FAIL, "ERROR": Verdict.ERROR}
 
 _MAX_PATTERN_LEN = 500  # cheap guard against catastrophic patterns
 _NEAR_MISS_RATIO = 0.8
@@ -132,7 +152,7 @@ def _string_fail(path: Path, text: str, literal: str) -> CheckResult:
 
 def check(ctx: CheckContext, spec: CheckerSpec) -> CheckResult:
     prefix, sep, rest = spec.program.partition(":")
-    if not sep or prefix not in ("path", "symbol", "string", "regex"):
+    if not sep or (prefix != "path" and prefix not in _FILE_OPERAND_FORMS):
         return CheckResult(Verdict.ERROR, detail="bad_program")
 
     if prefix == "path":
@@ -148,7 +168,7 @@ def check(ctx: CheckContext, spec: CheckerSpec) -> CheckResult:
         return CheckResult(Verdict.ERROR, detail="bad_program")
 
     pattern: re.Pattern[str] | None = None
-    if prefix == "regex":
+    if prefix in ("regex", "code"):  # both are regex over text; same DoS guards
         if len(needle) > _MAX_PATTERN_LEN:
             return CheckResult(Verdict.ERROR, detail="bad_program")
         try:
@@ -167,6 +187,44 @@ def check(ctx: CheckContext, spec: CheckerSpec) -> CheckResult:
         if re.search(rf"\b(def|class)\s+{re.escape(needle)}\b", text):
             return CheckResult(Verdict.PASS)
         return CheckResult(Verdict.FAIL, detail="symbol_missing")
+
+    if prefix == "py-signature":
+        verdict, detail = pyast.check_signature(text, needle)
+        return CheckResult(_VERDICT[verdict], detail=detail)
+
+    if prefix == "py-const":
+        verdict, detail = pyast.check_const(text, needle)
+        return CheckResult(_VERDICT[verdict], detail=detail)
+
+    if prefix == "code":
+        assert pattern is not None  # compiled above to validate before we spawn
+        code_text = pyast.code_only_python(text)
+        if code_text is None:
+            return CheckResult(
+                Verdict.ERROR,
+                detail="code_unparseable (code: strips comments/docstrings from"
+                " Python; this target is not parseable Python)",
+            )
+        status = _search_with_timeout(needle, re.MULTILINE, code_text, spec.timeout_s)
+        if status == "match":
+            return CheckResult(Verdict.PASS)
+        if status == "nomatch":
+            return CheckResult(
+                Verdict.FAIL,
+                detail="code_missing (not present in code; comments/docstrings ignored)",
+            )
+        if status == "timeout":
+            return CheckResult(
+                Verdict.ERROR,
+                detail=f"regex_timeout (>{spec.timeout_s}s — catastrophic backtracking?)",
+            )
+        if status == "spawn_error":
+            return CheckResult(
+                Verdict.ERROR,
+                detail="regex_spawn_error (regex worker process failed to start;"
+                " an embedder needs a spawn-safe __main__ guard)",
+            )
+        return CheckResult(Verdict.ERROR, detail="regex_error")
 
     if prefix == "regex":
         assert pattern is not None  # compiled above to validate before we spawn

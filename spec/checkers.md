@@ -35,6 +35,11 @@ symbol:<file>::<name>          PASS iff \b(def|class)\s+<name>\b matches the fil
 string:<file>::<literal>       PASS iff the literal substring is present
 regex:<file>::<pattern>        PASS iff re.search(pattern, text, re.MULTILINE)
                                hits the LF-normalized file text
+py-signature:<file>::<qualname>::<sigspec>   structural (Python AST): the function
+                               or method has the stated signature
+py-const:<file>::<qualname>::<literal>       structural (Python AST): the module or
+                               class assignment has the stated literal value
+code:<file>::<pattern>         semantic regex over comment/docstring-stripped Python
 ```
 
 The operand of `string:`/`regex:` may itself contain `:`; only the prefix and
@@ -43,6 +48,45 @@ file are split off. `regex:` is the shape-tolerant form — prefer it over
 both `TIMEOUT = 30` and `TIMEOUT=30`). When a `string:` check FAILs but a line
 nearly matches, the detail carries a near-miss hint (line number and
 similarity ratio only, never file content) pointing at `regex:`.
+
+### Python structural forms (`py-signature:`, `py-const:`)
+
+`symbol:` proves a name still **exists**; it cannot see a signature change, and
+`string:`/`regex:` search raw text, so a fact surviving only in a comment,
+docstring, or dead literal still passes. The two structural forms parse the
+target's AST (stdlib `ast`, read-only, no execution) and compare structure or
+literal **values**, so they tolerate formatting (whitespace, quote style, integer
+base) and cannot be satisfied by a comment/docstring mention.
+
+- `py-signature:<file>::<qualname>::<sigspec>` — `<qualname>` is a dotted path to a
+  function/method (`verify_token`, `Auth.login`). `<sigspec>` is the parameter list
+  exactly as it would appear inside `def f(...)` — e.g. `token`, `token, algo`,
+  `token: str, algo: str = "RS256"` — optionally suffixed with `-> <ret>` and/or
+  prefixed with `async`. Parameter **names, order, and kind** are always compared;
+  per-parameter **annotations** and **defaults**, the **return annotation**, and
+  **async-ness** are compared **only when the spec states them** (a names-only spec
+  ignores the rest). FAIL on a signature drift or a missing function; ERROR on an
+  unparseable target or a malformed `<sigspec>`.
+- `py-const:<file>::<qualname>::<literal>` — `<qualname>` is a module-level or
+  class-level assignment target (`TIMEOUT`, `C.LIMIT`). Compares the assignment's
+  literal value by `ast.literal_eval`, so `30` matches `0x1E` and `"RS256"` matches
+  `'RS256'`. FAIL on a value drift or a missing constant; **ERROR** when the RHS is
+  not a literal (the value cannot be determined — never a vacuous PASS).
+
+**Documented ceiling:** `py-signature:` is blind to a body-only ("gutted body")
+change — the signature is unchanged, so it PASSes. Only a C4 `pytest:` test catches
+a behavior change behind an unchanged signature. Binding/structure widens *what is
+checked*, never *proves behavior*.
+
+### Semantic-context form (`code:`)
+
+`code:<file>::<pattern>` runs a regex (same 500-char cap, compile guard, and
+worker-process timeout as `regex:`) over a copy of the **Python** file with comments
+and docstrings blanked out. Real string literals (a route path in a dict key, a call
+or decorator argument) are kept, so `code:src/routes.py::/v1/login` matches the route
+in code but a `TIMEOUT = 30` that survives only in a comment FAILs (`code_missing`).
+Python-only: a non-parseable / non-Python target ERRORs (`code_unparseable`), never a
+silent pass. Derived watch: the referenced file.
 
 Regex DoS: `regex:` patterns are length-bounded (500 chars) and compile-guarded,
 AND the match runs in a spawned worker process killed at the checker's
