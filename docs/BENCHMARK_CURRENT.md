@@ -11,8 +11,8 @@ and are kept as-is for provenance.
 | field | value |
 | --- | --- |
 | dorian version | `1.0.0rc1` (V1 release candidate) |
-| metric commit | `b7376e7` (the benchmark figures were measured here) |
-| release commit | the tagged `v1.0.0rc1` commit is a later **docs/release-hygiene only** commit; `git diff b7376e7..<tag> -- src bench` is empty, so the figures apply unchanged |
+| metric commit | `33e9eaf` (the benchmark figures were measured here, during the release audit) |
+| release commit | the tagged `v1.0.0rc1` commit is the immediate docs-only re-stamp of this file over the metric commit; `git diff 33e9eaf..<tag> -- src bench` is empty, so the figures apply unchanged |
 | Python | 3.12.4 |
 | platform | darwin (CI matrix: 3.11 / 3.12 / 3.13) |
 | reproduce | `dorian bench large-mutation` · `dorian bench binding-lifecycle` · `dorian bench realworld-usecases` |
