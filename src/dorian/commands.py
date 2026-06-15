@@ -623,6 +623,21 @@ def cmd_revalidate(args: argparse.Namespace) -> int:
         return EXIT_USAGE
     if _missing_repo(repo, "revalidate"):
         return EXIT_USAGE
+    # flag wins; env DORIAN_CHECKER_SOURCE is the Action's fallback (head|base)
+    checker_source = args.checker_source or os.environ.get("DORIAN_CHECKER_SOURCE", "head").strip()
+    if checker_source not in ("head", "base"):
+        print(
+            f"dorian revalidate: --checker-source must be head|base (got {checker_source!r})",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    if checker_source == "base" and args.since is None:
+        print(
+            "dorian revalidate: --checker-source base requires --since <base ref>"
+            " (the trusted checker spec is read from the base ref)",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
     try:
         result = revalidate(
             repo,
@@ -632,6 +647,7 @@ def cmd_revalidate(args: argparse.Namespace) -> int:
             policy=ExecutionPolicy.from_flags_and_env(
                 deny_exec=args.deny_exec, deny_shell=args.deny_shell
             ),
+            checker_source=checker_source,
         )
     # user-input failures, before the broader ValueError in _SIDECAR_ERRORS:
     # an unresolvable --since ref or an unreadable --changed-paths listing

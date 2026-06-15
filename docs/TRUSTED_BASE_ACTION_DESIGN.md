@@ -1,8 +1,13 @@
-# Trusted-base Action mode — design (not implemented)
+# Trusted-base Action mode — design + status
 
-> **HUMAN REVIEW REQUIRED.** This is a design only. It changes the Action's security model and adds
-> checker-execution gating — it must not be implemented without explicit human sign-off and the test
-> matrix in §6. No code in this repo implements it yet.
+> **STATUS: IMPLEMENTED (V1).** `dorian revalidate --checker-source {head,base}` and the Action
+> `checker_trust: head|base` input now implement this design. Default is `head` (today's behavior,
+> unchanged). The §6 test matrix is implemented in `tests/test_trusted_base.py` (PR-added/modified
+> executable checkers never execute — proven with a sentinel side effect; missing/tampered base
+> sidecar fails closed; a rewritten checker is surfaced as a trust-root change; deny-exec composes).
+> The non-sandbox caveat in §2/§7 still holds and is stated in user docs: a base-approved
+> `pytest:`/`shell:` checker can still execute PR-head code, so `base` mode is a *checker-source trust
+> root*, not a sandbox.
 
 ## 1. Problem
 

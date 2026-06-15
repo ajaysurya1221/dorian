@@ -41,6 +41,17 @@ inputs:
       Narrower than deny_exec: block only C5 shell, still allow C4 pytest.
     required: false
     default: "false"
+  checker_trust:
+    description: >-
+      Which sidecar a claim's checker SPEC is read from (the sources checked are
+      always the PR head). 'head' (default) runs the checked-out spec — correct for
+      trusted/internal repos. 'base' resolves each spec from the base ref, so a
+      PR-added or PR-modified executable checker is never executed and a rewritten
+      checker cannot self-attest a verdict — for public repos taking forked PRs.
+      Fail-closed, NOT a sandbox: a base-approved pytest checker can still execute
+      PR-head code. See docs/TRUSTED_BASE_ACTION_DESIGN.md.
+    required: false
+    default: head
 
 runs:
   using: composite
@@ -64,6 +75,9 @@ runs:
         # unchanged. Set deny_exec: true for untrusted/fork PRs.
         DORIAN_DENY_EXEC: ${{ inputs.deny_exec }}
         DORIAN_DENY_SHELL: ${{ inputs.deny_shell }}
+        # checker_trust=base resolves checker specs from the base ref so a
+        # PR-authored executable checker never runs. 'head' (default) is unchanged.
+        DORIAN_CHECKER_SOURCE: ${{ inputs.checker_trust }}
       run: |
         set +e
         dorian sync

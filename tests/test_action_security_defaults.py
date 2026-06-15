@@ -35,6 +35,18 @@ def test_action_wires_deny_flags_through_env_fallback() -> None:
     assert "DORIAN_DENY_SHELL: ${{ inputs.deny_shell }}" in text
 
 
+def test_action_exposes_checker_trust_defaulting_head() -> None:
+    inputs = _action()["inputs"]
+    assert "checker_trust" in inputs
+    # default head = today's behavior; trusted repos are unchanged unless they opt in
+    assert str(inputs["checker_trust"]["default"]) == "head"
+
+
+def test_action_wires_checker_trust_through_env() -> None:
+    text = ACTION_YML.read_text(encoding="utf-8")
+    assert "DORIAN_CHECKER_SOURCE: ${{ inputs.checker_trust }}" in text
+
+
 def test_action_does_not_recommend_pull_request_target() -> None:
     readme = ACTION_README.read_text(encoding="utf-8")
     # it is named only to forbid it

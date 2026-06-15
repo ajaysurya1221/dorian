@@ -100,12 +100,14 @@ Categories: IMPL=must-implement · TEST=must-test regression · DOC=must-documen
 | WP | Title | Status |
 |---|---|---|
 | WP1 | docs/evidence hygiene | TODO |
-| WP2 | checker-strength / claim-risk linter | TODO |
-| WP3 | Python structural checkers (py-signature, py-const) | TODO |
-| WP4 | semantic-context source search | TODO |
+| WP2 | checker-strength / claim-risk linter | DONE (strength.py; surfaced in `bindings` + binding-gate warn; 19 tests) |
+| WP3 | Python structural checkers (py-signature, py-const) | DONE (pyast.py + C3 subgrammars; 27 tests incl. e2e) |
+| WP4 | semantic-context source search (`code:`) | DONE (pyast.code_only_python + C3 `code:`; 12 tests) |
 | WP5 | multi-index binding (config-key) | TODO |
-| WP6 | C4 test-adequacy lint | TODO |
-| WP7 | trusted-base checker-source mode | TODO |
+| WP6 | C4 test-adequacy lint | DONE (strength.c4_adequacy; folded into WP2 tests) |
+| WP7 | trusted-base checker-source mode | DONE (revalidate --checker-source base + Action checker_trust; 10-case exploit matrix) |
 | WP8 | warrant-quality mutation harness | TODO |
 | WP9 | current-version benchmark results | TODO |
 | WP10 | V1 release prep / decision | TODO |
+
+Commits so far: `58b39e2` (WP3/4/2/6), trusted-base (WP7) next.

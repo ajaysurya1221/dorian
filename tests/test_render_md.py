@@ -246,13 +246,22 @@ def test_action_yml_is_valid_composite() -> None:
 
     assert data["runs"]["using"] == "composite"
     inputs = data["inputs"]
-    assert set(inputs) == {"fail_on", "base", "install", "deny_exec", "deny_shell"}
+    assert set(inputs) == {
+        "fail_on",
+        "base",
+        "install",
+        "deny_exec",
+        "deny_shell",
+        "checker_trust",
+    }
     assert inputs["fail_on"]["default"] == "revoked"
     assert inputs["base"]["default"] == "${{ github.event.pull_request.base.sha }}"
     assert inputs["install"]["default"] == "dorian-vwp"
     # deny-exec/deny-shell default OFF so trusted/internal repos are unchanged
     assert str(inputs["deny_exec"]["default"]) == "false"
     assert str(inputs["deny_shell"]["default"]) == "false"
+    # checker_trust defaults to head (today's behavior); base is the opt-in fork mode
+    assert str(inputs["checker_trust"]["default"]) == "head"
     for name in inputs:
         assert inputs[name]["description"].strip(), f"input {name} must be documented"
 
