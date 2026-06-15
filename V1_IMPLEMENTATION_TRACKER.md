@@ -106,7 +106,7 @@ Categories: IMPL=must-implement · TEST=must-test regression · DOC=must-documen
 | WP5 | multi-index binding (config-key) | DONE (symbol_index.config_key_index + claim_watch_paths; TOML/JSON only, YAML excluded = zero-dep; provenance in bind-suggest; ambiguity + unparseable surfaced; 9 tests) |
 | WP6 | C4 test-adequacy lint | DONE (strength.c4_adequacy; folded into WP2 tests) |
 | WP7 | trusted-base checker-source mode | DONE (revalidate --checker-source base + Action checker_trust; 10-case exploit matrix) |
-| WP8 | warrant-quality mutation harness | TODO |
+| WP8 | warrant-quality mutation harness | DONE (bench/warrant_quality.py; `dorian bench warrant-quality`; deterministic, offline, never mutates real repo; trigger vs verdict; ERROR bucket distinct; honest scope = structural/existence forms scored, others reported strength-only; 7 tests) |
 | WP9 | current-version benchmark results | TODO |
 | WP10 | V1 release prep / decision | TODO |
 
