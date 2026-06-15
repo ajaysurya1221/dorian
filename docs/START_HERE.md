@@ -38,8 +38,9 @@ exists to catch).
 
 - [`action/README.md`](../action/README.md) — the composite GitHub Action and its **security notes**
   (checker programs are executable; trusted repos only).
-- [`TRUSTED_BASE_ACTION_DESIGN.md`](TRUSTED_BASE_ACTION_DESIGN.md) — design (not yet implemented) for a
-  trusted-base Action mode that executes only base-branch checker specs.
+- [`TRUSTED_BASE_ACTION_DESIGN.md`](TRUSTED_BASE_ACTION_DESIGN.md) — the trusted-base Action mode
+  (`revalidate --checker-source base` / Action `checker_trust: base`), **implemented in V1**: it
+  executes only base-branch checker specs (a trust root, not a sandbox) for public/fork PRs.
 
 ## I want the why and the roadmap
 

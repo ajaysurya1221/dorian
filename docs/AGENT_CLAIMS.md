@@ -120,7 +120,10 @@ ignores `timeout_s`, and a backtracking pattern can stall `revalidate`.
 
 The authoritative grammar is [`spec/checkers.md`](../spec/checkers.md). In brief:
 
-- **C3** — `path:<p>` · `symbol:<file>::<name>` · `string:<file>::<literal>` · `regex:<file>::<pattern>`
+- **C3** — `path:<p>` · `symbol:<file>::<name>` · `string:<file>::<literal>` · `regex:<file>::<pattern>` · `py-signature:<file>::<qualname>::<sigspec>` · `py-const:<file>::<qualname>::<literal>` · `code:<file>::<pattern>`
+  - **`py-signature:`** is stronger than `symbol:` for "function `X` takes args `…`": it compares the parsed signature (names/order/kind always; annotations/defaults/return/async only when you state them), so a parameter rename or default change FAILs where `symbol:` still passes. A body-only change is the documented ceiling — back behavior claims with `C4 pytest:`.
+  - **`py-const:`** is stronger than `regex:` for "`X` is 30": it compares the assignment's literal **value** via the AST, so a comment or docstring mention can never pass and `30`/`0x1E` are equal. A non-literal RHS ERRORs (use a different checker).
+  - **`code:`** is `regex:` over comment/docstring-stripped Python — use it when a `regex:` would false-pass on a fact that survives only in a comment or docstring. Python-only.
 - **C4** — `pytest:<nodeid>` (a nodeid is `file::test`)
 - **C5** — `rowcount:<f>::<op><n>` · `schema:<f>::c1,c2` · `nullrate:<f>::<col>::<op><x>` · `domain:<f>::<col>::{a,b}` · `freshness:<f>::<col>::>= <ISO>` · `snapshot:<f>` · `reconcile:<A>~~<B>` · `shell:<cmd>` (needs explicit `watch` + `expect`)
 - **C1** — a span anchor; its `program` is a read-set entry id. **Not** auto-capturable by `verify`.

@@ -37,6 +37,11 @@ from dorian.model import (
 )
 from dorian.policy import ExecutionPolicy
 
+# C3 prefixes whose program is `<file>::<operand>` (so the watched file is the head
+# before `::`); `path:` is the exception (its whole operand is the path). Mirrors
+# `c3_ref._FILE_OPERAND_FORMS` — kept in sync so a new C3 subgrammar binds its file.
+_C3_FILE_OPERAND_FORMS = ("symbol", "string", "regex", "py-signature", "py-const", "code")
+
 
 class SealError(Exception):
     """Sealing refused: bad bindings or a checker that is not green right now."""
@@ -116,9 +121,9 @@ def _derive_watch(spec: CheckerSpec, readset: ReadSet) -> CheckerSpec:
         entry = next((e for e in readset.entries if e.id == spec.program), None)
         if entry is not None:
             watch = (entry.uri,)
-    elif spec.type == "C3":  # path:<p> | (symbol|string|regex):<file>::<operand>
+    elif spec.type == "C3":  # path:<p> | (symbol|string|regex|py-*|code):<file>::<operand>
         prefix, _, rest = spec.program.partition(":")
-        file = rest.partition("::")[0] if prefix in ("symbol", "string", "regex") else rest
+        file = rest.partition("::")[0] if prefix in _C3_FILE_OPERAND_FORMS else rest
         if file:
             watch = (file,)
     elif spec.type == "C4":  # pytest:<nodeid>: the nodeid's file part is the binding
@@ -191,7 +196,7 @@ def referenced_paths(claims: list[Claim]) -> list[str]:
                 )
             prefix, _, rest = spec.program.partition(":")
             if spec.type == "C3":
-                add(rest.partition("::")[0] if prefix in ("symbol", "string", "regex") else rest)
+                add(rest.partition("::")[0] if prefix in _C3_FILE_OPERAND_FORMS else rest)
             elif spec.type == "C4":
                 if prefix == "pytest":  # match _derive_watch; other C4 forms ERROR at seal
                     add(rest.partition("::")[0])

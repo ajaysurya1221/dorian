@@ -23,7 +23,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from dorian import bindings, claims_io, datachecks, gitio, store, symbol_index
+from dorian import bindings, claims_io, datachecks, gitio, store, strength, symbol_index
 from dorian.blast import blast_conn
 from dorian.capture.manual import parse_manual
 from dorian.capture.transcript import parse_transcript
@@ -94,6 +94,18 @@ def _emit_binding_gate_warnings(prog: str, repo: Path, artifact_uri: str, mode: 
         " (weak binding is a review smell, not proof a claim is false)",
         file=sys.stderr,
     )
+    # checker-strength / claim-risk is the truth-axis companion to binding flags:
+    # binding says WHEN a claim re-checks; strength says whether the checker can
+    # falsify it. Advisory only — never changes the seal verdict or exit code.
+    try:
+        claims = list(Warrant.load(repo / (artifact_uri + ".warrant")).claims)
+    except (gitio.GitError, *_SIDECAR_ERRORS):
+        return
+    sdiags = strength.analyze(repo, claims, {d["claim_id"]: d["flags"] for d in diags})
+    print(f"{prog}: {strength.summary_line(sdiags)}", file=sys.stderr)
+    for s in sdiags:
+        for note in s["adequacy"]:
+            print(f"{prog}: {s['claim_id']}: {note}", file=sys.stderr)
 
 
 def _print_binding_gate_refusal(prog: str, exc: BindingGateError) -> None:
@@ -235,14 +247,17 @@ def cmd_verify(args: argparse.Namespace) -> int:
         # claims mention (even when no checker named them): the symbol-definer watch
         # the seal adds is then also captured + hashed + scope-linted honestly
         paths = referenced_paths(claims)
-        symbol_watch = symbol_index.claim_symbol_watch_paths(repo, claims)
+        # multi-index binding: Python symbol-definers + pyproject scripts + config keys
+        symbol_watch = symbol_index.claim_watch_paths(repo, claims)
         for path in sorted({p for ps in symbol_watch.values() for p in ps}):
             if path not in paths:
                 paths.append(path)
         readset = parse_manual(paths, repo)
-        # a load-bearing claim naming an AMBIGUOUS symbol (>1 definer) is left unbound; do
-        # not let that skip be silent — warn so the author binds it explicitly (see A3)
+        # a load-bearing claim naming an AMBIGUOUS symbol/config key (>1 definer) is left
+        # unbound; do not let that skip be silent — warn so the author binds it explicitly
         ambiguous = symbol_index.ambiguous_symbol_mentions(repo, claims)
+        ambiguous_config = symbol_index.ambiguous_config_mentions(repo, claims)
+        _, unparseable_config = symbol_index.config_key_index(repo)
     except (ValueError, OSError, gitio.GitError) as exc:
         print(f"dorian verify: {exc}", file=sys.stderr)
         return EXIT_USAGE
@@ -281,6 +296,20 @@ def cmd_verify(args: argparse.Namespace) -> int:
                 "checker or qualify the reference",
                 file=sys.stderr,
             )
+    for cid, cfg in ambiguous_config.items():
+        for key, files in cfg.items():
+            print(
+                f"dorian verify: warning: load-bearing claim {cid!r} mentions config key "
+                f"{key!r} (defined in {len(files)} config files); left unbound — name the file "
+                "in a checker",
+                file=sys.stderr,
+            )
+    for cfg_path in unparseable_config:
+        print(
+            f"dorian verify: warning: config file {cfg_path!r} could not be parsed; its keys "
+            "are not indexed for binding (a claim mentioning them may be silently unbound)",
+            file=sys.stderr,
+        )
     backed = sum(1 for c in claims if c.backed)
     print(warrant.id)
     print(
@@ -425,6 +454,19 @@ def cmd_bindings(args: argparse.Namespace) -> int:
     except _SIDECAR_ERRORS as exc:
         print(f"dorian bindings: corrupt warrant sidecar: {exc}", file=sys.stderr)
         return EXIT_REVOKED
+    # attach the truth-axis diagnostics (checker strength + claim risk) per claim:
+    # binding flags say WHEN a claim re-checks, strength says whether the checker can
+    # falsify it. Advisory; never a gate (bindings always exits 0 when readable).
+    try:
+        claims = list(Warrant.load(repo / (uri + ".warrant")).claims)
+        sdiags = {
+            s["claim_id"]: s
+            for s in strength.analyze(repo, claims, {d["claim_id"]: d["flags"] for d in diags})
+        }
+    except _SIDECAR_ERRORS:
+        sdiags = {}
+    for d in diags:
+        d["strength"] = sdiags.get(d["claim_id"])
     if args.json:
         print(json.dumps({"artifact_uri": uri, "claims": diags}, sort_keys=True))
         return EXIT_OK
@@ -434,6 +476,12 @@ def cmd_bindings(args: argparse.Namespace) -> int:
         print(f"{d['claim_id']}  flags: {', '.join(d['flags']) or 'none'}")
         for m in d["mentions"]:
             print(f"  {m['token']} -> unwatched: {', '.join(m['unwatched_files'])}")
+        s = d.get("strength")
+        if s:
+            reasons = f" ({', '.join(s['reasons'])})" if s["reasons"] else ""
+            print(f"  strength: {s['strength']}  risk: {s['risk']}{reasons}")
+            for note in s["adequacy"]:
+                print(f"  {note}")
     print(f"{len(diags)} claim(s), {flagged} flagged")
     return EXIT_OK
 
@@ -451,8 +499,12 @@ def cmd_bind_suggest(args: argparse.Namespace) -> int:
     except (ValueError, OSError) as exc:
         print(f"dorian bind-suggest: {exc}", file=sys.stderr)
         return EXIT_USAGE
+    # multi-index binding with provenance: symbol-definer/script vs config-key
     watch = symbol_index.claim_symbol_watch_paths(repo, claims)
+    config_watch = symbol_index.claim_config_watch_paths(repo, claims)
     ambiguous = symbol_index.ambiguous_symbol_mentions(repo, claims)
+    ambiguous_config = symbol_index.ambiguous_config_mentions(repo, claims)
+    _, unparseable_config = symbol_index.config_key_index(repo)
     suggestions: list[dict] = []
     for c in claims:
         try:
@@ -460,17 +512,38 @@ def cmd_bind_suggest(args: argparse.Namespace) -> int:
         except ValueError:
             covered = set()  # C1 span / C5 shell: no auto-derivable read-set to compare
         bind = [f for f in watch.get(c.id, ()) if f not in covered]
+        bind_config = [f for f in config_watch.get(c.id, ()) if f not in covered]
         amb = {s: list(files) for s, files in ambiguous.get(c.id, {}).items()}
-        if bind or amb:
-            suggestions.append({"claim_id": c.id, "bind": bind, "ambiguous": amb})
+        amb_cfg = {k: list(files) for k, files in ambiguous_config.get(c.id, {}).items()}
+        if bind or bind_config or amb or amb_cfg:
+            suggestions.append(
+                {
+                    "claim_id": c.id,
+                    "bind": bind,  # symbol-definer / console-script provenance
+                    "bind_config": bind_config,  # config-key provenance
+                    "ambiguous": amb,
+                    "ambiguous_config": amb_cfg,
+                }
+            )
     if args.json:
-        print(json.dumps({"suggestions": suggestions}, sort_keys=True))
+        print(
+            json.dumps(
+                {"suggestions": suggestions, "unparseable_config": list(unparseable_config)},
+                sort_keys=True,
+            )
+        )
         return EXIT_OK
     for s in suggestions:
         if s["bind"]:
-            print(f"{s['claim_id']}  bind: {', '.join(s['bind'])}")
+            print(f"{s['claim_id']}  bind (symbol): {', '.join(s['bind'])}")
+        if s["bind_config"]:
+            print(f"{s['claim_id']}  bind (config): {', '.join(s['bind_config'])}")
         for sym, files in sorted(s["ambiguous"].items()):
-            print(f"{s['claim_id']}  ambiguous: {sym} ({len(files)} definers, unbound)")
+            print(f"{s['claim_id']}  ambiguous symbol: {sym} ({len(files)} definers, unbound)")
+        for key, files in sorted(s["ambiguous_config"].items()):
+            print(f"{s['claim_id']}  ambiguous config: {key} ({len(files)} files, unbound)")
+    for cfg in unparseable_config:
+        print(f"unparseable config (keys not indexed for binding): {cfg}")
     print(f"{len(suggestions)} claim(s) with binding suggestions")
     return EXIT_OK
 
@@ -512,7 +585,7 @@ def cmd_rebind(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return EXIT_USAGE
-    symbol_watch = symbol_index.claim_symbol_watch_paths(repo, claims)
+    symbol_watch = symbol_index.claim_watch_paths(repo, claims)  # symbol-definer + config-key
     new_paths = {p for ps in symbol_watch.values() for p in ps}
     already_watched = {w for c in claims for spec in c.checkers for w in spec.watch}
     if new_paths <= already_watched:
@@ -592,6 +665,21 @@ def cmd_revalidate(args: argparse.Namespace) -> int:
         return EXIT_USAGE
     if _missing_repo(repo, "revalidate"):
         return EXIT_USAGE
+    # flag wins; env DORIAN_CHECKER_SOURCE is the Action's fallback (head|base)
+    checker_source = args.checker_source or os.environ.get("DORIAN_CHECKER_SOURCE", "head").strip()
+    if checker_source not in ("head", "base"):
+        print(
+            f"dorian revalidate: --checker-source must be head|base (got {checker_source!r})",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    if checker_source == "base" and args.since is None:
+        print(
+            "dorian revalidate: --checker-source base requires --since <base ref>"
+            " (the trusted checker spec is read from the base ref)",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
     try:
         result = revalidate(
             repo,
@@ -601,6 +689,7 @@ def cmd_revalidate(args: argparse.Namespace) -> int:
             policy=ExecutionPolicy.from_flags_and_env(
                 deny_exec=args.deny_exec, deny_shell=args.deny_shell
             ),
+            checker_source=checker_source,
         )
     # user-input failures, before the broader ValueError in _SIDECAR_ERRORS:
     # an unresolvable --since ref or an unreadable --changed-paths listing
@@ -643,6 +732,7 @@ _BENCH_DISPATCH: dict[str, tuple[str, bool]] = {
     "large-mutation": ("bench.large_mutation", False),
     "binding-lifecycle": ("bench.binding_lifecycle", False),
     "realworld-usecases": ("bench.realworld_usecases", False),
+    "warrant-quality": ("bench.warrant_quality", False),
     "churn": ("bench.churn", False),
 }
 

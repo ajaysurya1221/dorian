@@ -58,10 +58,8 @@ dorian revalidate --since HEAD
 
 Do **not** run `verify` / `seal` / `revalidate` / `rebind` on claims from a
 source you do not trust without `--deny-exec` (`rebind` re-runs every checker to
-re-seal, so it executes code too). Do **not** market or wire up public-fork-PR CI
-as safe: the trusted-base design ([docs/TRUSTED_BASE_ACTION_DESIGN.md](TRUSTED_BASE_ACTION_DESIGN.md))
-that would make it safe is not implemented or tested yet. Do not use
-`pull_request_target` with an untrusted-head checkout.
+re-seal, so it executes code too). Do not use `pull_request_target` with an
+untrusted-head checkout.
 
 ```bash
 # untrusted context: remove the ability to execute code
@@ -72,14 +70,30 @@ DORIAN_DENY_EXEC=1 dorian revalidate --since origin/main
 A blocked checker ERRORs, so a blocked load-bearing claim cannot seal and cannot
 silently pass revalidation — deny-exec fails closed.
 
-## What must be true before public-fork CI can be recommended
+## Public-fork CI: `--checker-source base` (a trust root, not a sandbox)
 
-1. Checker programs are taken from the **trusted base ref**, never from untrusted
-   head, unless explicitly allowlisted.
-2. deny-exec (or stronger) is the **default** for fork PRs.
-3. There are tests that simulate a fork/head sidecar trying to execute shell and
-   prove the Action blocks it.
-4. No `pull_request_target` footgun in the documented workflow.
+`dorian revalidate --checker-source base` (Action input `checker_trust: base`)
+resolves each claim's checker SPEC from the trusted **base ref**, then runs it
+against the PR-head sources. A PR-added or PR-modified executable (C4/C5 `shell:`)
+checker is therefore never executed; a rewritten checker cannot self-attest a
+verdict (the base spec wins, and the change is surfaced); a missing or tampered
+base sidecar **fails closed** (ERRORED, never executed). The
+[trusted-base test matrix](TRUSTED_BASE_ACTION_DESIGN.md) proves each case with a
+filesystem side effect that must not appear.
 
-Until all four hold, the honest statement is: **trusted/internal repositories,
-or `--deny-exec` everywhere else.**
+This is a **checker-source trust root, not a sandbox.** A base-approved `pytest:`
+checker can still import and execute PR-head code, so the honest recommendation for
+public forks is `checker_trust: base` **with `deny_exec: true`** (or stronger
+external isolation), never "safe for arbitrary fork PRs". The four conditions below
+now hold for the *trust-root* threat; sandboxing executed code remains out of scope.
+
+1. ✅ Checker specs are taken from the **trusted base ref** (`--checker-source base`).
+2. ✅ deny-exec is available and recommended for fork PRs (`deny_exec: true`).
+3. ✅ Tests simulate a fork/head sidecar trying to execute shell/pytest and prove it
+   is not run (`tests/test_trusted_base.py`).
+4. ✅ No `pull_request_target` in the documented workflow.
+
+The residual, stated plainly: even in base mode a base-approved code-executing
+checker runs PR-head code, so **without deny-exec or external sandboxing this is
+not safe for fully untrusted code.** For trusted/internal repos, `head` mode
+remains correct and unchanged.

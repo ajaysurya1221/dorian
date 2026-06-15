@@ -59,20 +59,21 @@ caveats:
 1. A `.warrant` file is a **non-obvious executable input**. Reviewers who
    would scrutinize a workflow or `conftest.py` change may wave through a
    "docs-only" diff that swaps a checker `program`.
-2. The verdict is **self-attested by the PR tree**. A PR can rewrite a
-   sidecar so a broken claim re-verifies; the trust root for what "should"
-   be checked is not yet the base branch.
+2. In the default `head` mode the verdict is **self-attested by the PR tree** — a
+   PR can rewrite a sidecar so a broken claim re-verifies. **`checker_trust: base`
+   fixes exactly this** (see below): it sources every checker spec from the base
+   ref, so a PR rewriting a spec can no longer weaken the verdict. Use `head` only
+   for trusted/internal repos.
 
-**deny-exec input (partial mitigation, available now).** Set `deny_exec: true`
-(or `deny_shell: true`) on the Action to refuse the executable checker families
-during revalidation: C4 pytest and C5 shell ERROR instead of executing, so a
-PR-authored sidecar cannot make this Action run its code. It flows through the
-`DORIAN_DENY_EXEC` env fallback; the default `false` preserves today's behavior
-for trusted/internal repos. This is fail-closed but **not a sandbox** and **not
-yet a full public-fork story**: it removes code execution but does not address
-the self-attested-verdict problem (a PR can still rewrite a *non-executable* C3
-claim so a broken fact re-verifies). See `SECURITY.md` and
-`docs/SECURITY_BOUNDARY.md`.
+**deny-exec input.** Set `deny_exec: true` (or `deny_shell: true`) on the Action to
+refuse the executable checker families during revalidation: C4 pytest and C5 shell
+ERROR instead of executing, so a PR-authored sidecar cannot make this Action run its
+code. It flows through the `DORIAN_DENY_EXEC` env fallback; the default `false`
+preserves today's behavior for trusted/internal repos. This is fail-closed but **not
+a sandbox**: on its own it removes code execution but does not address the
+self-attested-verdict problem for *non-executable* checkers — that is what
+`checker_trust: base` adds, and the two compose (use both for untrusted forks). See
+`SECURITY.md` and `docs/SECURITY_BOUNDARY.md`.
 
 ```yaml
 # untrusted / public-fork posture
@@ -81,16 +82,30 @@ claim so a broken fact re-verifies). See `SECURITY.md` and
     deny_exec: "true"   # C4/C5 ERROR instead of executing
 ```
 
-**Current recommendation: trusted/internal repositories.** Until a
-trusted-base mode exists (execute only checker specs already present on the
-base branch; parse/lint — never execute — new or changed PR sidecars; skip
-C5 `shell:` and other executable checkers in untrusted mode — designed in
-[`docs/TRUSTED_BASE_ACTION_DESIGN.md`](../docs/TRUSTED_BASE_ACTION_DESIGN.md),
-not yet implemented), this Action is recommended for repositories where
-everyone who can open a PR is already trusted to run code in CI, or with
-`deny_exec: true` for untrusted PRs. For public repositories, treat any PR that
-touches a `.warrant` file as a code change requiring the same review as a CI
-change.
+**trusted-base mode (`checker_trust: base`).** This is the trust-root fix for the
+self-attested-verdict problem. With `checker_trust: base`, the Action resolves each
+claim's checker SPEC from the **base ref** and runs it against the PR-head sources, so
+a PR-added or PR-modified executable checker is never executed and a rewritten checker
+cannot self-attest a verdict — the base-approved spec wins, and the change is surfaced
+in the PR comment. A missing or tampered base sidecar **fails closed** (ERRORED, never
+executed). Implemented and proven by the
+[trusted-base test matrix](../docs/TRUSTED_BASE_ACTION_DESIGN.md).
+
+```yaml
+# public / forked-PR posture: trusted checker specs + no code execution
+- uses: ajaysurya1221/dorian/action@main
+  with:
+    checker_trust: base   # run only base-approved checker specs
+    deny_exec: "true"     # and refuse to execute even those (belt and braces)
+```
+
+**It is a checker-source trust root, not a sandbox.** A base-approved `pytest:` checker
+can still import and execute PR-head code, so for fully untrusted forks combine
+`checker_trust: base` **with** `deny_exec: true` (or external isolation). Default
+`checker_trust: head` is unchanged and correct for trusted/internal repositories, where
+everyone who can open a PR is already trusted to run code in CI. For public repositories,
+treat any PR that touches a `.warrant` file as a code change requiring the same review as
+a CI change.
 
 Hard rules either way:
 
@@ -107,11 +122,14 @@ Hard rules either way:
 
 ## Inputs
 
-| input     | default                                      | meaning                                                                  |
-| --------- | -------------------------------------------- | ------------------------------------------------------------------------ |
-| `fail_on` | `revoked`                                    | when to fail the step: `revoked` (exit 4 only), `degraded` (3 or 4), `never` |
-| `base`    | `${{ github.event.pull_request.base.sha }}`  | git ref passed to `dorian revalidate --since`                            |
-| `install` | `dorian-vwp`                                 | pip spec; pin `dorian-vwp==0.6.*`, or `.` for checkout installs          |
+| input           | default                                      | meaning                                                                  |
+| --------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| `fail_on`       | `revoked`                                    | when to fail the step: `revoked` (exit 4 only), `degraded` (3 or 4), `never` |
+| `base`          | `${{ github.event.pull_request.base.sha }}`  | git ref passed to `dorian revalidate --since`                            |
+| `install`       | `dorian-vwp`                                 | pip spec; until the first PyPI release use the git source spec (below), or `.` for checkout installs |
+| `deny_exec`     | `false`                                      | refuse to run executable checkers (C4 pytest, C5 shell): they ERROR. For untrusted/fork PRs; fail-closed, not a sandbox |
+| `deny_shell`    | `false`                                      | narrower than `deny_exec`: block only C5 shell, still allow C4 pytest    |
+| `checker_trust` | `head`                                       | `head` runs the checked-out checker spec (trusted repos); `base` runs the base-ref spec so PR-authored executable checkers never run (public/fork PRs) |
 
 Until the first PyPI release of `dorian-vwp`, set `install` to a source spec:
 `install: 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'`.

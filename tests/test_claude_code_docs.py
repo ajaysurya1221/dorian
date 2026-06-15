@@ -141,13 +141,15 @@ def test_public_benchmark_manifest_contains_only_public_repos() -> None:
             assert "genai-core" not in path.read_text(encoding="utf-8").lower()
 
 
-# --- Slice E: trusted-base Action design (HUMAN REVIEW REQUIRED, no code) -----------
+# --- Slice E: trusted-base Action design (IMPLEMENTED in V1, with caveats) ----------
 
 
-def test_trusted_base_action_design_is_flagged_and_safe_by_default() -> None:
+def test_trusted_base_action_design_states_implemented_and_keeps_caveats() -> None:
     doc = _read("docs/TRUSTED_BASE_ACTION_DESIGN.md")
-    assert "HUMAN REVIEW REQUIRED" in doc
-    assert "not implemented" in doc.lower()
+    # the design is now implemented (revalidate --checker-source base + Action input)
+    assert "IMPLEMENTED" in doc
+    assert "tests/test_trusted_base.py" in doc  # the §6 matrix is realized in tests
+    # the hard safety constraints must remain stated even after implementation
     assert "pull_request_target" in doc  # the never-use constraint is stated
     assert "does not sandbox PR-head code" in doc
 

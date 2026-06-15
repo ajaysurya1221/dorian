@@ -35,6 +35,18 @@ def test_action_wires_deny_flags_through_env_fallback() -> None:
     assert "DORIAN_DENY_SHELL: ${{ inputs.deny_shell }}" in text
 
 
+def test_action_exposes_checker_trust_defaulting_head() -> None:
+    inputs = _action()["inputs"]
+    assert "checker_trust" in inputs
+    # default head = today's behavior; trusted repos are unchanged unless they opt in
+    assert str(inputs["checker_trust"]["default"]) == "head"
+
+
+def test_action_wires_checker_trust_through_env() -> None:
+    text = ACTION_YML.read_text(encoding="utf-8")
+    assert "DORIAN_CHECKER_SOURCE: ${{ inputs.checker_trust }}" in text
+
+
 def test_action_does_not_recommend_pull_request_target() -> None:
     readme = ACTION_README.read_text(encoding="utf-8")
     # it is named only to forbid it
@@ -49,3 +61,43 @@ def test_security_docs_state_public_fork_limitation() -> None:
         assert "--deny-exec" in doc
         assert "not a sandbox" in low
         assert "fork" in low  # public-fork posture is addressed explicitly
+
+
+def test_security_docs_reflect_trusted_base_as_implemented() -> None:
+    """Regression (adversarial review): trusted-base SHIPPED, so the docs users are routed
+    to must not still say it is unimplemented, and must name the actual surface."""
+    sec = (REPO_ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    action_readme = ACTION_README.read_text(encoding="utf-8")
+    for doc in (sec, action_readme):
+        low = doc.lower()
+        assert "not yet implemented" not in low
+        assert "not yet a full public-fork story" not in low
+        # the actual feature is named (Action input and/or CLI flag)
+        assert "checker_trust" in doc or "checker-source" in doc
+
+
+def test_no_live_doc_calls_trusted_base_unimplemented() -> None:
+    """Release-audit regression: trusted-base shipped in V1, so NO live doc may still
+    describe it as unimplemented/design-only. A prior pass fixed SECURITY.md and
+    action/README.md but missed START_HERE.md and ROADMAP_BACKLOG.md — this scans every
+    live doc (README, SECURITY, action README, docs/*.md). Archival change-notes
+    (docs/changes/) and history (docs/history/) are dated snapshots, intentionally excluded
+    (docs/*.md does not recurse into them)."""
+    import re
+
+    stale = re.compile(
+        r"not\s+(yet\s+)?implemented|design[- ]only|\(not implemented\)", re.IGNORECASE
+    )
+    live = [REPO_ROOT / "README.md", REPO_ROOT / "SECURITY.md", ACTION_README]
+    live += sorted((REPO_ROOT / "docs").glob("*.md"))
+    offenders = []
+    for path in live:
+        if not path.is_file():
+            continue
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            low = line.lower()
+            if ("trusted-base" in low or "trusted base" in low) and stale.search(line):
+                offenders.append(f"{path.relative_to(REPO_ROOT)}:{i}: {line.strip()}")
+    assert not offenders, "live doc(s) still call trusted-base unimplemented:\n" + "\n".join(
+        offenders
+    )

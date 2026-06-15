@@ -125,13 +125,11 @@ before marketing, deterministic verification before AI automation.*
 
 - id: trusted-base-action-mode
   title: Trusted-base Action mode for public fork PRs
-  status: DEFER/HUMAN-REVIEW
+  status: SHIPPED (V1, 1.0.0rc1)
   problem: deny-exec removes code execution but not the self-attested-verdict problem; a real public-fork story needs base-ref checker definitions.
-  evidence: docs/TRUSTED_BASE_ACTION_DESIGN.md (design only).
-  proposed_scope: execute only checker specs present on the trusted base ref; parse/lint (never execute) PR-changed sidecars; deny-exec default for forks; fail-closed; tests simulating a fork sidecar trying to execute shell.
-  why_deferred: Action security defaults are a trust-model change; needs maintainer review and dedicated tests before any public-fork-safe claim.
-  human_review_required: yes  # Action trust model
-  confidence: medium
+  evidence: implemented — revalidate --checker-source base (src/dorian/revalidate.py), Action checker_trust input (action/action.yml), tests/test_trusted_base.py (10-case exploit matrix); see docs/TRUSTED_BASE_ACTION_DESIGN.md (STATUS: IMPLEMENTED).
+  shipped_scope: executes only checker specs resolved from the trusted base ref; PR-added/modified executable checkers never run; missing/tampered base sidecar fails closed; deny-exec composes. Residual (documented, not a sandbox)- a base-approved pytest checker can still execute PR-head code, so pair with deny-exec for untrusted forks.
+  confidence: high
 
 - id: binding-beyond-python-symbols
   title: Bind routes / configs / schemas / non-Python indices

@@ -1,5 +1,11 @@
 # dorian binding-lifecycle benchmark
 
+> **HISTORICAL — measured at dorian 0.9.0** (see the run header below; the preserved 808-pair
+> full run). Evidence about the 0.9.0 implementation, not current behavior. The current-version
+> rerun (1.0.0rc1, identical results — see [`BENCHMARK_CURRENT.md`](BENCHMARK_CURRENT.md)) confirms
+> the V1 changes did not regress it. NOTE: `dorian bench binding-lifecycle` REGENERATES this file;
+> restore it from git after a rerun so the historical record survives.
+
 > Generated from machine output by `bench.binding_lifecycle`. Known-truth labels,
 > in-fixture results — a reproducible demonstration of the MECHANISM on this suite,
 > not evidence about any real repository.

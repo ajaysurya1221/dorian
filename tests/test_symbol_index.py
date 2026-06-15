@@ -459,7 +459,10 @@ def test_pyproject_script_binds_target_file(fixture_repo: Path) -> None:
     commit_all(fixture_repo, "add a console-script entry point")
     assert _verify(fixture_repo, [_SCRIPT_CLAIM]) == 0
     w = _warrant(fixture_repo)
-    assert w.claims[0].checkers[0].watch == ("src/routes.py", "pkg/cli.py")
+    # symbol-definer binding adds the script target (pkg/cli.py); the multi-index
+    # config-key binding also watches pyproject.toml, where `mytool` is declared —
+    # so a change to the script entry itself re-checks the claim too.
+    assert w.claims[0].checkers[0].watch == ("src/routes.py", "pkg/cli.py", "pyproject.toml")
     assert "pkg/cli.py" in {e.uri for e in w.read_set}
 
 

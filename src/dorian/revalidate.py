@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -58,6 +58,9 @@ class RevalResult:
     # claim/trust states are untouched): {warrant_id, artifact_uri, depth, via}
     # where via is the newly broken upstream warrant
     recalled: list[dict] = field(default_factory=list)
+    # checker-source=base advisories: a checker spec that changed on the PR (so the
+    # base-approved spec was run instead), or a claim/sidecar skipped fail-closed
+    notes: list[str] = field(default_factory=list)
     candidates: int = 0
     exit_code: int = 0
 
@@ -69,17 +72,36 @@ def revalidate(
     changed_paths_file: Path | None = None,
     enable_c2lite: bool = False,
     policy: ExecutionPolicy | None = None,
+    checker_source: str = "head",
 ) -> RevalResult:
     """Re-check claims bound to the changed paths; one of `since` (git ref to
     diff from) or `changed_paths_file` (one path per line) is required. If both
     are given, `changed_paths_file` takes precedence and `since` is ignored
-    (the CLI rejects the combination)."""
+    (the CLI rejects the combination).
+
+    checker_source (head | base; default head) selects which sidecar a candidate
+    claim's checker SPEC is read from — orthogonal to which SOURCES are checked
+    (always the working tree / PR head). `head` is today's behavior exactly. `base`
+    is the public/fork-PR hardening: each claim's checker spec is resolved from the
+    `since` (base) ref's sidecar, so a PR-added or PR-modified executable checker is
+    never executed — only maintainer-approved (base) checker specs run. It fails
+    closed (a missing/tampered base sidecar, or a claim absent on base, ERRORs and
+    runs nothing) and it is NOT a sandbox: a base-approved C4 `pytest:` checker can
+    still import and execute PR-head code (see docs/TRUSTED_BASE_ACTION_DESIGN.md)."""
     if since is None and changed_paths_file is None:
         raise ValueError("provide since=<git ref> or changed_paths_file=<path>")
+    if checker_source not in ("head", "base"):
+        raise ValueError(f"checker_source must be 'head' or 'base', got {checker_source!r}")
+    if checker_source == "base" and since is None:
+        raise ValueError(
+            "checker-source=base needs --since <base ref>: the trusted checker spec is"
+            " resolved from the base ref, which --changed-paths does not provide"
+        )
     repo = repo.resolve()
     # under deny-exec/deny-shell a blocked C4/C5-shell recheck ERRORs (exit 5),
     # never silently PASSes and never folds to BROKEN — trigger-vs-truth intact
     exec_policy = policy if policy is not None else ExecutionPolicy()
+    base_cache: dict[str, Warrant | None] = {}  # checker-source=base: per-artifact base sidecar
     if changed_paths_file is not None:
         # read exactly once, before any store work: a failure here is bad caller
         # input (distinct ChangedPathsError), never a sidecar integrity error
@@ -137,11 +159,42 @@ def revalidate(
                     kind="claim.stale",
                     cause={"changed": cause},
                 )
-                if not claim.checkers:
+                if not claim.checkers and checker_source != "base":
                     continue  # unbacked claim: stale is recorded, nothing to re-check
-                state, detail, relocated = _check_claim(
-                    repo, claim, entries, renames, enable_c2lite, exec_policy
-                )
+                # checker-source=base: run the BASE-approved checker spec (resolved from
+                # the `since` ref) against head sources, never the PR's spec. Fail closed
+                # (ERRORED, never executed) when the base spec cannot be trusted.
+                eff_claim = claim
+                skip_reason: str | None = None
+                if checker_source == "base":
+                    base_w = _load_base_warrant(repo, since, warrant.artifact_uri, base_cache)
+                    if base_w is None:
+                        skip_reason = (
+                            "checker-source=base: no readable base sidecar for this artifact"
+                            " (fail-closed; not executed)"
+                        )
+                    else:
+                        base_claim = next((c for c in base_w.claims if c.id == cid), None)
+                        if base_claim is None:
+                            skip_reason = (
+                                "checker-source=base: claim not present on base ref"
+                                " (PR-added checker; not executed)"
+                            )
+                        else:
+                            if base_claim.checkers != claim.checkers:
+                                result.notes.append(
+                                    f"{warrant.artifact_uri}: {cid}: checker spec changed on PR"
+                                    " — ran base-approved spec (checker-source=base)"
+                                )
+                            eff_claim = replace(claim, checkers=base_claim.checkers)
+                if skip_reason is not None:
+                    state, detail, relocated = "ERRORED", skip_reason, False
+                elif not eff_claim.checkers:
+                    continue  # nothing to run (head unbacked, or base claim unbacked)
+                else:
+                    state, detail, relocated = _check_claim(
+                        repo, eff_claim, entries, renames, enable_c2lite, exec_policy
+                    )
                 changed_state = fold_mod.apply_claim_state(
                     conn, wid, cid, state, actor=actor, cause={"detail": detail}
                 )
@@ -185,6 +238,28 @@ def revalidate(
         return result
     finally:
         conn.close()
+
+
+def _load_base_warrant(
+    repo: Path, base_ref: str, artifact_uri: str, cache: dict[str, Warrant | None]
+) -> Warrant | None:
+    """The artifact's sidecar AS IT EXISTS ON THE BASE REF (checker-source=base), or
+    None if it is absent, unreadable, or its content-addressed id does not verify (a
+    tampered base sidecar). Fail-closed by construction: None makes the caller skip,
+    never execute the PR's checker. Cached per artifact for the run."""
+    if artifact_uri in cache:
+        return cache[artifact_uri]
+    warrant: Warrant | None = None
+    data = gitio.file_at_ref(repo, base_ref, artifact_uri + ".warrant")
+    if data is not None:
+        try:
+            candidate = Warrant.from_dict(json.loads(data.decode("utf-8")))
+            if Warrant.compute_id(candidate.body_dict()) == candidate.id:
+                warrant = candidate  # integrity-valid base sidecar
+        except (ValueError, KeyError, TypeError, UnicodeDecodeError):
+            warrant = None  # malformed/tampered base sidecar: fail closed
+    cache[artifact_uri] = warrant
+    return warrant
 
 
 def _claim_paths(
@@ -281,6 +356,8 @@ def render_text(result: RevalResult) -> str:
         for e in result.recalled:
             wid, uri = e["warrant_id"], e["artifact_uri"]
             lines.append(f"recalled  {wid[:23]} {uri}  depth={e['depth']}")
+    for note in result.notes:
+        lines.append(f"note      {note}")
     return "\n".join(lines) + "\n"
 
 
@@ -358,6 +435,10 @@ def render_md(result: RevalResult) -> str:
         lines += ["", "Recalled downstream (flagged, not re-checked):"]
         for e in result.recalled:
             lines.append(f"- `{e['artifact_uri']}` (depth {e['depth']})")
+    if result.notes:  # checker-source=base advisories (PR-changed / skipped specs)
+        lines += ["", "Checker-source notes (trusted-base mode):"]
+        for note in result.notes:
+            lines.append(f"- {_md_cell(note)}")
 
     checks = sum(map(len, (result.broken, result.relocated, result.errored, result.passed)))
     meaning = _EXIT_MEANINGS.get(result.exit_code, "unknown")

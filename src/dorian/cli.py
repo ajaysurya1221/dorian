@@ -182,6 +182,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="output format; md is a PR-comment body for the GitHub Action",
     )
     rv.add_argument("--enable-c2lite", action="store_true")
+    rv.add_argument(
+        "--checker-source",
+        choices=["head", "base"],
+        default=None,
+        help="which sidecar a claim's checker SPEC is read from (sources checked are"
+        " always the working tree). 'head' (default) runs the checked-out spec —"
+        " trusted/internal repos. 'base' resolves each spec from the --since (base) ref"
+        " so a PR-added or PR-modified executable checker is never executed — for"
+        " public/fork PRs; fail-closed, NOT a sandbox. Env: DORIAN_CHECKER_SOURCE.",
+    )
     _add_exec_policy_flags(rv)
 
     rp = sub.add_parser("report", help="event-log digest")
