@@ -1,10 +1,5 @@
 # dorian large controlled-mutation benchmark (v0.7.0)
 
-> **HISTORICAL — measured at v0.7.0.** These numbers are evidence about the v0.7.0
-> implementation, not current behavior. For the current-version rerun (same protocol,
-> stamped with the measured commit) see [`BENCHMARK_CURRENT.md`](BENCHMARK_CURRENT.md).
-> Reproduce this suite at any version with `dorian bench large-mutation`.
-
 Numbers only. Labels are **known-truth**: each mutation's stale / not-stale
 outcome for a claim is a mechanical consequence of the edit (e.g. changing
 `TIMEOUT = 30` to `10` falsifies the claim "the default timeout is 30 seconds").

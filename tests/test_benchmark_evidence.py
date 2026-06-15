@@ -19,10 +19,18 @@ def _read(rel: str) -> str:
 
 
 def test_historical_benchmark_docs_are_labeled_historical() -> None:
-    for rel in ("docs/BENCHMARK_v0.7.0.md", "docs/BENCHMARK_BINDING_LIFECYCLE.md"):
-        doc = _read(rel)
-        assert "HISTORICAL" in doc, f"{rel} must be labeled HISTORICAL"
-        assert "BENCHMARK_CURRENT.md" in doc, f"{rel} must point to the current-version doc"
+    # the binding-lifecycle doc is NOT byte-matched to its generator, so it carries an
+    # explicit HISTORICAL banner pointing to the current-version doc.
+    bl = _read("docs/BENCHMARK_BINDING_LIFECYCLE.md")
+    assert "HISTORICAL" in bl, "binding-lifecycle doc must be labeled HISTORICAL"
+    assert "BENCHMARK_CURRENT.md" in bl
+    # the large-mutation doc IS byte-matched to its generator (test_large_mutation), so it
+    # cannot carry a hand banner; its historical status is its version-stamped title plus
+    # the current-results doc naming it as the historical source.
+    v07 = _read("docs/BENCHMARK_v0.7.0.md")
+    assert "(v0.7.0)" in v07, "the large-mutation doc title must carry its version stamp"
+    cur = _read("docs/BENCHMARK_CURRENT.md")
+    assert "BENCHMARK_v0.7.0.md" in cur and "historical" in cur.lower()
 
 
 def test_current_benchmark_doc_is_version_and_commit_stamped() -> None:
