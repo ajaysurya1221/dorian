@@ -27,6 +27,20 @@ inputs:
       or pass '.' to install the checked-out source.
     required: false
     default: dorian-vwp
+  deny_exec:
+    description: >-
+      Refuse to RUN the executable checker families (C4 pytest, C5 shell)
+      during revalidation: they ERROR instead of executing, so a blocked claim
+      never silently passes. Set 'true' for untrusted or public-fork contexts.
+      Default 'false' preserves today's behavior for trusted/internal repos.
+      This is fail-closed, NOT a sandbox — see SECURITY.md.
+    required: false
+    default: "false"
+  deny_shell:
+    description: >-
+      Narrower than deny_exec: block only C5 shell, still allow C4 pytest.
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -45,6 +59,11 @@ runs:
       shell: bash
       env:
         DORIAN_BASE: ${{ inputs.base }}
+        # deny-exec/deny-shell flow through the env fallback dorian already
+        # honors; 'false' (the default) is non-truthy, so trusted repos are
+        # unchanged. Set deny_exec: true for untrusted/fork PRs.
+        DORIAN_DENY_EXEC: ${{ inputs.deny_exec }}
+        DORIAN_DENY_SHELL: ${{ inputs.deny_shell }}
       run: |
         set +e
         dorian sync

@@ -30,6 +30,7 @@ from dorian.capture.transcript import parse_transcript
 from dorian.cli import EXIT_DEGRADED, EXIT_OK, EXIT_REVOKED, EXIT_SCOPE, EXIT_USAGE
 from dorian.extract import ExtractUnavailable, extract_claims, extract_claims_consensus
 from dorian.model import IntegrityError, ReadSet, ReadSetEntry, Warrant, sha256_hex
+from dorian.policy import ExecutionPolicy
 from dorian.report import audit_lines, report_events, report_since
 from dorian.revalidate import ChangedPathsError, render_json, render_md, render_text, revalidate
 from dorian.seal import (
@@ -195,6 +196,9 @@ def cmd_seal(args: argparse.Namespace) -> int:
             allow_restricted=args.allow_restricted,
             no_quotes=args.no_quotes,
             binding_gate=args.binding_gate,
+            policy=ExecutionPolicy.from_flags_and_env(
+                deny_exec=args.deny_exec, deny_shell=args.deny_shell
+            ),
         )
     except ScopeViolation as exc:  # before SealError: scope refusal is exit 6, not 4
         print(f"dorian seal: {exc}", file=sys.stderr)
@@ -253,6 +257,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
             no_quotes=args.no_quotes,
             extra_watch=symbol_watch,
             binding_gate=args.binding_gate,
+            policy=ExecutionPolicy.from_flags_and_env(
+                deny_exec=args.deny_exec, deny_shell=args.deny_shell
+            ),
         )
     except ScopeViolation as exc:  # before SealError: scope refusal is exit 6, not 4
         print(f"dorian verify: {exc}", file=sys.stderr)
@@ -548,7 +555,17 @@ def cmd_rebind(args: argparse.Namespace) -> int:
     readset = ReadSet(entries=tuple(old_entries + added), produced_by=old.produced_by)
     try:
         warrant = seal_artifact(
-            repo, uri, readset, claims, supersede=old.id, extra_watch=symbol_watch
+            repo,
+            uri,
+            readset,
+            claims,
+            supersede=old.id,
+            extra_watch=symbol_watch,
+            # rebind re-runs every checker; honor deny-exec exactly like seal/verify
+            # so a re-seal cannot execute C4/C5 under --deny-exec (env DORIAN_DENY_EXEC)
+            policy=ExecutionPolicy.from_flags_and_env(
+                deny_exec=args.deny_exec, deny_shell=args.deny_shell
+            ),
         )
     except ScopeViolation as exc:  # before SealError: scope refusal is exit 6, not 4
         print(f"dorian rebind: {exc}", file=sys.stderr)
@@ -581,6 +598,9 @@ def cmd_revalidate(args: argparse.Namespace) -> int:
             since=args.since,
             changed_paths_file=changed_file,
             enable_c2lite=args.enable_c2lite,
+            policy=ExecutionPolicy.from_flags_and_env(
+                deny_exec=args.deny_exec, deny_shell=args.deny_shell
+            ),
         )
     # user-input failures, before the broader ValueError in _SIDECAR_ERRORS:
     # an unresolvable --since ref or an unreadable --changed-paths listing

@@ -26,6 +26,7 @@ from dorian import claims_io, cli, commands, revalidate
 from dorian.checkers import c4_test as c4_mod
 from dorian.checkers.base import CheckContext, CheckResult, Verdict, run_checker
 from dorian.model import CheckerSpec, Claim, ProducedBy, ReadSet
+from dorian.policy import ExecutionPolicy
 from dorian.seal import SealError, seal_artifact
 
 MINI = "tests/test_mini.py"
@@ -248,7 +249,9 @@ def test_c3_fail_short_circuits_before_c4_spawns(c4_repo, monkeypatch):
             CheckerSpec(type="C3", program="path:src/missing.py"),
         ),
     )
-    state, detail, relocated = revalidate._check_claim(c4_repo, claim, {}, {}, False)
+    state, detail, relocated = revalidate._check_claim(
+        c4_repo, claim, {}, {}, False, ExecutionPolicy()
+    )
     assert state == "BROKEN"
     assert detail == "C3: ref_missing"  # C3's FAIL (type-prefixed), not a C4 verdict
     assert not relocated

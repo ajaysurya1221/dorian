@@ -1,0 +1,10 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability (private)
+    url: https://github.com/ajaysurya1221/dorian/security/advisories/new
+    about: >-
+      Report a vulnerability privately via a GitHub security advisory. Do NOT
+      open a public issue with working exploit details. See SECURITY.md.
+  - name: Question / discussion
+    url: https://github.com/ajaysurya1221/dorian/discussions
+    about: Open-ended questions about claims, checkers, or the trust model.

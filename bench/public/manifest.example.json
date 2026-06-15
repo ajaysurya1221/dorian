@@ -1,0 +1,37 @@
+{
+  "_comment": "TEMPLATE, not results. One entry per benchmark case. Fields capture everything a skeptic needs to reproduce a single case AND to know what its outcome would prove. No results are committed here; `expected_*` are the pre-registered expectations the harness will check against, not measurements. See docs/PUBLIC_BENCHMARK_PROTOCOL.md and docs/VALIDATION_HONESTY.md.",
+  "schema_version": 1,
+  "status": "template-no-results",
+  "cases": [
+    {
+      "id": "httpx-timeout-constant",
+      "repo_url": "https://github.com/encode/httpx",
+      "base_sha": "d4961b9f8e7f00b654dbdbf200562bd273f598c7",
+      "head_sha_or_patch": "patches/httpx-timeout-constant.diff",
+      "license": "BSD-3-Clause",
+      "artifact_path": "change-note.md",
+      "claims_path": "claims.json",
+      "checker_families": ["C3"],
+      "expected_affected_claims": ["timeout-default"],
+      "expected_trigger": "selected",
+      "expected_truth": "BROKEN",
+      "layer": "both",
+      "environment": {
+        "python": ">=3.11",
+        "extras": [],
+        "network": "clone-once-then-offline"
+      },
+      "date_captured": "YYYY-MM-DD",
+      "labeled_by": "<name or handle>",
+      "label_basis": "manual inspection of the base/head diff",
+      "limitations": "Reproduces one C3 reference break on one frozen SHA; not a real-world performance claim and not evidence the mechanism generalizes."
+    }
+  ],
+  "field_notes": {
+    "head_sha_or_patch": "Either a frozen head SHA in the same repo, or a path to a committed patch applied to base_sha. A patch is preferred when the change is synthetic/injected, so the mutation is auditable.",
+    "expected_trigger": "selected | not-selected — the trigger/selection layer: would revalidate re-check this claim when the watched source changes? Independent of truth.",
+    "expected_truth": "VERIFIED | BROKEN | ERRORED — the truth/alarm layer: GIVEN it is re-checked, what claim STATE should revalidate fold to? (A checker yields PASS/FAIL/ERROR; revalidate folds those to VERIFIED/BROKEN/ERRORED.) Only as strong as the checker backing the claim.",
+    "layer": "trigger | truth | both — which layer this case is designed to exercise.",
+    "labeled_by/label_basis": "Who decided the expected outcome and how — labels are human judgments and must be attributable."
+  }
+}

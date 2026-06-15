@@ -63,13 +63,34 @@ caveats:
    sidecar so a broken claim re-verifies; the trust root for what "should"
    be checked is not yet the base branch.
 
+**deny-exec input (partial mitigation, available now).** Set `deny_exec: true`
+(or `deny_shell: true`) on the Action to refuse the executable checker families
+during revalidation: C4 pytest and C5 shell ERROR instead of executing, so a
+PR-authored sidecar cannot make this Action run its code. It flows through the
+`DORIAN_DENY_EXEC` env fallback; the default `false` preserves today's behavior
+for trusted/internal repos. This is fail-closed but **not a sandbox** and **not
+yet a full public-fork story**: it removes code execution but does not address
+the self-attested-verdict problem (a PR can still rewrite a *non-executable* C3
+claim so a broken fact re-verifies). See `SECURITY.md` and
+`docs/SECURITY_BOUNDARY.md`.
+
+```yaml
+# untrusted / public-fork posture
+- uses: ajaysurya1221/dorian/action@main
+  with:
+    deny_exec: "true"   # C4/C5 ERROR instead of executing
+```
+
 **Current recommendation: trusted/internal repositories.** Until a
 trusted-base mode exists (execute only checker specs already present on the
 base branch; parse/lint — never execute — new or changed PR sidecars; skip
-C5 `shell:` and other executable checkers in untrusted mode), this Action is
-recommended for repositories where everyone who can open a PR is already
-trusted to run code in CI. For public repositories, treat any PR that touches
-a `.warrant` file as a code change requiring the same review as a CI change.
+C5 `shell:` and other executable checkers in untrusted mode — designed in
+[`docs/TRUSTED_BASE_ACTION_DESIGN.md`](../docs/TRUSTED_BASE_ACTION_DESIGN.md),
+not yet implemented), this Action is recommended for repositories where
+everyone who can open a PR is already trusted to run code in CI, or with
+`deny_exec: true` for untrusted PRs. For public repositories, treat any PR that
+touches a `.warrant` file as a code change requiring the same review as a CI
+change.
 
 Hard rules either way:
 

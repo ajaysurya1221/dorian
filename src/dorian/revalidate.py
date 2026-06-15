@@ -31,6 +31,7 @@ from dorian.blast import blast_conn
 from dorian.checkers.base import CheckContext, CheckResult, Verdict, run_checker
 from dorian.cli import EXIT_DEGRADED, EXIT_ERRORED, EXIT_OK, EXIT_REVOKED
 from dorian.model import Claim, ReadSetEntry, Warrant
+from dorian.policy import ExecutionPolicy
 
 # (warrant_id, claim_id, detail)
 _Rec = tuple[str, str, str]
@@ -67,6 +68,7 @@ def revalidate(
     since: str | None = None,
     changed_paths_file: Path | None = None,
     enable_c2lite: bool = False,
+    policy: ExecutionPolicy | None = None,
 ) -> RevalResult:
     """Re-check claims bound to the changed paths; one of `since` (git ref to
     diff from) or `changed_paths_file` (one path per line) is required. If both
@@ -75,6 +77,9 @@ def revalidate(
     if since is None and changed_paths_file is None:
         raise ValueError("provide since=<git ref> or changed_paths_file=<path>")
     repo = repo.resolve()
+    # under deny-exec/deny-shell a blocked C4/C5-shell recheck ERRORs (exit 5),
+    # never silently PASSes and never folds to BROKEN — trigger-vs-truth intact
+    exec_policy = policy if policy is not None else ExecutionPolicy()
     if changed_paths_file is not None:
         # read exactly once, before any store work: a failure here is bad caller
         # input (distinct ChangedPathsError), never a sidecar integrity error
@@ -135,7 +140,7 @@ def revalidate(
                 if not claim.checkers:
                     continue  # unbacked claim: stale is recorded, nothing to re-check
                 state, detail, relocated = _check_claim(
-                    repo, claim, entries, renames, enable_c2lite
+                    repo, claim, entries, renames, enable_c2lite, exec_policy
                 )
                 changed_state = fold_mod.apply_claim_state(
                     conn, wid, cid, state, actor=actor, cause={"detail": detail}
@@ -203,6 +208,7 @@ def _check_claim(
     entries: dict[str, ReadSetEntry],
     renames: dict[str, str],
     enable_c2lite: bool,
+    policy: ExecutionPolicy,
 ) -> tuple[str, str, bool]:
     """Run a claim's checkers cheapest-first (C1 < C3 < C5 < C4), stopping at the
     first FAIL. Returns (claim_state, detail, relocated)."""
@@ -212,6 +218,7 @@ def _check_claim(
         supports=[entries[s] for s in claim.supports if s in entries],
         rename_map=dict(renames),
         enable_c2lite=enable_c2lite,
+        policy=policy,
     )
     order = sorted(
         range(len(claim.checkers)),

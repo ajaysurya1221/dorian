@@ -1,0 +1,34 @@
+name: Checker request
+description: A kind of claim you want to make deterministically that no current checker can verify.
+labels: [checker-request, enhancement]
+body:
+  - type: textarea
+    id: claim_kind
+    attributes:
+      label: What claim do you want to hold true over time?
+      description: A concrete example sentence an agent or human would write.
+      placeholder: '"the /login route still requires the rate-limit decorator"'
+    validations:
+      required: true
+  - type: textarea
+    id: deterministic
+    attributes:
+      label: How could this be checked deterministically (no model at check time)?
+      description: dorian only adds checkers that are deterministic and, ideally, non-executing. What file would it read, and what would it look for?
+    validations:
+      required: true
+  - type: dropdown
+    id: closest
+    attributes:
+      label: Closest existing checker
+      options: ["C1 span", "C3 path/symbol/string/regex", "C4 pytest", "C5 typed data", "C5 shell", "none fit"]
+    validations:
+      required: true
+  - type: dropdown
+    id: executing
+    attributes:
+      label: Would it need to execute code?
+      description: Non-executing checkers are strongly preferred (deny-exec keeps them usable in untrusted contexts).
+      options: ["No — reads files only", "Yes — runs code", "Not sure"]
+    validations:
+      required: true

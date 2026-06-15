@@ -15,7 +15,9 @@ emit the claims. A complete, runnable version of everything below is in
 > execute code** (pytest collection imports the target module and any `conftest.py`). Treat an
 > agent-emitted `claims.json` exactly as you treat agent-emitted code — **review it before you run
 > `verify`, and never run `verify` on claims from an untrusted source.** dorian is built for trusted,
-> internal repositories, not public CI taking forked pull requests.
+> internal repositories, not public CI taking forked pull requests. In an untrusted context, add
+> `--deny-exec` (env `DORIAN_DENY_EXEC=1`) so C4/C5 `shell:` ERROR instead of running — fail-closed,
+> but **not a sandbox** (see [`SECURITY.md`](../SECURITY.md)).
 
 ## 1. The loop
 

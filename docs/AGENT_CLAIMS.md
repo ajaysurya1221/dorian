@@ -26,10 +26,13 @@ duplicate (a second copy would be exactly the drift dorian exists to catch):
 > the machine you run it on. C3 and typed C5 only inspect files — but **C4 (`pytest:`) and C5
 > `shell:` execute code**: pytest collection imports the target module and any `conftest.py`, and
 > `shell:` runs its command. Review an agent-emitted `claims.json` exactly as you would review
-> agent-emitted code, and never run `verify` on claims from an untrusted source.
-> `[tool.dorian.scopes]` restricts the auto-captured read-set — files a claim's checkers name, plus
-> the file `verify` binds from a symbol the claim mentions — not what an executed checker may read or
-> write; it is not a sandbox. See the Action's
+> agent-emitted code, and never run `verify` on claims from an untrusted source. When you cannot fully
+> trust the claims, pass `--deny-exec` (on `seal`/`verify`/`revalidate`; env `DORIAN_DENY_EXEC=1`):
+> C4 and C5 `shell:` ERROR instead of running, so a blocked claim never seals and never silently
+> passes. `[tool.dorian.scopes]` restricts the auto-captured read-set — files a claim's checkers name,
+> plus the file `verify` binds from a symbol the claim mentions — not what an executed checker may read
+> or write; neither it nor `--deny-exec` is a sandbox. See [`SECURITY.md`](../SECURITY.md),
+> [`docs/SECURITY_BOUNDARY.md`](SECURITY_BOUNDARY.md), and the Action's
 > [security notes](../action/README.md#security-checker-execution-and-untrusted-pull-requests).
 
 ## 1. The `claims.json` shape

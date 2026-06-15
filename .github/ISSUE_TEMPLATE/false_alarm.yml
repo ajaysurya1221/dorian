@@ -1,0 +1,34 @@
+name: False alarm
+description: dorian flipped a claim to BROKEN/REVOKED but the claim was actually still true.
+labels: [false-alarm, accuracy]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: dorian version
+    validations:
+      required: true
+  - type: textarea
+    id: claim
+    attributes:
+      label: The claim and its checker(s)
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: still_true
+    attributes:
+      label: Why the claim is still true
+      description: Show that the fact still holds despite the BROKEN verdict (e.g. the value moved but the checker was brittle).
+    validations:
+      required: true
+  - type: input
+    id: change
+    attributes:
+      label: Change that triggered the false alarm
+      placeholder: reformatted the constant; renamed the file; etc.
+  - type: input
+    id: command
+    attributes:
+      label: Command + exit code
+      placeholder: dorian revalidate --since main  (exit 4)

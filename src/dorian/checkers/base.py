@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from dorian.model import Claim, ReadSetEntry
+from dorian.policy import ExecutionPolicy
 
 
 class Verdict(enum.Enum):
@@ -39,6 +40,7 @@ class CheckContext:
     rename_map: dict[str, str] = field(default_factory=dict)  # old path -> new path
     timeout_s: int = 30
     enable_c2lite: bool = False  # difflib contingency (flag-gated)
+    policy: ExecutionPolicy = field(default_factory=ExecutionPolicy)  # executable-checker gate
 
 
 def resolve_path(ctx: CheckContext, uri: str) -> Path:
@@ -79,6 +81,12 @@ def run_checker(ctx: CheckContext, spec_index: int) -> CheckResult:
     from dorian.checkers import registry  # local import to avoid cycles
 
     spec = ctx.claim.checkers[spec_index]
+    blocked = ctx.policy.block_reason(spec)
+    if blocked is not None:
+        # fail closed: a checker refused permission to run has proven nothing.
+        # ERROR (never PASS/FAIL) means seal refuses and revalidate folds to
+        # ERRORED — a blocked load-bearing claim is never silently green.
+        return CheckResult(Verdict.ERROR, detail=blocked)
     impl = registry.get(spec.type)
     if impl is None:
         return CheckResult(Verdict.ERROR, detail=f"no checker registered for {spec.type}")

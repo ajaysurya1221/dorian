@@ -20,6 +20,26 @@ EXIT_ERRORED = 5
 EXIT_SCOPE = 6
 
 
+def _add_exec_policy_flags(parser: argparse.ArgumentParser) -> None:
+    """Opt-in execution-policy flags shared by seal/verify/revalidate. Defaults
+    are unset → today's behavior (all checkers run). Env fallbacks DORIAN_DENY_EXEC
+    / DORIAN_DENY_SHELL compose with the flags (either denies)."""
+    parser.add_argument(
+        "--deny-exec",
+        action="store_true",
+        help="refuse to RUN executable checkers (C4 pytest and C5 shell): they"
+        " ERROR instead of executing, so a blocked claim never seals trusted and"
+        " never silently passes revalidate. Use for untrusted/public-fork CI."
+        " Env: DORIAN_DENY_EXEC=1.",
+    )
+    parser.add_argument(
+        "--deny-shell",
+        action="store_true",
+        help="narrower than --deny-exec: block only C5 shell, still allow C4"
+        " pytest. Env: DORIAN_DENY_SHELL=1.",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="dorian",
@@ -87,6 +107,7 @@ def build_parser() -> argparse.ArgumentParser:
         " diagnostics after a successful seal; 'fail' refuses the seal (writing nothing)"
         " on a high-risk weak binding. Never marks a claim false; 'single-file' is warn-only.",
     )
+    _add_exec_policy_flags(seal)
 
     vf = sub.add_parser(
         "verify",
@@ -118,6 +139,7 @@ def build_parser() -> argparse.ArgumentParser:
         " diagnostics after a successful seal; 'fail' refuses the seal (writing nothing)"
         " on a high-risk weak binding. Never marks a claim false; 'single-file' is warn-only.",
     )
+    _add_exec_policy_flags(vf)
 
     st = sub.add_parser("status", help="trust state of warranted artifacts")
     st.add_argument("artifact", nargs="?")
@@ -147,6 +169,8 @@ def build_parser() -> argparse.ArgumentParser:
         " logic and re-seal it (born-verifiable, superseding the old id)",
     )
     rb.add_argument("artifact")
+    # rebind re-RUNS every checker to re-seal, so it is an executable surface too
+    _add_exec_policy_flags(rb)
 
     rv = sub.add_parser("revalidate", help="incremental re-check after changes")
     rv.add_argument("--since", help="git ref to diff from (e.g. HEAD~1)")
@@ -158,6 +182,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="output format; md is a PR-comment body for the GitHub Action",
     )
     rv.add_argument("--enable-c2lite", action="store_true")
+    _add_exec_policy_flags(rv)
 
     rp = sub.add_parser("report", help="event-log digest")
     rp.add_argument("--since", help="event window, e.g. 7d or 24h (digest default: 7d)")
