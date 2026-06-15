@@ -34,8 +34,11 @@ def test_historical_benchmark_docs_are_labeled_historical() -> None:
 
 
 def test_current_benchmark_doc_is_version_and_commit_stamped() -> None:
+    import tomllib
+
     doc = _read("docs/BENCHMARK_CURRENT.md")
-    assert "0.11.0" in doc  # dorian version stamp
+    version = tomllib.loads(_read("pyproject.toml"))["project"]["version"]
+    assert version in doc, f"current benchmark doc must stamp the live version {version!r}"
     assert "measured commit" in doc.lower()
     assert "Python" in doc  # environment summary
     assert "reproduce" in doc.lower()

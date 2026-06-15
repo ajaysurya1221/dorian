@@ -10,11 +10,16 @@ and are kept as-is for provenance.
 
 | field | value |
 | --- | --- |
-| dorian version | `0.11.0` (V1 candidate) |
-| measured commit | `2a66a49eee7b8aa069d7fb9222572b272493856d` |
+| dorian version | `1.0.0rc1` (V1 release candidate) |
+| measured commit | `b7376e7762571e7c802c220aa50c241d2dae7e39` |
 | Python | 3.12.4 |
 | platform | darwin (CI matrix: 3.11 / 3.12 / 3.13) |
 | reproduce | `dorian bench large-mutation` · `dorian bench binding-lifecycle` · `dorian bench realworld-usecases` |
+
+These numbers were re-run at the `1.0.0rc1` commit *after* the adversarial-review fixes
+landed, confirming those fixes (py-const type check, `code:` docstring handling, config-key
+stopwords) did not move the benchmark figures — expected, since the suites exercise C1/C3
+(symbol/regex/string/path)/C5, not the new structural/config-binding paths.
 
 ## Results
 
