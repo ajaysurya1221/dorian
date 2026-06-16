@@ -40,6 +40,9 @@ py-signature:<file>::<qualname>::<sigspec>   structural (Python AST): the functi
 py-const:<file>::<qualname>::<literal>       structural (Python AST): the module or
                                class assignment has the stated literal value
 code:<file>::<pattern>         semantic regex over comment/docstring-stripped Python
+config-value:<path>:<dotted.key.path>:<json-literal>   structural (TOML/JSON): the
+                               value at the dotted key path equals the JSON literal
+                               (value AND type)
 ```
 
 The operand of `string:`/`regex:` may itself contain `:`; only the prefix and
@@ -87,6 +90,31 @@ or decorator argument) are kept, so `code:src/routes.py::/v1/login` matches the 
 in code but a `TIMEOUT = 30` that survives only in a comment FAILs (`code_missing`).
 Python-only: a non-parseable / non-Python target ERRORs (`code_unparseable`), never a
 silent pass. Derived watch: the referenced file.
+
+### Structured-config form (`config-value:`)
+
+`config-value:<path>:<dotted.key.path>:<json-literal>` parses a tracked **TOML or JSON**
+file (stdlib `tomllib`/`json`, read-only, **no execution**) and asserts the value at the
+dotted key path equals the expected JSON literal, compared by **value AND type**. This is
+the *truth* companion to config-key binding: config-key only widens the re-check trigger,
+while `config-value:` decides whether the value is actually right. Derived watch: the
+config file path.
+
+- **Separators.** Unlike the `::` forms, `config-value:` uses single `:` separators:
+  `path : dotted.key.path : json-literal`. The file is split on the first two `:`; the
+  literal keeps any inner `:` (so a JSON object literal like `{"a":1}` is fine).
+- **Type-aware equality.** `30 != 30.0`, `1 != true`, `"30" != 30`; arrays compare
+  positionally and objects compare structurally (key order ignored) — and the type
+  strictness applies at every nesting level. No string coercion, no env expansion.
+- **PASS / FAIL / ERROR.** PASS when the key exists and the value+type match. **FAIL**
+  (BROKEN once folded) when the key is absent or the value/type differs. **ERROR** (never
+  BROKEN) when the file is missing, the extension is not `.toml`/`.json`, the file does not
+  parse, the expected literal is not valid JSON, a key segment is empty, or a dotted key
+  collides with a literal-dot key (cannot disambiguate).
+- **Limits (v1).** TOML/JSON only (no YAML — it would need a non-stdlib parser, and the
+  core stays zero-dependency); no array indexing; a TOML date/datetime has no JSON literal,
+  so such a value can only FAIL; the expected literal must be **strict** JSON — `NaN` /
+  `Infinity` / `-Infinity` are rejected (ERROR), not accepted as values.
 
 Regex DoS: `regex:` patterns are length-bounded (500 chars) and compile-guarded,
 AND the match runs in a spawned worker process killed at the checker's

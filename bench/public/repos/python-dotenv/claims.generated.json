@@ -1,0 +1,117 @@
+{
+  "_provenance": "machine-derived by bench/public_claims.py; claim operands extracted from source, known_truth observed by running the C3 checker on the mutated copy.",
+  "artifact": "README.md",
+  "claims": [
+    {
+      "anchor": null,
+      "checkers": [
+        {
+          "program": "py-signature:src/dotenv/main.py::set_key::dotenv_path, key_to_set, value_to_set, quote_mode, export, encoding, follow_symlinks",
+          "type": "C3"
+        }
+      ],
+      "id": "set-key-signature",
+      "kind": "behavior",
+      "load_bearing": true,
+      "proof": {
+        "checker_operand": "py-signature:src/dotenv/main.py::set_key::dotenv_path, key_to_set, value_to_set, quote_mode, export, encoding, follow_symlinks",
+        "claim_id": "set-key-signature",
+        "deterministic": true,
+        "expected_value": "dotenv_path, key_to_set, value_to_set, quote_mode, export, encoding, follow_symlinks",
+        "extractor": "public_claims@1",
+        "known_truth_observed": "BROKEN",
+        "known_truth_rule": "py-signature FAILs iff the def parameter list (names/order/kind) changes; a comment/body-only edit leaves it PASS. Label = observed verdict.",
+        "mutation_id": "mut-set-key-rename-param",
+        "origin": "generated-py-signature",
+        "source_file": "src/dotenv/main.py",
+        "source_locator": "set_key"
+      },
+      "supports": [],
+      "text": "In src/dotenv/main.py, set_key has parameter list (dotenv_path, key_to_set, value_to_set, quote_mode, export, encoding, follow_symlinks)."
+    },
+    {
+      "anchor": null,
+      "checkers": [
+        {
+          "program": "py-signature:src/dotenv/parser.py::make_regex::string, extra_flags",
+          "type": "C3"
+        }
+      ],
+      "id": "make-regex-signature",
+      "kind": "behavior",
+      "load_bearing": true,
+      "proof": {
+        "checker_operand": "py-signature:src/dotenv/parser.py::make_regex::string, extra_flags",
+        "claim_id": "make-regex-signature",
+        "deterministic": true,
+        "expected_value": "string, extra_flags",
+        "extractor": "public_claims@1",
+        "known_truth_observed": "BROKEN",
+        "known_truth_rule": "py-signature FAILs iff the def parameter list (names/order/kind) changes; a comment/body-only edit leaves it PASS. Label = observed verdict.",
+        "mutation_id": "mut-make-regex-rename-param",
+        "origin": "generated-py-signature",
+        "source_file": "src/dotenv/parser.py",
+        "source_locator": "make_regex"
+      },
+      "supports": [],
+      "text": "In src/dotenv/parser.py, make_regex has parameter list (string, extra_flags)."
+    },
+    {
+      "anchor": null,
+      "checkers": [
+        {
+          "program": "code:src/dotenv/parser.py::_single_quoted_key\\ =\\ make_regex\\(r\"'\\(\\[\\^'\\]\\+\\)'\"\\)",
+          "type": "C3"
+        }
+      ],
+      "id": "single-quoted-key-code",
+      "kind": "fact",
+      "load_bearing": true,
+      "proof": {
+        "checker_operand": "code:src/dotenv/parser.py::_single_quoted_key\\ =\\ make_regex\\(r\"'\\(\\[\\^'\\]\\+\\)'\"\\)",
+        "claim_id": "single-quoted-key-code",
+        "deterministic": true,
+        "expected_value": "_single_quoted_key = make_regex(r\"'([^']+)'\")",
+        "extractor": "public_claims@1",
+        "known_truth_observed": "BROKEN",
+        "known_truth_rule": "code: matches an exact token in comment/docstring-stripped source; removing/altering it FAILs, a comment-only edit leaves it PASS. Label = observed verdict.",
+        "mutation_id": "mut-single-quoted-regex-change",
+        "origin": "generated-code-literal",
+        "source_file": "src/dotenv/parser.py",
+        "source_locator": "_single_quoted_key = make_regex(r\"'([^']+)'\")"
+      },
+      "supports": [],
+      "text": "In src/dotenv/parser.py, the executable source contains the token '_single_quoted_key = make_regex(r\"\\'([^\\']+)\\'\")'."
+    },
+    {
+      "anchor": null,
+      "checkers": [
+        {
+          "program": "py-signature:src/dotenv/main.py::set_key::dotenv_path, key_to_set, value_to_set, quote_mode, export, encoding, follow_symlinks",
+          "type": "C3"
+        }
+      ],
+      "id": "set-key-docstring-control",
+      "kind": "behavior",
+      "load_bearing": true,
+      "proof": {
+        "checker_operand": "py-signature:src/dotenv/main.py::set_key::dotenv_path, key_to_set, value_to_set, quote_mode, export, encoding, follow_symlinks",
+        "claim_id": "set-key-docstring-control",
+        "deterministic": true,
+        "expected_value": "dotenv_path, key_to_set, value_to_set, quote_mode, export, encoding, follow_symlinks",
+        "extractor": "public_claims@1",
+        "known_truth_observed": "TRUSTED",
+        "known_truth_rule": "py-signature FAILs iff the def parameter list (names/order/kind) changes; a comment/body-only edit leaves it PASS. Label = observed verdict.",
+        "mutation_id": "mut-set-key-docstring-edit",
+        "origin": "generated-py-signature",
+        "source_file": "src/dotenv/main.py",
+        "source_locator": "set_key"
+      },
+      "supports": [],
+      "text": "In src/dotenv/main.py, set_key has parameter list (dotenv_path, key_to_set, value_to_set, quote_mode, export, encoding, follow_symlinks)."
+    }
+  ],
+  "extractor": "public_claims@1",
+  "schema_version": 1,
+  "status": "benchmark-ready"
+}

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "repo": "humanize",
+  "frozen_sha": "2ddb5903cdc1c7e6eb6b083f4f99f73db50aecd9",
+  "artifact": "README.md",
+  "_note": "Machine-derived targets: file + symbol/key + a mechanical source edit only. bench/public_claims.py extracts the claim operand from source and OBSERVES known_truth by running the C3 checker on the mutated copy. No human semantic claim or truth label is supplied here.",
+  "targets": [
+    {
+      "id": "naturalsize-signature",
+      "kind": "py-signature",
+      "file": "src/humanize/filesize.py",
+      "name": "naturalsize",
+      "intent": "break",
+      "mutation": {
+        "id": "mut-naturalsize-param-rename",
+        "from": "    gnu: bool = False,",
+        "to": "    use_gnu: bool = False,"
+      }
+    },
+    {
+      "id": "ordinal-signature",
+      "kind": "py-signature",
+      "file": "src/humanize/number.py",
+      "name": "ordinal",
+      "intent": "control",
+      "mutation": {
+        "id": "mut-ordinal-comment-only",
+        "from": "    if value % 100 in (11, 12, 13):  # special case",
+        "to": "    if value % 100 in (11, 12, 13):  # teens take 'th' (11th/12th/13th)"
+      }
+    },
+    {
+      "id": "gnu-suffix-code",
+      "kind": "code",
+      "file": "src/humanize/filesize.py",
+      "token": "KMGTPEZYRQ",
+      "intent": "break",
+      "mutation": {
+        "id": "mut-gnu-suffix-drop-q",
+        "from": "\"KMGTPEZYRQ\"",
+        "to": "\"KMGTPEZYR\""
+      }
+    },
+    {
+      "id": "project-name-config",
+      "kind": "config-value",
+      "file": "pyproject.toml",
+      "key": "project.name",
+      "intent": "break",
+      "mutation": {
+        "id": "mut-project-name-change",
+        "from": "name = \"humanize\"",
+        "to": "name = \"humanize-mut\""
+      }
+    }
+  ],
+  "_artifact_note": "README.md is the stable warrant CARRIER present at the frozen SHA; the claims' checkers target source files, the artifact content is not parsed."
+}

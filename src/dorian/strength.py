@@ -55,6 +55,9 @@ _C3_STRENGTH = {
     "code": "semantic_text",
     "py-signature": "structural",
     "py-const": "structural",
+    # config-value parses TOML/JSON and compares value+type — a truth checker, far
+    # stronger than config-key binding (which only widens the re-check trigger).
+    "config-value": "structural",
 }
 
 # claim kinds and the WEAK strengths that under-verify them

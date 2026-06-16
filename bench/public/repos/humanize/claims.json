@@ -1,0 +1,117 @@
+{
+  "_provenance": "machine-derived by bench/public_claims.py; claim operands extracted from source, known_truth observed by running the C3 checker on the mutated copy.",
+  "artifact": "README.md",
+  "claims": [
+    {
+      "anchor": null,
+      "checkers": [
+        {
+          "program": "py-signature:src/humanize/filesize.py::naturalsize::value, binary, gnu, format",
+          "type": "C3"
+        }
+      ],
+      "id": "naturalsize-signature",
+      "kind": "behavior",
+      "load_bearing": true,
+      "proof": {
+        "checker_operand": "py-signature:src/humanize/filesize.py::naturalsize::value, binary, gnu, format",
+        "claim_id": "naturalsize-signature",
+        "deterministic": true,
+        "expected_value": "value, binary, gnu, format",
+        "extractor": "public_claims@1",
+        "known_truth_observed": "BROKEN",
+        "known_truth_rule": "py-signature FAILs iff the def parameter list (names/order/kind) changes; a comment/body-only edit leaves it PASS. Label = observed verdict.",
+        "mutation_id": "mut-naturalsize-param-rename",
+        "origin": "generated-py-signature",
+        "source_file": "src/humanize/filesize.py",
+        "source_locator": "naturalsize"
+      },
+      "supports": [],
+      "text": "In src/humanize/filesize.py, naturalsize has parameter list (value, binary, gnu, format)."
+    },
+    {
+      "anchor": null,
+      "checkers": [
+        {
+          "program": "py-signature:src/humanize/number.py::ordinal::value, gender",
+          "type": "C3"
+        }
+      ],
+      "id": "ordinal-signature",
+      "kind": "behavior",
+      "load_bearing": true,
+      "proof": {
+        "checker_operand": "py-signature:src/humanize/number.py::ordinal::value, gender",
+        "claim_id": "ordinal-signature",
+        "deterministic": true,
+        "expected_value": "value, gender",
+        "extractor": "public_claims@1",
+        "known_truth_observed": "TRUSTED",
+        "known_truth_rule": "py-signature FAILs iff the def parameter list (names/order/kind) changes; a comment/body-only edit leaves it PASS. Label = observed verdict.",
+        "mutation_id": "mut-ordinal-comment-only",
+        "origin": "generated-py-signature",
+        "source_file": "src/humanize/number.py",
+        "source_locator": "ordinal"
+      },
+      "supports": [],
+      "text": "In src/humanize/number.py, ordinal has parameter list (value, gender)."
+    },
+    {
+      "anchor": null,
+      "checkers": [
+        {
+          "program": "code:src/humanize/filesize.py::KMGTPEZYRQ",
+          "type": "C3"
+        }
+      ],
+      "id": "gnu-suffix-code",
+      "kind": "fact",
+      "load_bearing": true,
+      "proof": {
+        "checker_operand": "code:src/humanize/filesize.py::KMGTPEZYRQ",
+        "claim_id": "gnu-suffix-code",
+        "deterministic": true,
+        "expected_value": "KMGTPEZYRQ",
+        "extractor": "public_claims@1",
+        "known_truth_observed": "BROKEN",
+        "known_truth_rule": "code: matches an exact token in comment/docstring-stripped source; removing/altering it FAILs, a comment-only edit leaves it PASS. Label = observed verdict.",
+        "mutation_id": "mut-gnu-suffix-drop-q",
+        "origin": "generated-code-literal",
+        "source_file": "src/humanize/filesize.py",
+        "source_locator": "KMGTPEZYRQ"
+      },
+      "supports": [],
+      "text": "In src/humanize/filesize.py, the executable source contains the token 'KMGTPEZYRQ'."
+    },
+    {
+      "anchor": null,
+      "checkers": [
+        {
+          "program": "config-value:pyproject.toml:project.name:\"humanize\"",
+          "type": "C3"
+        }
+      ],
+      "id": "project-name-config",
+      "kind": "fact",
+      "load_bearing": true,
+      "proof": {
+        "checker_operand": "config-value:pyproject.toml:project.name:\"humanize\"",
+        "claim_id": "project-name-config",
+        "deterministic": true,
+        "expected_value": "\"humanize\"",
+        "extractor": "public_claims@1",
+        "known_truth_observed": "BROKEN",
+        "known_truth_rule": "config-value compares the value at the dotted key by value AND type; any change FAILs. Label = observed verdict.",
+        "mutation_id": "mut-project-name-change",
+        "origin": "generated-config-value",
+        "source_file": "pyproject.toml",
+        "source_locator": "project.name"
+      },
+      "supports": [],
+      "text": "In pyproject.toml, the config value at project.name equals \"humanize\" (by value and type)."
+    }
+  ],
+  "extractor": "public_claims@1",
+  "schema_version": 1,
+  "status": "benchmark-ready"
+}

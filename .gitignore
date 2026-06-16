@@ -26,3 +26,5 @@ bench/real/
 /V1_ALIGNMENT_REPORT.md
 /AUDIT_RELEASE_GATE.md
 /GITHUB_RELEASE_NOTES.md
+research/
+.bench/

@@ -193,3 +193,64 @@ def test_apply_fold_warranted_to_trusted_to_revoked(stored):
     assert len(revoked_events) == 1
     assert json.loads(revoked_events[0]["cause"]) == {"from": "TRUSTED", "to": "REVOKED"}
     assert len(_events(conn, "fold.")) == 2  # exactly one fold event per transition
+
+
+# --- atomicity: state change + audit event commit in ONE transaction (or neither) -------
+
+
+def _claim_state(conn, w, cid: str) -> str:
+    return conn.execute(
+        "SELECT state FROM claim WHERE warrant_id = ? AND id = ?", (w.id, cid)
+    ).fetchone()["state"]
+
+
+def _trust_state(conn, w) -> str:
+    return conn.execute("SELECT trust_state FROM warrant WHERE id = ?", (w.id,)).fetchone()[
+        "trust_state"
+    ]
+
+
+def test_apply_claim_state_commits_state_and_event_together(stored):
+    conn, w = stored
+    assert apply_claim_state(conn, w.id, "c-rs256", "BROKEN", actor="t", cause=None) is True
+    assert _claim_state(conn, w, "c-rs256") == "BROKEN"
+    assert len(_events(conn, "claim.")) == 1  # both persisted
+
+
+def test_apply_claim_state_rolls_back_when_audit_write_fails(stored, monkeypatch):
+    """Crash injected AFTER the state UPDATE, BEFORE the audit event: the pair rolls
+    back, so NO partial state change is committed and NO event is written."""
+    conn, w = stored
+
+    def boom(*a, **k):
+        raise RuntimeError("simulated crash before audit-event write")
+
+    monkeypatch.setattr(store, "_append_event_sql", boom)
+    with pytest.raises(RuntimeError):
+        apply_claim_state(conn, w.id, "c-rs256", "BROKEN", actor="t", cause=None)
+    # rolled back: state unchanged, no claim event persisted
+    assert _claim_state(conn, w, "c-rs256") == "VERIFIED"
+    assert _events(conn, "claim.") == []
+
+
+def test_apply_fold_commits_trust_and_event_together(stored):
+    conn, w = stored
+    apply_claim_state(conn, w.id, "c-rs256", "BROKEN", actor="t", cause=None)  # load-bearing
+    assert apply_fold(conn, w.id, FoldPolicy(), actor="t") == ("WARRANTED", "REVOKED")
+    assert _trust_state(conn, w) == "REVOKED"
+    assert len(_events(conn, "fold.")) == 1  # both persisted
+
+
+def test_apply_fold_rolls_back_when_audit_write_fails(stored, monkeypatch):
+    conn, w = stored
+    apply_claim_state(conn, w.id, "c-rs256", "BROKEN", actor="t", cause=None)  # real commit
+
+    def boom(*a, **k):
+        raise RuntimeError("simulated crash before fold-event write")
+
+    monkeypatch.setattr(store, "_append_event_sql", boom)
+    with pytest.raises(RuntimeError):
+        apply_fold(conn, w.id, FoldPolicy(), actor="t")
+    # rolled back: trust state stays WARRANTED, no fold event
+    assert _trust_state(conn, w) == "WARRANTED"
+    assert _events(conn, "fold.") == []

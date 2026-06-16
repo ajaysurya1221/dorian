@@ -25,6 +25,17 @@ the grammar prefix and the file are split off, the remainder is the operand):
                                 comment/docstring FAILs; real string literals are kept).
                                 Same 500-char cap + worker-process timeout as `regex:`;
                                 ERROR('code_unparseable') on a non-parseable / non-Python target.
+- config-value:<path>:<dotted.key.path>:<json-literal>   structural (TOML/JSON, stdlib
+                                `tomllib`/`json`, no execution): the value at the dotted key path
+                                equals the expected JSON literal, compared by value AND type
+                                (30 != 30.0, 1 != true, "30" != 30; arrays/objects deep-equal,
+                                object key order ignored). FAIL on a missing key or value/type
+                                drift; ERROR on a missing file, unsupported extension, parse
+                                failure, malformed expected literal, empty key segment, or a
+                                dotted key that collides with a literal-dot key. Note: the file is
+                                split on ':' (path:key:literal — the literal keeps any inner ':'),
+                                so this form uses single ':' separators, NOT '::'. No YAML, no
+                                array indexing, no env expansion, no string coercion.
 
 The `py-*` structural and `code:` semantic forms parse the file's AST (`dorian.pyast`);
 they read only and never execute the target. See `dorian/pyast.py` and `spec/checkers.md`.
@@ -59,8 +70,10 @@ check on spawn platforms, scaling with the number of regex checks in a run) to
 from __future__ import annotations
 
 import difflib
+import json
 import multiprocessing
 import re
+import tomllib
 from pathlib import Path
 
 from dorian import pyast
@@ -156,9 +169,106 @@ def _string_fail(path: Path, text: str, literal: str) -> CheckResult:
     )
 
 
+_CONFIG_SUFFIXES = (".toml", ".json")
+
+
+def _deep_equal(a: object, b: object) -> bool:
+    """Type-strict structural equality: same type at every level (so 30 != 30.0 and
+    1 != True even nested), dict key order ignored, lists positional."""
+    if type(a) is not type(b):
+        return False
+    if isinstance(a, dict):
+        assert isinstance(b, dict)
+        return a.keys() == b.keys() and all(_deep_equal(a[k], b[k]) for k in a)
+    if isinstance(a, list):
+        assert isinstance(b, list)
+        return len(a) == len(b) and all(_deep_equal(x, y) for x, y in zip(a, b, strict=False))
+    return a == b
+
+
+def _traverse_config(data: object, segments: list[str]) -> tuple[bool, object, str | None]:
+    """Walk a parsed mapping by dotted-key segments. Returns (found, value, error).
+    `error` is set only for an ambiguous dotted key that collides with a literal-dot key
+    at some level; a genuinely absent key returns (False, None, None) -> FAIL."""
+    cur = data
+    for i, seg in enumerate(segments):
+        if not isinstance(cur, dict):
+            return (False, None, None)  # path goes deeper than the structure: missing
+        # collision check runs whether or not `seg` is present: a multi-segment dotted
+        # path that ALSO exists as one literal key here is ambiguous either way -> ERROR,
+        # never silently pick the nested interpretation.
+        remaining = ".".join(segments[i:])
+        if remaining != seg and remaining in cur:
+            return (
+                False,
+                None,
+                f"config_key_ambiguous: {remaining!r} exists as a literal key but the "
+                "dotted path also expects nesting (cannot disambiguate)",
+            )
+        if seg not in cur:
+            return (False, None, None)  # genuinely absent: FAIL
+        cur = cur[seg]
+    return (True, cur, None)
+
+
+def _reject_constant(token: str) -> object:
+    """parse_constant hook: NaN/Infinity/-Infinity are not RFC-8259 JSON, so an expected
+    literal using them is rejected (ERROR), per spec — never a usable comparison."""
+    raise ValueError(f"non-JSON constant {token!r}")
+
+
+def _check_config_value(ctx: CheckContext, rest: str) -> CheckResult:
+    """config-value:<path>:<dotted.key.path>:<json-literal> — type-aware TOML/JSON value
+    assertion. File/parse/grammar problems ERROR (never BROKEN); a missing key or a
+    value/type mismatch FAILs. No execution, no YAML, no coercion."""
+    parts = rest.split(":", 2)  # the literal keeps any inner ':' (e.g. a JSON object)
+    if len(parts) != 3:
+        return CheckResult(
+            Verdict.ERROR,
+            detail="bad_program: config-value:<path>:<dotted.key.path>:<json-literal>",
+        )
+    path_s, keypath, literal = parts
+    try:
+        expected = json.loads(literal, parse_constant=_reject_constant)
+    except (json.JSONDecodeError, ValueError):
+        return CheckResult(
+            Verdict.ERROR, detail="bad_program: expected value is not a JSON literal"
+        )
+    segments = keypath.split(".")
+    if not keypath or any(seg == "" for seg in segments):
+        return CheckResult(
+            Verdict.ERROR, detail="bad_program: empty key segment in dotted key path"
+        )
+
+    path = _contained_path(ctx, path_s)
+    if path is None:
+        return CheckResult(Verdict.ERROR, detail="bad_program")
+    if path.suffix.lower() not in _CONFIG_SUFFIXES:
+        return CheckResult(
+            Verdict.ERROR,
+            detail=f"bad_program: unsupported config extension {path.suffix!r} (only .toml/.json)",
+        )
+    if not path.is_file():
+        return CheckResult(Verdict.ERROR, detail="config_missing: file not found")
+    raw = path.read_text(encoding="utf-8", errors="replace")
+    try:
+        data = tomllib.loads(raw) if path.suffix.lower() == ".toml" else json.loads(raw)
+    except (tomllib.TOMLDecodeError, json.JSONDecodeError, ValueError) as exc:
+        return CheckResult(Verdict.ERROR, detail=f"config_unparseable: {type(exc).__name__}")
+
+    found, value, err = _traverse_config(data, segments)
+    if err is not None:
+        return CheckResult(Verdict.ERROR, detail=err)
+    if not found:
+        return CheckResult(Verdict.FAIL, detail=f"config_key_missing: {keypath}")
+    if _deep_equal(value, expected):
+        return CheckResult(Verdict.PASS)
+    return CheckResult(Verdict.FAIL, detail=f"config_value_mismatch: {keypath}")
+
+
 def check(ctx: CheckContext, spec: CheckerSpec) -> CheckResult:
     prefix, sep, rest = spec.program.partition(":")
-    if not sep or (prefix != "path" and prefix not in _FILE_OPERAND_FORMS):
+    if not sep:
         return CheckResult(Verdict.ERROR, detail="bad_program")
 
     if prefix == "path":
@@ -168,6 +278,12 @@ def check(ctx: CheckContext, spec: CheckerSpec) -> CheckResult:
         if path.exists():
             return CheckResult(Verdict.PASS)
         return CheckResult(Verdict.FAIL, detail="ref_missing")
+
+    if prefix == "config-value":
+        return _check_config_value(ctx, rest)
+
+    if prefix not in _FILE_OPERAND_FORMS:
+        return CheckResult(Verdict.ERROR, detail="bad_program")
 
     file, sep, needle = rest.partition("::")
     if not sep or not needle:

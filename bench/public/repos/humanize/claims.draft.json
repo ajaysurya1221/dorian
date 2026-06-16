@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "status": "draft-human-review-required",
+  "artifact": "change-note.md",
+  "_frozen_sha": "2ddb5903cdc1c7e6eb6b083f4f99f73db50aecd9",
+  "_review": "DRAFT \u2014 grounded verbatim in source at frozen SHA 2ddb5903 (gh api; each mutation 'from' verified grep -c==1). NOT benchmark-ready; a human must verify before promoting into claims.json with status: benchmark-ready. CAVEATS: (1) py-signature annotated sigspecs are VALID (spec/checkers.md compares annotations only when stated). (2) 'powers-const' RHS is a LIST COMPREHENSION; py-const uses ast.literal_eval and will ERROR (not BROKEN) \u2014 convert to a code: regex or drop. Verify every known_truth against an actual run before promoting.",
+  "claims": [
+    {
+      "id": "naturalsize-signature",
+      "text": "humanize.filesize.naturalsize has the signature naturalsize(value: float | str, binary: bool = False, gnu: bool = False, format: str = '%.1f') -> str.",
+      "kind": "behavior",
+      "load_bearing": true,
+      "anchor": null,
+      "supports": [],
+      "checkers": [
+        {
+          "type": "C3",
+          "program": "py-signature:src/humanize/filesize.py::naturalsize::value: float | str, binary: bool = False, gnu: bool = False, format: str = '%.1f'"
+        }
+      ]
+    },
+    {
+      "id": "ordinal-signature",
+      "text": "humanize.number.ordinal has the signature ordinal(value: NumberOrString, gender: str = 'male') -> str.",
+      "kind": "behavior",
+      "load_bearing": true,
+      "anchor": null,
+      "supports": [],
+      "checkers": [
+        {
+          "type": "C3",
+          "program": "py-signature:src/humanize/number.py::ordinal::value: NumberOrString, gender: str = 'male'"
+        }
+      ]
+    },
+    {
+      "id": "powers-const",
+      "text": "humanize.number defines the module-level constant powers as [10**x for x in (3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 100)] (units up to googol).",
+      "kind": "quantity",
+      "load_bearing": true,
+      "anchor": null,
+      "supports": [],
+      "checkers": [
+        {
+          "type": "C3",
+          "program": "py-const:src/humanize/number.py::powers::[10**x for x in (3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 100)]"
+        }
+      ]
+    },
+    {
+      "id": "gnu-suffix-string",
+      "text": "humanize.filesize.suffixes maps the 'gnu' mode to the prefix string \"KMGTPEZYRQ\".",
+      "kind": "fact",
+      "load_bearing": true,
+      "anchor": null,
+      "supports": [],
+      "checkers": [
+        {
+          "type": "C3",
+          "program": "code:src/humanize/filesize.py::\"gnu\":\\s*\"KMGTPEZYRQ\""
+        }
+      ]
+    }
+  ]
+}

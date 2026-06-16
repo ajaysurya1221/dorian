@@ -1,0 +1,62 @@
+# Public real-repo micro-benchmark — MANUAL dispatch only, read-only, fail-closed.
+#
+# Safe by design: workflow_dispatch only (never auto/PR-triggered), read-only token, NO
+# pull_request_target, clones cached by frozen SHA, results uploaded as artifacts. The harness
+# runs with --deny-exec by default (a fail-closed re-check policy, NOT a sandbox): C4/C5 checkers
+# are blocked and fold to ERRORED. While claims are draft/human-review-required the run reports
+# NO_CLAIMS — no numbers are produced. Do NOT add this to branch protection.
+name: public-microbench
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "limit to one manifest repo (blank = all eligible)"
+        required: false
+        default: ""
+      deny_exec:
+        description: "block C4/C5 at re-check (fail-closed; not a sandbox)"
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  microbench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: astral-sh/setup-uv@v8.2.0
+        with: { python-version: "3.12" }
+      - run: uv sync --all-extras
+
+      # Cache cloned public subjects keyed by the manifest's frozen SHAs, so a re-run is offline.
+      - name: Cache frozen subject checkouts
+        uses: actions/cache@v4
+        with:
+          path: .bench/public-work/checkouts
+          key: public-microbench-checkouts-${{ hashFiles('bench/public/manifest.v1.yaml') }}
+
+      - name: Plan (dry-run — no clone, no seal, no results)
+        run: >-
+          uv run python -m dorian.cli bench public-repos
+          --manifest bench/public/manifest.v1.yaml
+          --out bench/public/results --dry-run
+
+      - name: Run harness (fail-closed re-check)
+        run: >-
+          uv run python -m dorian.cli bench public-repos
+          --manifest bench/public/manifest.v1.yaml
+          --out bench/public/results --workdir .bench/public-work
+          ${{ inputs.repo != '' && format('--repo {0}', inputs.repo) || '' }}
+          ${{ inputs.deny_exec && '--deny-exec' || '' }}
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-microbench-results
+          path: bench/public/results/
+          if-no-files-found: ignore

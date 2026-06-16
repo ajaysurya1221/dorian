@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "status": "draft-human-review-required",
+  "artifact": "change-note.md",
+  "_frozen_sha": "36004e0e34be7665ff2b11a8a4005144f76f176d",
+  "_review": "DRAFT \u2014 grounded verbatim in source at frozen SHA 36004e0e. NOT benchmark-ready; a human must verify before promoting. CAVEATS: (1) 'strpath-type-alias-const' RHS is Union[...] (a subscript, not a literal); py-const will ERROR (not BROKEN) \u2014 convert to a code: regex or drop. (2) confirm the set_key annotated sigspec. Verify every known_truth against an actual run before promoting.",
+  "claims": [
+    {
+      "id": "set-key-signature",
+      "text": "In src/dotenv/main.py, the public function set_key has the signature set_key(dotenv_path: StrPath, key_to_set: str, value_to_set: str, quote_mode: str = \"always\", export: bool = False, encoding: Optional[str] = \"utf-8\", follow_symlinks: bool = False) -> Tuple[Optional[bool], str, str].",
+      "kind": "behavior",
+      "load_bearing": true,
+      "anchor": null,
+      "supports": [],
+      "checkers": [
+        {
+          "type": "C3",
+          "program": "py-signature:src/dotenv/main.py::set_key::dotenv_path: StrPath, key_to_set: str, value_to_set: str, quote_mode: str = \"always\", export: bool = False, encoding: Optional[str] = \"utf-8\", follow_symlinks: bool = False"
+        }
+      ]
+    },
+    {
+      "id": "strpath-type-alias-const",
+      "text": "In src/dotenv/main.py, the module-level type alias StrPath is defined as Union[str, \"os.PathLike[str]\"].",
+      "kind": "fact",
+      "load_bearing": true,
+      "anchor": null,
+      "supports": [],
+      "checkers": [
+        {
+          "type": "C3",
+          "program": "py-const:src/dotenv/main.py::StrPath::Union[str, \"os.PathLike[str]\"]"
+        }
+      ]
+    },
+    {
+      "id": "single-quoted-key-regex",
+      "text": "In src/dotenv/parser.py, the module-level compiled-regex assignment for single-quoted keys is _single_quoted_key = make_regex(r\"'([^']+)'\").",
+      "kind": "fact",
+      "load_bearing": true,
+      "anchor": null,
+      "supports": [],
+      "checkers": [
+        {
+          "type": "C3",
+          "program": "code:src/dotenv/parser.py::_single_quoted_key = make_regex\\(r\"'\\(\\[\\^'\\]\\+\\)'\"\\)"
+        }
+      ]
+    },
+    {
+      "id": "make-regex-signature",
+      "text": "In src/dotenv/parser.py, the helper make_regex has the signature make_regex(string: str, extra_flags: int = 0) -> Pattern[str].",
+      "kind": "behavior",
+      "load_bearing": true,
+      "anchor": null,
+      "supports": [],
+      "checkers": [
+        {
+          "type": "C3",
+          "program": "py-signature:src/dotenv/parser.py::make_regex::string: str, extra_flags: int = 0"
+        }
+      ]
+    }
+  ]
+}

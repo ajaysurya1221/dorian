@@ -472,10 +472,13 @@ work perishable, so you find out when it expired.
   honest ceiling: a definer change triggers a re-check, but only a behavior checker proves a behavior
   change (the gutted-body case), and ambiguous or non-Python symbols are still left for explicit
   binding ([`docs/NEXT_ALGORITHMIC_BETS.md`](docs/NEXT_ALGORITHMIC_BETS.md)).
-- **A public benchmark on real repositories** — the offline public-case reproductions
-  ([`docs/REALWORLD_USECASES.md`](docs/REALWORLD_USECASES.md)) reproduce real problem *classes*; the
-  next rung is frozen public-repo SHAs with manual claims and reproducible known-truth labels
-  ([`docs/SOLO_VALIDATION_LADDER.md`](docs/SOLO_VALIDATION_LADDER.md)).
+- **A public benchmark on real repositories** — the `dorian bench public-repos` harness now runs
+  **machine-derived** structural claims (operands extracted from source; known-truth observed by
+  running the checker on the mutated copy) against frozen public-repo SHAs. Two subjects
+  (`humanize`, `python-dotenv`) are executed and byte-deterministic across two runs
+  ([`docs/BENCHMARK_PUBLIC_REAL_REPOS.md`](docs/BENCHMARK_PUBLIC_REAL_REPOS.md)). These are
+  **reproducible on those frozen SHAs only** — not a real-world performance claim; the trigger and
+  truth layers are reported separately.
 - **PyPI trusted publishing** — tagged releases now ship (latest: **`v1.0.0rc1`**, a V1 release
   candidate / prerelease); publishing `dorian-vwp` to PyPI via a Trusted Publisher is next.
 

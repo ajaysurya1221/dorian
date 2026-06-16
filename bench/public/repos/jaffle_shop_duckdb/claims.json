@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "status": "draft-human-review-required",
+  "artifact": "change-note.md",
+  "_review": "No reviewed claims yet. The harness reports NO_CLAIMS until a human promotes source-grounded, verified claims here and sets status: benchmark-ready.",
+  "claims": []
+}
