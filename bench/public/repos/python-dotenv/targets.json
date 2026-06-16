@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "repo": "python-dotenv",
+  "frozen_sha": "36004e0e34be7665ff2b11a8a4005144f76f176d",
+  "artifact": "README.md",
+  "_note": "Machine-derived targets: file + symbol/key + a mechanical source edit only. bench/public_claims.py extracts the claim operand from source and OBSERVES known_truth by running the C3 checker on the mutated copy. No human semantic claim or truth label is supplied here.",
+  "targets": [
+    {
+      "id": "set-key-signature",
+      "kind": "py-signature",
+      "file": "src/dotenv/main.py",
+      "name": "set_key",
+      "intent": "break",
+      "mutation": {
+        "id": "mut-set-key-rename-param",
+        "from": "    value_to_set: str,",
+        "to": "    val_to_set: str,"
+      }
+    },
+    {
+      "id": "make-regex-signature",
+      "kind": "py-signature",
+      "file": "src/dotenv/parser.py",
+      "name": "make_regex",
+      "intent": "break",
+      "mutation": {
+        "id": "mut-make-regex-rename-param",
+        "from": "extra_flags: int = 0",
+        "to": "xtra_flags: int = 0"
+      }
+    },
+    {
+      "id": "single-quoted-key-code",
+      "kind": "code",
+      "file": "src/dotenv/parser.py",
+      "token": "_single_quoted_key = make_regex(r\"'([^']+)'\")",
+      "intent": "break",
+      "mutation": {
+        "id": "mut-single-quoted-regex-change",
+        "from": "_single_quoted_key = make_regex(r\"'([^']+)'\")",
+        "to": "_single_quoted_key = make_regex(r\"'([^']*)'\")"
+      }
+    },
+    {
+      "id": "set-key-docstring-control",
+      "kind": "py-signature",
+      "file": "src/dotenv/main.py",
+      "name": "set_key",
+      "intent": "control",
+      "mutation": {
+        "id": "mut-set-key-docstring-edit",
+        "from": "    Adds or Updates a key/value to the given .env",
+        "to": "    Adds, updates, or appends a key/value pair to the given .env file"
+      }
+    }
+  ],
+  "_artifact_note": "README.md is the stable warrant CARRIER present at the frozen SHA; the claims' checkers target source files, the artifact content is not parsed."
+}

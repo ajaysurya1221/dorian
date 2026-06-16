@@ -2,6 +2,10 @@ name: ci
 on:
   push: { branches: [main] }
   pull_request:
+# Least privilege: CI only reads the repo. No write scopes, so a malicious PR
+# cannot use the default GITHUB_TOKEN to mutate the repo or releases.
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest

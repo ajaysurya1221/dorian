@@ -121,9 +121,14 @@ def _derive_watch(spec: CheckerSpec, readset: ReadSet) -> CheckerSpec:
         entry = next((e for e in readset.entries if e.id == spec.program), None)
         if entry is not None:
             watch = (entry.uri,)
-    elif spec.type == "C3":  # path:<p> | (symbol|string|regex|py-*|code):<file>::<operand>
+    elif spec.type == "C3":  # path:<p> | <form>:<file>::<op> | config-value:<path>:<key>:<lit>
         prefix, _, rest = spec.program.partition(":")
-        file = rest.partition("::")[0] if prefix in _C3_FILE_OPERAND_FORMS else rest
+        if prefix in _C3_FILE_OPERAND_FORMS:
+            file = rest.partition("::")[0]
+        elif prefix == "config-value":
+            file = rest.partition(":")[0]  # config-value:<path>:<key>:<literal>
+        else:  # path:<p>
+            file = rest
         if file:
             watch = (file,)
     elif spec.type == "C4":  # pytest:<nodeid>: the nodeid's file part is the binding
@@ -196,7 +201,12 @@ def referenced_paths(claims: list[Claim]) -> list[str]:
                 )
             prefix, _, rest = spec.program.partition(":")
             if spec.type == "C3":
-                add(rest.partition("::")[0] if prefix in _C3_FILE_OPERAND_FORMS else rest)
+                if prefix in _C3_FILE_OPERAND_FORMS:
+                    add(rest.partition("::")[0])
+                elif prefix == "config-value":  # config-value:<path>:<key>:<literal>
+                    add(rest.partition(":")[0])
+                else:  # path:<p>
+                    add(rest)
             elif spec.type == "C4":
                 if prefix == "pytest":  # match _derive_watch; other C4 forms ERROR at seal
                     add(rest.partition("::")[0])

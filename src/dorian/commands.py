@@ -733,6 +733,7 @@ _BENCH_DISPATCH: dict[str, tuple[str, bool]] = {
     "binding-lifecycle": ("bench.binding_lifecycle", False),
     "realworld-usecases": ("bench.realworld_usecases", False),
     "warrant-quality": ("bench.warrant_quality", False),
+    "public-repos": ("bench.public_repos", False),
     "churn": ("bench.churn", False),
 }
 

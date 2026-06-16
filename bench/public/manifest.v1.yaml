@@ -1,0 +1,107 @@
+# Public real-repo micro-benchmark manifest (v1 candidate set)
+#
+# STATUS: candidate frozen SHAs — NO RESULTS. This file pins reproducible inputs; it is
+# NOT executed evidence and must never be cited as validation. It expands the two-repo
+# pre-registration in repos.public.json / docs/PUBLIC_BENCHMARK_PROTOCOL.md with the
+# deep-research top-5 starter set (research/audit/DORIAN_V1_0_0RC1_DEEP_RESEARCH.md §8).
+#
+# Each frozen_sha was verified to exist via `gh api repos/<owner>/<repo>/tags` (tagged
+# release commit, most stable frozen point) on 2026-06-16. Licenses are the GitHub SPDX
+# id. A repo dorian cannot include cleanly is marked eligible:false with a reason — never
+# silently swapped. Claims are draft / human-review-required until a human signs off; the
+# harness reports NO_CLAIMS until then, never a fabricated number.
+schema_version: 1
+benchmark: public-repos
+status: candidate-frozen-shas-no-results
+
+repos:
+  - name: humanize
+    url: https://github.com/python-humanize/humanize
+    frozen_sha: 2ddb5903cdc1c7e6eb6b083f4f99f73db50aecd9
+    frozen_ref: "4.15.0"
+    license: MIT
+    public: true
+    eligible: true
+    needs_exec: false          # dorian C3 reads source; no install needed for structural claims
+    setup: []
+    claims: repos/humanize/claims.json
+    mutations: repos/humanize/mutations.yaml
+    notes: >-
+      Small stable public API; py-signature:/py-const:/code: showcase. Read-only structural
+      claims need no install. Domain: Python library API stability.
+
+  - name: python-dotenv
+    url: https://github.com/theskumar/python-dotenv
+    frozen_sha: 36004e0e34be7665ff2b11a8a4005144f76f176d
+    frozen_ref: "v1.2.2"
+    license: BSD-3-Clause
+    public: true
+    eligible: true
+    needs_exec: false
+    setup: []
+    claims: repos/python-dotenv/claims.json
+    mutations: repos/python-dotenv/mutations.yaml
+    notes: >-
+      Config + CLI tool; exercises config-key (trigger-only) binding and py-signature:.
+      Domain: configuration-heavy developer tool.
+
+  - name: tomli
+    url: https://github.com/hukkin/tomli
+    frozen_sha: c5f44690c68c5ed29534faa8f9df18882113728c
+    frozen_ref: "2.4.1"
+    license: MIT
+    public: true
+    eligible: true
+    needs_exec: false
+    setup: []
+    claims: repos/tomli/claims.json
+    mutations: repos/tomli/mutations.yaml
+    notes: >-
+      Tiny pure-Python TOML parser (config substrate). py-signature: on a near-frozen API;
+      ideal determinism control. Domain: configuration substrate. Claims not yet authored.
+
+  - name: bandit
+    url: https://github.com/PyCQA/bandit
+    frozen_sha: 92ae8b82fb422a639f0ed8d99e96cea769594e08
+    frozen_ref: "1.9.4"
+    license: Apache-2.0
+    public: true
+    eligible: true
+    needs_exec: false          # C3 structural reads only; do NOT run its pytest as a dorian checker by default
+    setup: []
+    claims: repos/bandit/claims.json
+    mutations: repos/bandit/mutations.yaml
+    notes: >-
+      Security SAST tool; py-signature:/py-const:/code: on a security-sensitive codebase;
+      doubles as the trusted-base scenario. Domain: security-sensitive tool. Claims not yet authored.
+
+  - name: jaffle_shop_duckdb
+    url: https://github.com/dbt-labs/jaffle_shop_duckdb
+    frozen_sha: 36bde6cba69d962b83be1d52fc65a0dce1cb4ebb
+    frozen_ref: null            # no tags on the duckdb default branch; HEAD pinned
+    license: Apache-2.0
+    public: true
+    eligible: true
+    needs_exec: true            # C5 typed-data claims need `dbt build` to produce the local DuckDB
+    setup:
+      - pip install dbt-duckdb
+      - dbt build
+    claims: repos/jaffle_shop_duckdb/claims.json
+    mutations: repos/jaffle_shop_duckdb/mutations.yaml
+    notes: >-
+      The only strong data-layer repo (C5 rowcount/schema against a local DuckDB), fully
+      offline after build. Domain: data/dbt. needs_exec: true — skipped under --deny-exec.
+      Claims not yet authored.
+
+  - name: sigstore-python
+    url: https://github.com/sigstore/sigstore-python
+    frozen_sha: 4baa76f7b30ec416d4bba66defc325d5c36dfb20
+    frozen_ref: "v4.3.0"
+    license: NOASSERTION
+    public: true
+    eligible: false
+    reason: >-
+      GitHub's SPDX license detector returns NOASSERTION (license file not classified to a
+      recognized SPDX id). SPDX is unconfirmed, so it is excluded from the eligible set
+      pending a manual LICENSE review — not silently swapped. bandit is the verified
+      Apache-2.0 security-domain subject instead.

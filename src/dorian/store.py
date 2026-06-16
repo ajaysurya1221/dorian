@@ -318,22 +318,23 @@ def persisted_renames(conn: sqlite3.Connection) -> dict[str, str]:
     return resolved
 
 
-def set_claim_state(
+# --- non-committing SQL primitives (so a caller can batch them into one transaction) ---
+
+
+def _set_claim_state_sql(
     conn: sqlite3.Connection, warrant_id: str, claim_id: str, state: str, at_iso: str
 ) -> None:
     conn.execute(
         "UPDATE claim SET state = ?, state_changed_at = ? WHERE warrant_id = ? AND id = ?",
         (state, at_iso, warrant_id, claim_id),
     )
-    conn.commit()
 
 
-def set_trust_state(conn: sqlite3.Connection, warrant_id: str, state: str) -> None:
+def _set_trust_state_sql(conn: sqlite3.Connection, warrant_id: str, state: str) -> None:
     conn.execute("UPDATE warrant SET trust_state = ? WHERE id = ?", (state, warrant_id))
-    conn.commit()
 
 
-def append_event(
+def _append_event_sql(
     conn: sqlite3.Connection,
     *,
     warrant_id: str,
@@ -355,8 +356,73 @@ def append_event(
             json.dumps(cause, sort_keys=True) if cause is not None else None,
         ),
     )
-    conn.commit()
     return int(cur.lastrowid)
+
+
+def set_claim_state(
+    conn: sqlite3.Connection, warrant_id: str, claim_id: str, state: str, at_iso: str
+) -> None:
+    _set_claim_state_sql(conn, warrant_id, claim_id, state, at_iso)
+    conn.commit()
+
+
+def set_trust_state(conn: sqlite3.Connection, warrant_id: str, state: str) -> None:
+    _set_trust_state_sql(conn, warrant_id, state)
+    conn.commit()
+
+
+def append_event(
+    conn: sqlite3.Connection,
+    *,
+    warrant_id: str,
+    claim_id: str | None = None,
+    actor: str = "",
+    kind: str,
+    cause: dict | None = None,
+) -> int:
+    rid = _append_event_sql(
+        conn, warrant_id=warrant_id, claim_id=claim_id, actor=actor, kind=kind, cause=cause
+    )
+    conn.commit()
+    return rid
+
+
+def apply_claim_state_atomic(
+    conn: sqlite3.Connection,
+    warrant_id: str,
+    claim_id: str,
+    state: str,
+    at_iso: str,
+    *,
+    actor: str,
+    kind: str,
+    cause: dict | None,
+) -> None:
+    """Persist a claim-state change AND its audit event in ONE transaction: both land or
+    neither does. An exception (e.g. a crash before/while writing the event) rolls back the
+    state UPDATE, so the store never holds a state change without its audit event. `with
+    conn` commits on success and rolls back on any exception."""
+    with conn:
+        _set_claim_state_sql(conn, warrant_id, claim_id, state, at_iso)
+        _append_event_sql(
+            conn, warrant_id=warrant_id, claim_id=claim_id, actor=actor, kind=kind, cause=cause
+        )
+
+
+def apply_trust_state_atomic(
+    conn: sqlite3.Connection,
+    warrant_id: str,
+    state: str,
+    *,
+    actor: str,
+    kind: str,
+    cause: dict | None,
+) -> None:
+    """Persist a trust-state change AND its fold audit event in ONE transaction (both or
+    neither), so a crash never leaves a trust change without its event."""
+    with conn:
+        _set_trust_state_sql(conn, warrant_id, state)
+        _append_event_sql(conn, warrant_id=warrant_id, actor=actor, kind=kind, cause=cause)
 
 
 def events_since(conn: sqlite3.Connection, since_iso: str) -> list[sqlite3.Row]:

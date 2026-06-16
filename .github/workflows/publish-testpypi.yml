@@ -1,0 +1,61 @@
+# TestPyPI dry-run via Trusted Publishing (OIDC) — MANUAL ONLY.
+#
+# A rehearsal of the real publish (publish.yml) against TestPyPI. It exists so the
+# Trusted-Publisher / OIDC path is verified BEFORE a real release, and it never
+# touches production PyPI. Like publish.yml it:
+#   - runs only on workflow_dispatch (never push/PR/fork),
+#   - uses OIDC (id-token: write) — NO stored API token, no long-lived secret,
+#   - is gated behind a GitHub Environment with required reviewers.
+#
+# Prerequisite (one-time, off-CI): create a TestPyPI Trusted Publisher for
+# project `dorian-vwp` pointing at this repo + workflow `publish-testpypi.yml` +
+# environment `testpypi`. Until then the upload step has no credentials and is a
+# no-op rehearsal of the wiring. The real publish to pypi.org stays in publish.yml.
+name: publish-testpypi
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag to build and dry-run-publish to TestPyPI (e.g. v1.0.0rc2)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.3
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Build sdist + wheel
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+          python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  testpypi:
+    needs: build
+    runs-on: ubuntu-latest
+    # the environment gates the dry-run behind required reviewers and is the
+    # subject the TestPyPI Trusted Publisher is bound to
+    environment: testpypi
+    permissions:
+      id-token: write  # OIDC: mint a short-lived token, no stored secret
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to TestPyPI (Trusted Publishing dry-run)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/

@@ -4,11 +4,10 @@
 helpers persist claim/trust transitions through the store and append one audit
 event per actual change (no-ops emit nothing).
 
-Known limitation (store API, not this module): store.set_claim_state /
-set_trust_state and store.append_event each commit() internally, so a state
-change and its audit event land in separate transactions — a crash between the
-two persists the change without its event. A store-level single-transaction
-fix is deferred.
+Atomicity: a state change and its audit event are committed in ONE transaction
+(store.apply_claim_state_atomic / apply_trust_state_atomic), so a crash can never
+leave a persisted state change without its audit event — either both land or
+neither does.
 """
 
 from __future__ import annotations
@@ -61,11 +60,12 @@ def apply_claim_state(
         raise KeyError(f"{warrant_id}:{claim_id}")
     if row["state"] == new_state:
         return False
-    store.set_claim_state(conn, warrant_id, claim_id, new_state, _now_iso())
-    store.append_event(
+    store.apply_claim_state_atomic(
         conn,
-        warrant_id=warrant_id,
-        claim_id=claim_id,
+        warrant_id,
+        claim_id,
+        new_state,
+        _now_iso(),
         actor=actor,
         kind="claim." + new_state.lower(),
         cause=cause,
@@ -85,10 +85,10 @@ def apply_fold(
     new = fold([(c["state"], c["load_bearing"]) for c in claim_states], policy)
     if new == old:
         return None
-    store.set_trust_state(conn, warrant_id, new)
-    store.append_event(
+    store.apply_trust_state_atomic(
         conn,
-        warrant_id=warrant_id,
+        warrant_id,
+        new,
         actor=actor,
         kind="fold." + new.lower(),
         cause={"from": old, "to": new},

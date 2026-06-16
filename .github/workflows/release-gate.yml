@@ -1,0 +1,87 @@
+# Release gate — build, test-matrix, hash, and ATTEST PROVENANCE for a tag.
+#
+# Build + verification automation for the 1.0.0 line. It does NOT publish to PyPI
+# (that is publish.yml / publish-testpypi.yml, manual + OIDC). It runs only on a
+# manual dispatch against a tag or on a pushed tag — never on a fork PR — so the
+# id-token / attestations write scopes are never exposed to untrusted code.
+#
+# Provenance lane: GitHub artifact attestations (actions/attest-build-provenance),
+# an in-toto/SLSA build-provenance statement signed via Sigstore and recorded in
+# the public transparency log. This is the accepted GA provenance lane when a
+# signed git tag is not available (see docs/RELEASE_GATE_1_0.md).
+name: release-gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag to build, verify, and attest (e.g. v1.0.0rc2)
+        required: true
+  push:
+    tags: ["v*"]
+
+# Default to read-only; elevate per-job only where strictly required.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v6.0.3
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v8.2.0
+        with: { python-version: "${{ matrix.python }}" }
+      - run: uv sync --all-extras
+      - run: uv run ruff check src tests bench
+      - run: uv run ruff format --check src tests bench
+      - run: uv run pytest -m "not slow"
+
+  build-attest:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write       # OIDC for Sigstore signing — short-lived, no stored secret
+      attestations: write   # write the build-provenance attestation
+    steps:
+      - uses: actions/checkout@v6.0.3
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Build sdist + wheel
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+          python -m twine check dist/*
+      - name: Verify the built version matches the tag
+        if: ${{ inputs.ref != '' || startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          python - <<'PY'
+          import os, pathlib, re, tomllib
+          ref = os.environ.get("REF") or os.environ.get("GITHUB_REF", "")
+          tag = re.sub(r"^refs/tags/", "", ref).lstrip("v")
+          ver = tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]
+          assert ver == tag, f"tag {tag!r} != pyproject version {ver!r}"
+          print(f"ok: building {ver}")
+          PY
+        env:
+          REF: ${{ inputs.ref }}
+      - name: SHA-256 of artifacts
+        run: |
+          cd dist && sha256sum * | tee SHA256SUMS
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: "dist/*.whl, dist/*.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
