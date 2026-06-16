@@ -30,18 +30,26 @@ _SRC = REPO_ROOT / "bench" / "release_state.py"
 # --------------------------------------------------------------- green baseline
 
 
-def _green_facts(*, features_after_rc1: bool = False) -> dict:
+def _green_facts(
+    *,
+    features_after_rc: bool = False,
+    version: str = "1.0.0rc1",
+    rc_tag: str = "v1.0.0rc1",
+) -> dict:
     """A facts dict where every machine-verifiable gate is satisfied. Individual
     tests flip exactly one lever to exercise a transition."""
+    head_commit = "a" * 40 if not features_after_rc else "b" * 40
+    rc_tag_commit = "a" * 40
     return {
-        "pyproject_version": "1.0.0rc1",
-        "init_version": "1.0.0rc1",
-        "lock_version": "1.0.0rc1",
-        "rc_tag": "v1.0.0rc1",
+        "pyproject_version": version,
+        "init_version": version,
+        "lock_version": version,
+        "rc_tag": rc_tag,
         "rc_tag_exists": True,
-        "head_commit": "a" * 40 if not features_after_rc1 else "b" * 40,
-        "rc_tag_commit": "a" * 40,
-        "features_after_rc1": features_after_rc1,
+        "rc_tag_target_ok": True,
+        "head_commit": head_commit,
+        "rc_tag_commit": rc_tag_commit,
+        "features_after_rc": features_after_rc,
         "unexpected_dirty": [],
         "week2": {
             "config_value_impl": True,
@@ -94,14 +102,73 @@ def _decide(
 # ------------------------------------------------------------------------ tests
 
 
-def test_all_gates_green_no_post_rc1_features_promotes():
-    # mocked green WITH HEAD == rc tag (no new behavior after rc1) -> PROMOTE
-    assert _decide(_green_facts(features_after_rc1=False), _green_evidence()) == "PROMOTE_1_0_READY"
+def test_all_gates_green_no_post_rc_features_promotes():
+    # mocked green WITH HEAD == current rc tag (no new behavior after that rc) -> PROMOTE
+    assert _decide(_green_facts(features_after_rc=False), _green_evidence()) == "PROMOTE_1_0_READY"
 
 
-def test_post_rc1_features_cut_rc2():
-    # real situation: config-value/atomicity landed AFTER the rc1 tag -> CUT_RC2
-    assert _decide(_green_facts(features_after_rc1=True), _green_evidence()) == "CUT_RC2_READY"
+def test_post_rc_features_cut_next_rc():
+    # real situation before rc2: behavior landed AFTER the current rc tag -> CUT_RC2
+    assert _decide(_green_facts(features_after_rc=True), _green_evidence()) == "CUT_RC2_READY"
+
+
+def test_latest_rc_auto_detect_chooses_rc2_over_rc1():
+    tag, target_ok = rs._select_rc_tag(
+        ["v1.0.0rc1", "v1.1.0rc1", "not-a-release", "v1.0.0rc2"],
+        target="1.0.0",
+        requested=None,
+    )
+    assert tag == "v1.0.0rc2"
+    assert target_ok is True
+
+
+def test_explicit_rc_tag_is_honored():
+    tag, target_ok = rs._select_rc_tag(
+        ["v1.0.0rc1", "v1.0.0rc2"],
+        target="1.0.0",
+        requested="v1.0.0rc1",
+    )
+    assert tag == "v1.0.0rc1"
+    assert target_ok is True
+
+
+def test_auto_detect_rc1_only_scenario_still_works():
+    tag, target_ok = rs._select_rc_tag(["v1.0.0rc1"], target="1.0.0", requested=None)
+    assert tag == "v1.0.0rc1"
+    assert target_ok is True
+
+
+def test_wrong_target_line_rc_tag_is_ignored_or_rejected():
+    tag, target_ok = rs._select_rc_tag(["v1.1.0rc1"], target="1.0.0", requested=None)
+    assert tag is None
+    assert target_ok is False
+
+    f = _green_facts(rc_tag="v1.1.0rc1")
+    f["rc_tag_target_ok"] = False
+    assert _decide(f, _green_evidence(), target="1.0.0") == "HALT_VERSION_MISMATCH"
+
+
+def test_rc2_tag_at_head_promotes_in_green_state():
+    f = _green_facts(version="1.0.0rc2", rc_tag="v1.0.0rc2", features_after_rc=False)
+    r = rs.evaluate(f, _green_evidence(), target="1.0.0", strict=True)
+    assert r["decision"] == "PROMOTE_1_0_READY"
+    assert r["rc_tag"] == "v1.0.0rc2"
+    assert r["features_after_rc"] is False
+
+
+def test_rc2_tag_ancestor_but_head_has_new_features_cuts_next_rc():
+    f = _green_facts(version="1.0.0rc2", rc_tag="v1.0.0rc2", features_after_rc=True)
+    r = rs.evaluate(f, _green_evidence(), target="1.0.0", strict=True)
+    assert r["decision"] == "CUT_RC2_READY"
+    assert r["rc_tag"] == "v1.0.0rc2"
+    assert r["features_after_rc"] is True
+
+
+def test_legacy_features_after_rc1_fact_remains_compatible():
+    f = _green_facts()
+    del f["features_after_rc"]
+    f["features_after_rc1"] = True
+    assert _decide(f, _green_evidence()) == "CUT_RC2_READY"
 
 
 def test_version_mismatch_halts():
@@ -163,7 +230,7 @@ def test_benchmark_known_truth_mismatch_is_insufficient_evidence():
 
 
 def test_provenance_workflow_absent_cuts_rc2_not_promote():
-    f = _green_facts(features_after_rc1=False)  # otherwise PROMOTE-eligible
+    f = _green_facts(features_after_rc=False)  # otherwise PROMOTE-eligible
     f["provenance_workflow"] = False
     f["workflows"].pop("release-gate.yml", None)
     assert _decide(f, _green_evidence()) == "CUT_RC2_READY"
@@ -202,7 +269,7 @@ def test_strict_missing_evidence_is_insufficient():
 
 
 def test_week2_incomplete_stays_rc():
-    f = _green_facts(features_after_rc1=False)
+    f = _green_facts(features_after_rc=False)
     f["week2"]["atomicity_impl"] = False
     assert _decide(f, _green_evidence()) == "STAY_RC"
 
@@ -211,7 +278,7 @@ def test_week2_incomplete_stays_rc():
 
 
 def test_state_json_is_deterministic_and_sorted():
-    f, e = _green_facts(features_after_rc1=True), _green_evidence()
+    f, e = _green_facts(features_after_rc=True), _green_evidence()
     r1 = rs.evaluate(f, e, target="1.0.0", strict=True)
     r2 = rs.evaluate(f, e, target="1.0.0", strict=True)
     a = json.dumps(r1, sort_keys=True, indent=2)
@@ -228,7 +295,7 @@ def test_state_json_is_deterministic_and_sorted():
 
 
 def test_decision_is_from_the_fixed_alphabet():
-    r = rs.evaluate(_green_facts(features_after_rc1=True), _green_evidence(), target="1.0.0")
+    r = rs.evaluate(_green_facts(features_after_rc=True), _green_evidence(), target="1.0.0")
     assert r["decision"] in {
         "PROMOTE_1_0_READY",
         "CUT_RC2_READY",
@@ -275,6 +342,8 @@ def test_is_expected_dirty_allows_known_prefixes_and_top_level_md():
     assert rs._is_expected_dirty("Dorian Release v1.0.0rc1 Research Report.md")  # top-level doc
     assert rs._is_expected_dirty("src/dorian/new_module.py")  # any src/dorian/ file is in scope
     assert rs._is_expected_dirty("AGENTS.md")
+    assert rs._is_expected_dirty("pyproject.toml")
+    assert rs._is_expected_dirty("uv.lock")
     assert not rs._is_expected_dirty("setup.py")  # stray top-level code is NOT expected
     assert not rs._is_expected_dirty("vendor/evil.py")
 
@@ -288,7 +357,7 @@ def test_strip_comments_drops_comment_mentions():
 def test_s7_doc_glossary_listing_forbidden_words_still_passes():
     """A doc that ENUMERATES forbidden terms in its 'Allowed vs forbidden wording'
     glossary is honest — only the prose above the glossary is scanned for overclaims."""
-    f = _green_facts(features_after_rc1=True)
+    f = _green_facts(features_after_rc=True)
     f["bench_doc_text"] = (
         "Machine-derived benchmark. candidate benchmark subjects reproducible on these "
         "frozen SHAs; trigger and truth layers reported separately.\n\n"
@@ -303,11 +372,13 @@ def test_s7_doc_glossary_listing_forbidden_words_still_passes():
 
 
 def test_decision_doc_is_deterministic_and_honest():
-    r = rs.evaluate(_green_facts(features_after_rc1=True), _green_evidence(), target="1.0.0")
+    r = rs.evaluate(_green_facts(features_after_rc=True), _green_evidence(), target="1.0.0")
     md1 = rs.render_decision_md(r)
     md2 = rs.render_decision_md(r)
     assert md1 == md2
     assert "CUT_RC2_READY" in md1
+    assert "features_after_rc=True" in md1
+    assert "features_after_rc1" not in md1
     # the allowed release claim must not itself contain forbidden overclaim language
     allowed = r["release_claim"]["allowed"].lower()
     for bad in ("validated on real repos", "proves dorian works", "100% accurate", "generalizes"):

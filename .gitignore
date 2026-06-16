@@ -28,3 +28,4 @@ bench/real/
 /GITHUB_RELEASE_NOTES.md
 research/
 .bench/
+.release/

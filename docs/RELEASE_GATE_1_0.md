@@ -19,21 +19,32 @@ never asks a question. Missing gate evidence under `--strict` is
 ## Run it
 
 ```bash
-# record gate outcomes first (lint/tests/build/benchmark determinism) into
-# bench/public/results/release_evidence.json, then:
-uv run python bench/release_state.py --target 1.0.0 --json --strict
+# record gate outcomes first (lint/tests/build/benchmark determinism), then:
+uv run python bench/release_state.py \
+  --target 1.0.0 \
+  --json --strict \
+  --out .release/current/release_state.json \
+  --decision-out .release/current/RELEASE_DECISION_1_0.md
+
+# or pin the current RC baseline explicitly:
+uv run python bench/release_state.py \
+  --target 1.0.0 \
+  --rc-tag v1.0.0rc2 \
+  --json --strict \
+  --out .release/rc2-evidence/release_state.json \
+  --decision-out .release/rc2-evidence/RELEASE_DECISION_1_0.md
 ```
 
 Exit code: `0` for any GO decision (PROMOTE / CUT_RC2 / STAY_RC), non-zero for any
-`HALT_*`. Outputs `bench/public/results/release_state.json` and
-`docs/RELEASE_DECISION_1_0.md`.
+`HALT_*`. Commit-specific output should be written under `.release/<run>/`, not
+committed as source truth.
 
 ## State table
 
 | id | gate | blocker | fail → |
 |---|---|---|---|
 | S0 | repo clean or dirty only with expected release-branch files | yes | HALT_UNSAFE |
-| S1 | pyproject / `__init__` / uv.lock agree; `v1.0.0rc1` tag exists | yes | HALT_VERSION_MISMATCH |
+| S1 | pyproject / `__init__` / uv.lock agree; current RC tag exists and matches the target line | yes | HALT_VERSION_MISMATCH |
 | S2 | Week-2 complete (config-value impl+doc, audit atomicity) | no | → STAY_RC |
 | S3 | lint + format + tests + build + install smoke (from evidence) | yes | HALT_UNSAFE / HALT_INSUFFICIENT_EVIDENCE |
 | S4 | public-repo harness exists, verifies cache, ERROR≠BROKEN | yes | HALT_UNSAFE |
@@ -50,8 +61,8 @@ Exit code: `0` for any GO decision (PROMOTE / CUT_RC2 / STAY_RC), non-zero for a
    nondeterministic → publish-not-configured → insufficient-evidence.
 2. Otherwise, if there is no executed machine-derived benchmark evidence
    (S2/S5/S6 not all PASS) → **STAY_RC**.
-3. Otherwise, if **new user-visible behavior landed after the `v1.0.0rc1` tag**
-   (`features_after_rc1`) or the provenance/publish path still needs a live
+3. Otherwise, if **new user-visible behavior landed after the current RC tag**
+   (`features_after_rc`) or the provenance/publish path still needs a live
    workflow run → **CUT_RC2_READY**.
 4. Otherwise → **PROMOTE_1_0_READY**.
 

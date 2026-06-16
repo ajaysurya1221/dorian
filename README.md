@@ -479,7 +479,7 @@ work perishable, so you find out when it expired.
   ([`docs/BENCHMARK_PUBLIC_REAL_REPOS.md`](docs/BENCHMARK_PUBLIC_REAL_REPOS.md)). These are
   **reproducible on those frozen SHAs only** — not a real-world performance claim; the trigger and
   truth layers are reported separately.
-- **PyPI trusted publishing** — tagged releases now ship (latest: **`v1.0.0rc1`**, a V1 release
+- **PyPI trusted publishing** — tagged releases now ship (latest: **`v1.0.0rc2`**, a V1 release
   candidate / prerelease); publishing `dorian-vwp` to PyPI via a Trusted Publisher is next.
 
 Non-goals stay non-goals: no servers, no dashboards, no hosted control plane, no model at check time.

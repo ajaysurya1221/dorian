@@ -184,7 +184,7 @@ wheels = [
 
 [[package]]
 name = "dorian-vwp"
-version = "1.0.0rc1"
+version = "1.0.0rc2"
 source = { editable = "." }
 
 [package.optional-dependencies]
@@ -208,6 +208,7 @@ requires-dist = [
     { name = "anthropic", marker = "extra == 'extract'" },
     { name = "duckdb", marker = "extra == 'data'" },
 ]
+provides-extras = ["extract", "data"]
 
 [package.metadata.requires-dev]
 dev = [
