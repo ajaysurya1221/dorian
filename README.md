@@ -154,6 +154,16 @@ those claims named made `dorian revalidate` flag exactly that claim `BROKEN` and
 a committed artifact and not a benchmark figure — but it is evidence that the mechanism can catch
 this kind of checked break on real code, for zero model tokens.
 
+We have since recorded a **documented, reproducible cross-PR catch on a public repo**. A
+load-bearing claim sealed against [`encode/httpx`](https://github.com/encode/httpx) at one
+commit — `requires-python` is `">=3.8"` — was flipped `WARRANTED → REVOKED` (exit 4) by a real
+*later* upstream PR ([#3592](https://github.com/encode/httpx/pull/3592), "Drop Python 3.8
+support", which moved it to `">=3.9"`), while httpx's own test suite stayed green (no test
+references `requires-python`) and no stateless per-PR review bot would have re-opened the
+original claim. The full command output and a from-scratch reproduction on the public repo are
+in [`docs/REAL_CATCH_LOG.md`](docs/REAL_CATCH_LOG.md) — one documented catch, with honest
+scope, not a validation claim.
+
 ## About
 
 An AI agent writes the code and then a confident account of what it did — a PR description, a commit
@@ -379,13 +389,17 @@ shape-tolerant checks like `regex:`/`symbol:`/typed-C5 over brittle `string:`) �
 path/symbol/string/regex plus the V1 structural forms `py-signature:`/`py-const:` and the
 comment/docstring-stripped `code:`, C4 `pytest:<nodeid>`, C5 typed data) are documented in
 [`spec/checkers.md`](spec/checkers.md). What V1 strengthening does and does not promise is in
-[`docs/V1_SCOPE.md`](docs/V1_SCOPE.md).
+[`docs/V1_SCOPE.md`](docs/V1_SCOPE.md). Worked good/bad claim pairs — and the gutted-body
+ceiling, where an existence check is too weak and you need a C4/C5 behavior check — are in
+[`docs/WRITING_GOOD_CLAIMS.md`](docs/WRITING_GOOD_CLAIMS.md).
 
 > **Checker programs are executable.** `dorian verify` *runs* every checker at seal time. C3 and typed
 > C5 only inspect files, but C4 (`pytest:`) and C5 `shell:` execute code — review an agent-emitted
 > `claims.json` exactly as you would review agent-emitted code, and never run `verify` on claims from
 > an untrusted source. In untrusted contexts add `--deny-exec` to refuse the executable families
-> (fail-closed, not a sandbox — see [SECURITY.md](SECURITY.md)).
+> (fail-closed, not a sandbox — see [SECURITY.md](SECURITY.md)). For one copy-paste safe recipe for
+> public/untrusted fork PRs (`checker_trust: base` + `deny_exec`), see
+> [`docs/SECURITY_AND_SAFE_RUNNERS.md`](docs/SECURITY_AND_SAFE_RUNNERS.md).
 
 ## Command surface
 
@@ -421,6 +435,14 @@ claims.
   refuses the re-seal (exit 4) rather than being laundered into a fresh trusted state.
 - `dorian suggest-data-checks <path> [--columns ...] [--out f]` — born-verifiable C5 checker
   suggestions from a data file's current state, for review and pasting into a claim's `checkers` list.
+- `dorian suggest-claims <path.py> [--out f]` — born-verifiable C3 claim suggestions (`symbol:` for
+  defs/classes, `py-const:` for literal constants) for a Python file: each candidate is run and only
+  passing ones are emitted, `load_bearing` defaults to false, ambiguous symbols are skipped. Review
+  scaffolding (existence/value, not behavior) — see
+  [`docs/design/SUGGEST_CLAIMS.md`](docs/design/SUGGEST_CLAIMS.md).
+- `dorian export --in-toto <artifact>` — project a sealed `.warrant` into an experimental in-toto
+  `ClaimVerification` Statement (deterministic, no signing, zero deps); experimental interop —
+  see [`docs/ATTESTATION_INTEROP.md`](docs/ATTESTATION_INTEROP.md).
 - `dorian report --audit` — the full event log as `dorian-audit-v1` JSONL, byte-identical across
   runs; checker details truncated to 160 chars to bound source-content carryover.
 - `dorian revalidate --format md|json` — `md` is the PR-comment body posted by the
@@ -469,8 +491,9 @@ work perishable, so you find out when it expired.
 
 ## Roadmap
 
-- **Real catches on real repos** — the dogfood above made the loop usable; next is using it daily and
-  recording the breaks it catches that would otherwise have shipped.
+- **Real catches on real repos** — the loop is usable and the first documented cross-PR catch is
+  recorded ([`docs/REAL_CATCH_LOG.md`](docs/REAL_CATCH_LOG.md), on `encode/httpx`); next is using it
+  daily and recording more of the breaks it catches that would otherwise have shipped.
 - **The binding gap, narrowed and measured** — a symbol→defining-file index now re-checks a claim
   when its symbol's definer changes, closing the silent-skip *trigger* gap
   ([`docs/BENCHMARK_BINDING_LIFECYCLE.md`](docs/BENCHMARK_BINDING_LIFECYCLE.md)). What remains is the
