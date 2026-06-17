@@ -236,6 +236,30 @@ def test_reconcile_sqlite_attach_write_escape_is_blocked(fixture_repo):
     assert not evil.exists()  # read-only contract: no file created outside the repo
 
 
+def test_reconcile_sqlite_pathological_query_is_error_quickly(fixture_repo, monkeypatch):
+    """A recursive CTE is permitted by the read-only authorizer (SQLITE_RECURSIVE is a
+    read op) and runs unbounded, so without a per-query bound it hangs the process even
+    under --deny-exec (typed C5 is deliberately not deny-exec-gated; only shell: is). The
+    progress-handler deadline must ERROR(query_timeout) quickly — never PASS/FAIL, never
+    hang. The cap is patched tiny so the test is fast and default-independent."""
+    import time as _time
+
+    from dorian.checkers import c5_data as c5_mod
+
+    _make_lots_db(fixture_repo)
+    monkeypatch.setattr(c5_mod, "_SQLITE_QUERY_TIMEOUT_S", 0.5)
+    cte = "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) SELECT count(*) FROM c"
+    prog = f"reconcile:csv:{LOTS}~~sqlite:data/lots.db::{cte}"
+
+    start = _time.monotonic()
+    res = run_c5(fixture_repo, prog)
+    elapsed = _time.monotonic() - start
+
+    assert res.verdict is Verdict.ERROR
+    assert "query_timeout" in res.detail
+    assert elapsed < 10, "per-query timeout did not bound the recursive CTE"
+
+
 # --- shell ---------------------------------------------------------------------
 
 GREP_TIMEOUT = 'shell:grep -Eq "TIMEOUT *= *30" src/config.py'

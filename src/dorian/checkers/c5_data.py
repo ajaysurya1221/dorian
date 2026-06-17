@@ -21,6 +21,7 @@ from __future__ import annotations
 import csv
 import re
 import sqlite3
+import time
 from pathlib import Path
 
 from dorian.checkers import registry
@@ -41,6 +42,10 @@ class _EngineMissing(Exception):
 
 
 class _ColumnGone(Exception):
+    pass
+
+
+class _QueryTimeout(Exception):
     pass
 
 
@@ -220,6 +225,13 @@ def _deny_non_read(op: int, *_: object) -> int:
     return sqlite3.SQLITE_OK if op in _SQLITE_READ_OPS else sqlite3.SQLITE_DENY
 
 
+# typed C5 sqlite reads are deliberately NOT deny-exec-gated (only shell: is), so a
+# pathological query — e.g. an infinite recursive CTE the read-only authorizer permits
+# (SQLITE_RECURSIVE is a read op) — could otherwise hang the process even under
+# --deny-exec. Bound every reconcile query by a wall-clock deadline -> ERROR on timeout.
+_SQLITE_QUERY_TIMEOUT_S = 5.0
+
+
 def _reconcile_side(ctx: CheckContext, side: str) -> int:
     engine, _, body = side.strip().partition(":")
     if engine == "csv":
@@ -231,10 +243,27 @@ def _reconcile_side(ctx: CheckContext, side: str) -> int:
             raise _BadProgram(f"sqlite side expects '<db-path>::<SELECT query>', got {side!r}")
         path = _data_path(ctx, db_uri)
         con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        deadline = time.monotonic() + _SQLITE_QUERY_TIMEOUT_S
+        timed_out = False
+
+        def _interrupt_past_deadline() -> int:
+            # the progress handler fires every N vdbe ops; returning nonzero past the
+            # deadline interrupts the query (sqlite then raises OperationalError below)
+            nonlocal timed_out
+            if time.monotonic() > deadline:
+                timed_out = True
+                return 1
+            return 0
+
         try:
             con.set_authorizer(_deny_non_read)
+            con.set_progress_handler(_interrupt_past_deadline, 10000)
             row = con.execute(query).fetchone()
         except sqlite3.Error as exc:
+            if timed_out:  # distinguish a deadline interrupt from a genuine bad query
+                raise _QueryTimeout(
+                    f"sqlite query exceeded {_SQLITE_QUERY_TIMEOUT_S:g}s: {query!r}"
+                ) from None
             raise _BadProgram(f"sqlite query failed: {exc}") from None
         finally:
             con.close()
@@ -309,6 +338,8 @@ def check(ctx: CheckContext, spec: CheckerSpec) -> CheckResult:
         return handler(ctx, rest)
     except _BadProgram as exc:
         return CheckResult(Verdict.ERROR, detail=f"bad_program: {exc}")
+    except _QueryTimeout as exc:
+        return CheckResult(Verdict.ERROR, detail=f"query_timeout: {exc}")
     except _EngineMissing:
         return CheckResult(Verdict.ERROR, detail="engine_missing: pip install dorian-vwp[data]")
     except _FileGone as exc:
