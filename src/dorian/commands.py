@@ -401,13 +401,19 @@ def cmd_export(args: argparse.Namespace) -> int:
     repo = _repo(args)
     if _missing_repo(repo, "export"):
         return EXIT_USAGE
-    raw = args.artifact.removesuffix(".warrant")  # accept the artifact or its sidecar path
+    # The input may be the artifact OR its sidecar path. Prefer reading it as the artifact
+    # (so an artifact literally named `foo.warrant` exports its own `foo.warrant.warrant`
+    # sidecar); fall back to treating a `.warrant`-suffixed input as the sidecar path only
+    # when the artifact has no sidecar of its own — never strip `.warrant` unconditionally.
     try:
-        artifact_uri = _artifact_uri(repo, raw)
+        artifact_uri = _artifact_uri(repo, args.artifact)
     except ValueError as exc:
         print(f"dorian export: {exc}", file=sys.stderr)
         return EXIT_USAGE
     sidecar = repo / (artifact_uri + ".warrant")
+    if not sidecar.is_file() and artifact_uri.endswith(".warrant"):
+        artifact_uri = artifact_uri[: -len(".warrant")]  # input was the sidecar path
+        sidecar = repo / (artifact_uri + ".warrant")
     if not sidecar.is_file():
         print(
             f"dorian export: no warrant for {artifact_uri!r} (expected {sidecar.name})",

@@ -10,9 +10,9 @@ and are kept as-is for provenance.
 
 | field | value |
 | --- | --- |
-| dorian version | `1.0.1` |
+| dorian version | `1.0.2` |
 | metric commit | `33e9eaf` (the benchmark figures were measured here, during the release audit) |
-| release commit | `81cebbc` (1.0.1). Changes since the metric commit include checker edge-case fixes (C4 leading-dash nodeid rejection, C5 reconcile per-query timeout), a byte-identical index-once `verify` refactor, and two additive commands (`suggest-claims`, `export --in-toto`); both suites below were **re-run at 1.0.1 and reproduce the metric-commit figures exactly** (binding-lifecycle to the same content-derived `run_id`), so these changes do not move what the suites measure |
+| release commit | `81cebbc` (1.0.1) → v1.0.2 announcement hotfix. The 1.0.1 changes (C4 leading-dash nodeid rejection, C5 reconcile per-query timeout, a byte-identical index-once `verify` refactor, the `suggest-claims` / `export --in-toto` commands) plus the v1.0.2 hotfix (export `.warrant` filename disambiguation, `suggest-claims` PEP 263 encoding read, a `symbol_index` non-git `GitError` guard, and CI/SCA/credential/doc hardening) touch no checker numeric behavior; both suites below were **re-run at 1.0.2 and reproduce the metric-commit figures exactly** — binding-lifecycle to the same content-derived `run_id` `168b50d9aa631d52` — so these changes do not move what the suites measure |
 | Python | 3.12.4 |
 | platform | darwin (CI matrix: 3.11 / 3.12 / 3.13) |
 | reproduce | `dorian bench large-mutation` · `dorian bench binding-lifecycle` · `dorian bench realworld-usecases` |

@@ -167,7 +167,10 @@ def pyproject_script_definers(
         return {}
     if definers is None:
         definers = python_symbol_definers(repo)
-    tracked = set(gitio.ls_files(repo))
+    try:
+        tracked = set(gitio.ls_files(repo))
+    except gitio.GitError:
+        return {}  # not a git checkout: no tracked-file set to resolve script targets against
     out: dict[str, tuple[str, ...]] = {}
     for name, target in entries.items():
         module, sep, func = target.partition(":")

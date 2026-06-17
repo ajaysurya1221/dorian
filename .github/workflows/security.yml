@@ -12,13 +12,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false # read-only SCA/SAST; no authenticated git ops
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with: { python-version: "3.12" }
       - run: uv sync --all-extras
-      # SCA: audit the resolved dependency tree (dev + extras) for known CVEs.
-      # Runtime deps are [], so the value is the dev/extras transitive trees.
-      - name: pip-audit (SCA)
-        run: uvx pip-audit
+      # SCA: audit DORIAN'S resolved dependency set (runtime + extras + dev), NOT the
+      # isolated pip-audit tool environment. Export the resolved tree to a requirements
+      # file (`--no-emit-project` drops the editable `-e .` self-reference) and audit that.
+      - name: Export project dependency set (runtime + extras + dev)
+        run: >-
+          uv export --all-extras --dev --no-hashes --no-emit-project
+          --format requirements.txt -o /tmp/dorian-audit-requirements.txt
+      - name: Verify the audit targets the project deps (not pip-audit's own env)
+        run: |
+          for dep in duckdb anthropic pytest; do
+            grep -qE "^${dep}==" /tmp/dorian-audit-requirements.txt \
+              || { echo "audit scope regression: ${dep} missing from requirements"; exit 1; }
+          done
+          echo "audit scope confirmed: project deps present"
+      - name: pip-audit (SCA — project dependency set)
+        run: uvx --python 3.12 pip-audit -r /tmp/dorian-audit-requirements.txt
       # SAST: static analysis of first-party source. Excludes the documented,
       # policy-gated execution primitives via [tool.bandit] in pyproject.toml.
       - name: bandit (SAST)

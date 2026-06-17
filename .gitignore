@@ -27,5 +27,7 @@ bench/real/
 /AUDIT_RELEASE_GATE.md
 /GITHUB_RELEASE_NOTES.md
 research/
+research_packets/
+codex_validation/
 .bench/
 .release/

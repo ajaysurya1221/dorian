@@ -67,11 +67,34 @@ def test_export_in_toto_is_deterministic(tmp_path, capsys):
     repo = _seed(tmp_path)
     assert _verify(repo) == 0
     capsys.readouterr()
-    cli.main(["--repo", str(repo), "export", "note.md", "--in-toto"])
+    assert cli.main(["--repo", str(repo), "export", "note.md", "--in-toto"]) == 0  # both calls
     out1 = capsys.readouterr().out
-    cli.main(["--repo", str(repo), "export", "note.md", "--in-toto"])
+    assert cli.main(["--repo", str(repo), "export", "note.md", "--in-toto"]) == 0  # must succeed
     out2 = capsys.readouterr().out
     assert out1 == out2  # same warrant -> byte-identical statement
+
+
+def test_export_in_toto_artifact_named_dot_warrant(tmp_path, capsys):
+    """An artifact whose name literally ends in `.warrant` must export its OWN sidecar
+    (`foo.warrant.warrant`), not be mis-stripped to a different/absent path."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git(repo, "init", "-q", "-b", "main")
+    write(repo, "app.py", "def handler():\n    return 200\n")
+    write(repo, "foo.warrant", "handler() lives in app.py.\n")  # artifact literally named *.warrant
+    commit_all(repo, "init")
+    claims_io.save_claims(repo / "claims.json", [CLAIM])
+    assert (
+        cli.main(
+            ["--repo", str(repo), "verify", "foo.warrant", "--claims", str(repo / "claims.json")]
+        )
+        == 0
+    )
+    assert (repo / "foo.warrant.warrant").is_file()  # the sidecar of the literal artifact
+    capsys.readouterr()
+    assert cli.main(["--repo", str(repo), "export", "foo.warrant", "--in-toto"]) == 0
+    stmt = json.loads(capsys.readouterr().out)
+    assert stmt["subject"][0]["name"] == "foo.warrant"
 
 
 def test_export_requires_a_format(tmp_path, capsys):

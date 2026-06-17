@@ -368,12 +368,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        with: { fetch-depth: 0 }   # revalidate diffs against the PR base sha
-      - uses: ajaysurya1221/dorian/action@main
+        with:
+          fetch-depth: 0             # revalidate diffs against the PR base sha
+          persist-credentials: false # the Action only reads the diff + posts via GITHUB_TOKEN
+      - uses: ajaysurya1221/dorian/action@v1.0.2
         with:
           fail_on: revoked
-          # until the PyPI release, install from source:
-          install: 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'
+          # install defaults to the published PyPI package (dorian-vwp); pin a
+          # version or set a git source spec to install unreleased changes
 ```
 
 Now that `dorian` is installed, the copy-paste runnable demo at the top —
@@ -508,7 +510,7 @@ work perishable, so you find out when it expired.
   **reproducible on those frozen SHAs only** — not a real-world performance claim; the trigger and
   truth layers are reported separately.
 - **PyPI trusted publishing** — `dorian-vwp` is published to PyPI via a Trusted Publisher
-  (latest: **`v1.0.0`**); `pip install dorian-vwp` installs the released package.
+  (latest: **`v1.0.2`**); `pip install dorian-vwp` installs the released package.
 
 Non-goals stay non-goals: no servers, no dashboards, no hosted control plane, no model at check time.
 Local-first is the design center.
