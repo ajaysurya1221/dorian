@@ -510,7 +510,7 @@ work perishable, so you find out when it expired.
   **reproducible on those frozen SHAs only** — not a real-world performance claim; the trigger and
   truth layers are reported separately.
 - **PyPI trusted publishing** — `dorian-vwp` is published to PyPI via a Trusted Publisher
-  (latest: **`v1.0.0`**); `pip install dorian-vwp` installs the released package.
+  (latest: **`v1.0.2`**); `pip install dorian-vwp` installs the released package.
 
 Non-goals stay non-goals: no servers, no dashboards, no hosted control plane, no model at check time.
 Local-first is the design center.

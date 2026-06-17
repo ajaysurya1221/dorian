@@ -47,6 +47,20 @@ def test_readme_release_badge_is_dynamic_not_hardcoded() -> None:
     assert not re.search(r"badge/release-v?\d+\.\d+", readme), "hardcoded version badge found"
 
 
+def test_readme_pypi_latest_version_matches_package() -> None:
+    """The README's one hardcoded PyPI 'latest: vX.Y.Z' string must name the shipped
+    version. Found by the v1.0.2 release judge: the badge is dynamic but the prose
+    'PyPI trusted publishing (latest: v1.0.0)' line is a separate hardcoded surface that
+    drifts on a version bump — exactly the kind of stale release-state string this file pins.
+    """
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    version = _pyproject_version()
+    mentions = re.findall(r"latest:[^\n]*?v(\d+\.\d+\.\d+)", readme)
+    assert mentions, "expected a README 'latest: vX.Y.Z' PyPI mention to pin"
+    for found in mentions:
+        assert found == version, f"README PyPI 'latest: v{found}' != package version {version}"
+
+
 # Live doc surfaces that must reflect the shipped PyPI release. dorian-vwp 1.0.0
 # went live on PyPI 2026-06-16; docs that still say the release hasn't happened
 # (pre-PyPI "install from source until..." framing, or an rc2 latest stamp) are
