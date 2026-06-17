@@ -10,6 +10,7 @@ claims" must not ship a false claim in its own README.)
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -77,3 +78,48 @@ def test_readme_still_contains_the_runnable_commands() -> None:
     assert "dorian verify note.md --claims claims.json" in readme
     assert "dorian revalidate --since HEAD" in readme
     assert "symbol:app.py::handler" in readme
+
+
+def _github_slug(heading_text: str) -> str:
+    """GitHub-style anchor slug for a markdown heading (lowercase, drop punctuation, spaces->-)."""
+    slug = heading_text.strip().lower()
+    slug = re.sub(r"[^\w\s-]", "", slug)  # drop punctuation, keep word chars / space / hyphen
+    slug = re.sub(r"\s+", "-", slug)
+    return slug
+
+
+def test_readme_demo_badge_points_at_the_runnable_demo() -> None:
+    """The top "Demo" badge must anchor to a REAL, runnable heading — not the illustrative one.
+
+    A new reader who clicks "Demo" lands on the first hands-on section; if that section is the
+    copy-paste-fails "60-second aha" the demo path is broken. We resolve the badge's `#anchor`
+    to an actual heading via GitHub-style slugs and assert it is the runnable "Try it" section.
+    """
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    # the badge link wraps the "Demo" shields.io image: <a href="#anchor">...alt="Demo"...</a>
+    m = re.search(r'<a href="#([^"]+)">\s*<img[^>]*alt="Demo"', readme)
+    assert m is not None, "could not find the Demo badge link in README.md"
+    badge_anchor = m.group(1)
+
+    # GitHub-style slug of every ## / ### heading
+    heading_slugs = {
+        _github_slug(text): text
+        for text in re.findall(r"^#{2,3}\s+(.+?)\s*$", readme, flags=re.MULTILINE)
+    }
+
+    # the anchor must resolve to a heading that actually exists
+    assert badge_anchor in heading_slugs, (
+        f"Demo badge anchor #{badge_anchor} does not match any README heading; "
+        f"headings are: {sorted(heading_slugs)}"
+    )
+
+    target_heading = heading_slugs[badge_anchor]
+    # ...and it must be the runnable demo, not the illustrative "60-second aha"
+    assert "60-second aha" not in target_heading.lower(), (
+        f"Demo badge points at the illustrative section ({target_heading!r}); "
+        "it must point at the runnable copy-paste demo."
+    )
+    assert "try it" in target_heading.lower(), (
+        f"Demo badge should point at the runnable 'Try it' demo, got {target_heading!r}"
+    )

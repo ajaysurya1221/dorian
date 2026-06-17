@@ -14,7 +14,7 @@
 
 <p>
   <a href="#getting-started"><img src="https://img.shields.io/badge/Quickstart-2ea44f?style=for-the-badge" alt="Quickstart"></a>
-  <a href="#the-60-second-aha"><img src="https://img.shields.io/badge/Demo-1f6feb?style=for-the-badge" alt="Demo"></a>
+  <a href="#try-it-in-30-seconds"><img src="https://img.shields.io/badge/Demo-1f6feb?style=for-the-badge" alt="Demo"></a>
   <a href="action/README.md"><img src="https://img.shields.io/badge/GitHub_Action-6e40c9?style=for-the-badge" alt="GitHub Action"></a>
 </p>
 
@@ -42,6 +42,7 @@ now and is re-checked on every future change, so a confident summary doesn't qui
 
 ## Table of contents
 
+- [Try it in 30 seconds](#try-it-in-30-seconds)
 - [The 60-second aha](#the-60-second-aha)
 - [We ran this on dorian itself](#we-ran-this-on-dorian-itself)
 - [About](#about)
@@ -60,10 +61,42 @@ now and is re-checked on every future change, so a confident summary doesn't qui
 - [License](#license)
 - [Contact](#contact)
 
+## Try it in 30 seconds
+
+A self-contained run on a throwaway repo — copy-paste it; it leaves nothing behind but a
+temp directory. (This exact sequence is pinned by a black-box test, so it is executable and
+kept working, not just illustrative.)
+
+```bash
+tmp=$(mktemp -d) && cd "$tmp" && git init -q
+printf 'def handler():\n    return 200\n' > app.py
+printf '# change note\n\n`handler()` lives in app.py.\n' > note.md
+git add -A && git commit -q -m "app + note"
+
+cat > claims.json <<'JSON'
+{"claims": [
+  {"id": "handler-exists", "text": "handler() lives in app.py.",
+   "kind": "behavior", "load_bearing": true,
+   "checkers": [{"type": "C3", "program": "symbol:app.py::handler"}]}
+]}
+JSON
+
+dorian verify note.md --claims claims.json     # -> verified 1/1 claim(s)  (exit 0)
+
+# now a refactor renames the function the note claims exists:
+printf 'def renamed():\n    return 200\n' > app.py
+dorian revalidate --since HEAD                 # -> handler-exists BROKEN; WARRANTED -> REVOKED  (exit 4)
+```
+
+`note.md` never changed and `git`/CI stay quiet — but the warrant flips to REVOKED, naming
+the exact claim that stopped being true. (Don't have `dorian` yet? See
+[Getting started](#getting-started).)
+
 ## The 60-second aha
 
-An agent finishes a change and emits the claims it just made — a `claims.json` next to the work,
-each claim bound to a read-only deterministic checker:
+*(Illustrative — these files are not in your checkout; run the copy-paste demo above to try it
+yourself.)* An agent finishes a change and emits the claims it just made — a `claims.json` next to
+the work, each claim bound to a read-only deterministic checker:
 
 ```json
 {
@@ -333,35 +366,8 @@ jobs:
           install: 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'
 ```
 
-### Try it in 30 seconds
-
-A self-contained run on a throwaway repo — copy-paste it; it leaves nothing behind but a
-temp directory. (This exact sequence is pinned by a black-box test, so it is executable and
-kept working, not just illustrative.)
-
-```bash
-tmp=$(mktemp -d) && cd "$tmp" && git init -q
-printf 'def handler():\n    return 200\n' > app.py
-printf '# change note\n\n`handler()` lives in app.py.\n' > note.md
-git add -A && git commit -q -m "app + note"
-
-cat > claims.json <<'JSON'
-{"claims": [
-  {"id": "handler-exists", "text": "handler() lives in app.py.",
-   "kind": "behavior", "load_bearing": true,
-   "checkers": [{"type": "C3", "program": "symbol:app.py::handler"}]}
-]}
-JSON
-
-dorian verify note.md --claims claims.json     # -> verified 1/1 claim(s)  (exit 0)
-
-# now a refactor renames the function the note claims exists:
-printf 'def renamed():\n    return 200\n' > app.py
-dorian revalidate --since HEAD                 # -> handler-exists BROKEN; WARRANTED -> REVOKED  (exit 4)
-```
-
-`note.md` never changed and `git`/CI stay quiet — but the warrant flips to REVOKED, naming
-the exact claim that stopped being true.
+Now that `dorian` is installed, the copy-paste runnable demo at the top —
+[Try it in 30 seconds](#try-it-in-30-seconds) — runs end to end against a throwaway repo.
 
 ## Writing claims an agent can be held to
 
