@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # Keep the SHA-pinned GitHub Actions fresh: Dependabot bumps each `@<sha> # vX`
+  # to the next version's SHA with an updated comment, so pinning does not freeze
+  # us on a stale (potentially vulnerable) action version.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+  # Python deps (reads pyproject.toml: dev group + optional extras).
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly

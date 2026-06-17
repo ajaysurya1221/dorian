@@ -25,7 +25,7 @@ jobs:
         with:
           fetch-depth: 0   # REQUIRED: revalidate diffs against the PR base
                            # sha, which a shallow clone does not contain
-      - uses: ajaysurya1221/dorian/action@main
+      - uses: ajaysurya1221/dorian/action@v1.0.0
         with:
           fail_on: revoked
           # install defaults to the published PyPI package (dorian-vwp);
@@ -77,7 +77,7 @@ self-attested-verdict problem for *non-executable* checkers — that is what
 
 ```yaml
 # untrusted / public-fork posture
-- uses: ajaysurya1221/dorian/action@main
+- uses: ajaysurya1221/dorian/action@v1.0.0
   with:
     deny_exec: "true"   # C4/C5 ERROR instead of executing
 ```
@@ -93,7 +93,7 @@ executed). Implemented and proven by the
 
 ```yaml
 # public / forked-PR posture: trusted checker specs + no code execution
-- uses: ajaysurya1221/dorian/action@main
+- uses: ajaysurya1221/dorian/action@v1.0.0
   with:
     checker_trust: base   # run only base-approved checker specs
     deny_exec: "true"     # and refuse to execute even those (belt and braces)
