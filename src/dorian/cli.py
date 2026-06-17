@@ -1,5 +1,5 @@
 """dorian CLI: capture | seal | verify | status | blast | bindings | revalidate |
-report | suggest-data-checks | sync | export | bench.
+report | suggest-data-checks | suggest-claims | sync | export | bench.
 
 Exit codes: 0 ok/TRUSTED · 2 usage/infra · 3 DEGRADED · 4 REVOKED/integrity ·
 5 ERRORED-only · 6 scope violation (ring 1).
@@ -212,6 +212,18 @@ def build_parser() -> argparse.ArgumentParser:
     sd.add_argument("path", help="repo-relative data file (.csv, .sqlite/.db, .parquet)")
     sd.add_argument("--columns", help="comma-separated columns to suggest for (default: all)")
     sd.add_argument("--out", help="also write the JSON fragment to this file")
+
+    sc = sub.add_parser(
+        "suggest-claims",
+        help="suggest born-verifiable C3 claims (symbol:/py-const:) from a Python file"
+        " (SUGGESTIONS: review, then paste into claims.json)",
+        description="Derive deterministic C3 claim SUGGESTIONS from a Python file's current"
+        " state (symbol: for defs/classes, py-const: for literal constants). Each is run and"
+        " only passing ones are emitted; load_bearing defaults to false. Review them, then"
+        " paste the keepers into claims.json. Suggestions check existence/value, not behavior.",
+    )
+    sc.add_argument("path", help="repo-relative Python file (.py)")
+    sc.add_argument("--out", help="also write the JSON fragment to this file")
 
     sub.add_parser("sync", help="rebuild the index from sidecars")
 

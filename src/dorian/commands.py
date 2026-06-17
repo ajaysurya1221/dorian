@@ -23,7 +23,17 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from dorian import bindings, claims_io, datachecks, gitio, intoto, store, strength, symbol_index
+from dorian import (
+    bindings,
+    claims_io,
+    datachecks,
+    gitio,
+    intoto,
+    store,
+    strength,
+    suggestclaims,
+    symbol_index,
+)
 from dorian.blast import blast_conn
 from dorian.capture.manual import parse_manual
 from dorian.capture.transcript import parse_transcript
@@ -832,6 +842,35 @@ def cmd_suggest_data_checks(args: argparse.Namespace) -> int:
     except (ValueError, OSError) as exc:
         print(f"dorian suggest-data-checks: {exc}", file=sys.stderr)
         return EXIT_USAGE
+    print(payload)
+    return EXIT_OK
+
+
+def cmd_suggest_claims(args: argparse.Namespace) -> int:
+    """Print born-verifiable C3 claim SUGGESTIONS for a Python file as a
+    {"claims": [...]} fragment to REVIEW and paste into claims.json — never applied
+    automatically, load_bearing defaults to false. Suggestions check existence/value,
+    not behavior (a gutted body keeps a symbol: claim green): pair behavior claims with
+    a C4/C5 check. Input problems are usage errors (2)."""
+    repo = _repo(args)
+    if _missing_repo(repo, "suggest-claims"):
+        return EXIT_USAGE
+    try:
+        uri = _artifact_uri(repo, args.path)
+        result = suggestclaims.suggest(repo, uri)
+        payload = json.dumps({"claims": result["claims"]}, indent=2, sort_keys=True)
+        if args.out:  # unwritable --out is a usage error, not a traceback
+            Path(args.out).write_text(payload + "\n")
+    except (ValueError, OSError) as exc:
+        print(f"dorian suggest-claims: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    for s in result["skipped"]:
+        if s["reason"] == "ambiguous_symbol":
+            print(
+                f"dorian suggest-claims: skipped {s['name']!r}: defined in "
+                f"{len(s['definers'])} files (ambiguous) — name the file explicitly",
+                file=sys.stderr,
+            )
     print(payload)
     return EXIT_OK
 
