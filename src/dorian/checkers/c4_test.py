@@ -44,7 +44,12 @@ def check(ctx: CheckContext, spec: CheckerSpec) -> CheckResult:
 
     file, sep, rest = nodeid.partition("::")
     file = ctx.rename_map.get(file, file)
-    if not file or not (ctx.repo / file).resolve().is_relative_to(ctx.repo.resolve()):
+    if not file or file.startswith("-"):
+        # an empty or leading-dash file part would reach pytest as an OPTION
+        # (-p / -c / --collect-only), not a file; reject before .resolve() and
+        # before any subprocess (the argv carries no `--` fence)
+        return CheckResult(Verdict.ERROR, detail="bad_program")
+    if not (ctx.repo / file).resolve().is_relative_to(ctx.repo.resolve()):
         # a hostile nodeid ('..' or absolute) must not probe files outside the repo
         return CheckResult(Verdict.ERROR, detail="bad_program")
     nodeid = file + sep + rest

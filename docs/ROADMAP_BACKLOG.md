@@ -79,11 +79,10 @@ before marketing, deterministic verification before AI automation.*
 
 - id: pypi-trusted-publishing
   title: PyPI Trusted Publishing workflow (manual, OIDC, no token)
-  status: PARTIAL
-  problem: Source install works; PyPI install reduces friction and signals maturity.
-  evidence: .github/workflows/publish.yml (workflow_dispatch only; environment-gated; OIDC).
-  remaining: A maintainer must create the PyPI Trusted Publisher + `pypi` GitHub environment, then trigger manually. Nothing publishes automatically.
-  human_review_required: yes  # credentials / PyPI project ownership
+  status: DONE
+  evidence: .github/workflows/publish.yml (workflow_dispatch only; environment-gated; OIDC); `dorian-vwp` 1.0.0 is live on PyPI (`pip install dorian-vwp`).
+  acceptance_criteria: PyPI Trusted Publisher + `pypi` GitHub environment configured; a tagged release published `dorian-vwp` to PyPI via OIDC (no token).
+  human_review_required: no
   confidence: high
 
 - id: public-microbenchmark-execution

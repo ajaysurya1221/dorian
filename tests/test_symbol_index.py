@@ -51,6 +51,33 @@ def _warrant(repo: Path) -> Warrant:
     return Warrant.load(repo / "docs/design.md.warrant")
 
 
+# --- TASK-005b: each whole-repo index is built at most once per verify -----------------
+
+
+def test_verify_builds_each_index_once(fixture_repo: Path, monkeypatch) -> None:
+    """The symbol/config indexes are pure functions of the repo tree, so a single
+    `dorian verify` must build each AT MOST once and thread it through every
+    consumer (was 2x python_symbol_definers + 3x config_key_index per verify)."""
+    calls = {"py": 0, "cfg": 0}
+    real_py = symbol_index.python_symbol_definers
+    real_cfg = symbol_index.config_key_index
+
+    def spy_py(repo: Path):
+        calls["py"] += 1
+        return real_py(repo)
+
+    def spy_cfg(repo: Path):
+        calls["cfg"] += 1
+        return real_cfg(repo)
+
+    monkeypatch.setattr(symbol_index, "python_symbol_definers", spy_py)
+    monkeypatch.setattr(symbol_index, "config_key_index", spy_cfg)
+
+    assert _verify(fixture_repo, [LOGIN_CLAIM]) == 0  # default path (no --binding-gate)
+    assert calls["py"] == 1, f"python_symbol_definers ran {calls['py']}x (want 1)"
+    assert calls["cfg"] == 1, f"config_key_index ran {calls['cfg']}x (want 1)"
+
+
 # --- Test A: watch the definer even when the claim text never names the file ----------
 
 

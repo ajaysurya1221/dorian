@@ -14,7 +14,7 @@
 
 <p>
   <a href="#getting-started"><img src="https://img.shields.io/badge/Quickstart-2ea44f?style=for-the-badge" alt="Quickstart"></a>
-  <a href="#the-60-second-aha"><img src="https://img.shields.io/badge/Demo-1f6feb?style=for-the-badge" alt="Demo"></a>
+  <a href="#try-it-in-30-seconds"><img src="https://img.shields.io/badge/Demo-1f6feb?style=for-the-badge" alt="Demo"></a>
   <a href="action/README.md"><img src="https://img.shields.io/badge/GitHub_Action-6e40c9?style=for-the-badge" alt="GitHub Action"></a>
 </p>
 
@@ -42,6 +42,7 @@ now and is re-checked on every future change, so a confident summary doesn't qui
 
 ## Table of contents
 
+- [Try it in 30 seconds](#try-it-in-30-seconds)
 - [The 60-second aha](#the-60-second-aha)
 - [We ran this on dorian itself](#we-ran-this-on-dorian-itself)
 - [About](#about)
@@ -60,10 +61,42 @@ now and is re-checked on every future change, so a confident summary doesn't qui
 - [License](#license)
 - [Contact](#contact)
 
+## Try it in 30 seconds
+
+A self-contained run on a throwaway repo — copy-paste it; it leaves nothing behind but a
+temp directory. (This exact sequence is pinned by a black-box test, so it is executable and
+kept working, not just illustrative.)
+
+```bash
+tmp=$(mktemp -d) && cd "$tmp" && git init -q
+printf 'def handler():\n    return 200\n' > app.py
+printf '# change note\n\n`handler()` lives in app.py.\n' > note.md
+git add -A && git commit -q -m "app + note"
+
+cat > claims.json <<'JSON'
+{"claims": [
+  {"id": "handler-exists", "text": "handler() lives in app.py.",
+   "kind": "behavior", "load_bearing": true,
+   "checkers": [{"type": "C3", "program": "symbol:app.py::handler"}]}
+]}
+JSON
+
+dorian verify note.md --claims claims.json     # -> verified 1/1 claim(s)  (exit 0)
+
+# now a refactor renames the function the note claims exists:
+printf 'def renamed():\n    return 200\n' > app.py
+dorian revalidate --since HEAD                 # -> handler-exists BROKEN; WARRANTED -> REVOKED  (exit 4)
+```
+
+`note.md` never changed and `git`/CI stay quiet — but the warrant flips to REVOKED, naming
+the exact claim that stopped being true. (Don't have `dorian` yet? See
+[Getting started](#getting-started).)
+
 ## The 60-second aha
 
-An agent finishes a change and emits the claims it just made — a `claims.json` next to the work,
-each claim bound to a read-only deterministic checker:
+*(Illustrative — these files are not in your checkout; run the copy-paste demo above to try it
+yourself.)* An agent finishes a change and emits the claims it just made — a `claims.json` next to
+the work, each claim bound to a read-only deterministic checker:
 
 ```json
 {
@@ -120,6 +153,16 @@ those claims named made `dorian revalidate` flag exactly that claim `BROKEN` and
 `REVOKED` (exit 4), leaving the other four `VERIFIED`. That was a throwaway demo on a real repo — not
 a committed artifact and not a benchmark figure — but it is evidence that the mechanism can catch
 this kind of checked break on real code, for zero model tokens.
+
+We have since recorded a **documented, reproducible cross-PR catch on a public repo**. A
+load-bearing claim sealed against [`encode/httpx`](https://github.com/encode/httpx) at one
+commit — `requires-python` is `">=3.8"` — was flipped `WARRANTED → REVOKED` (exit 4) by a real
+*later* upstream PR ([#3592](https://github.com/encode/httpx/pull/3592), "Drop Python 3.8
+support", which moved it to `">=3.9"`), while httpx's own test suite stayed green (no test
+references `requires-python`) and no stateless per-PR review bot would have re-opened the
+original claim. The full command output and a from-scratch reproduction on the public repo are
+in [`docs/REAL_CATCH_LOG.md`](docs/REAL_CATCH_LOG.md) — one documented catch, with honest
+scope, not a validation claim.
 
 ## About
 
@@ -286,8 +329,15 @@ rebuildable at any time with `dorian sync` — and is never committed.
 
 ## Getting started
 
-The distribution is `dorian-vwp`; the import and CLI are `dorian`. The first PyPI release is on the
-roadmap — until it lands, install from source:
+The distribution is `dorian-vwp`; the import and CLI are `dorian`. Install from PyPI:
+
+```bash
+pip install dorian-vwp             # core, zero runtime dependencies
+pip install 'dorian-vwp[data]'     # + duckdb for parquet data claims
+pip install 'dorian-vwp[extract]'  # + anthropic for LLM claim drafting (frozen/experimental)
+```
+
+To install the latest unreleased changes, install from source instead:
 
 ```bash
 pip install 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'
@@ -295,14 +345,6 @@ pip install 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'
 # extras
 pip install 'dorian-vwp[data] @ git+https://github.com/ajaysurya1221/dorian.git'     # + duckdb for parquet data claims
 pip install 'dorian-vwp[extract] @ git+https://github.com/ajaysurya1221/dorian.git'  # + anthropic for LLM claim drafting (frozen/experimental)
-```
-
-After the first PyPI release:
-
-```bash
-pip install dorian-vwp             # core, zero runtime dependencies
-pip install 'dorian-vwp[data]'     # + duckdb for parquet data claims
-pip install 'dorian-vwp[extract]'  # + anthropic for LLM claim drafting (frozen/experimental)
 ```
 
 Then run `dorian verify <artifact> --claims claims.json` on one change. For CI, add the composite
@@ -334,35 +376,8 @@ jobs:
           install: 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'
 ```
 
-### Try it in 30 seconds
-
-A self-contained run on a throwaway repo — copy-paste it; it leaves nothing behind but a
-temp directory. (This exact sequence is pinned by a black-box test, so it is executable and
-kept working, not just illustrative.)
-
-```bash
-tmp=$(mktemp -d) && cd "$tmp" && git init -q
-printf 'def handler():\n    return 200\n' > app.py
-printf '# change note\n\n`handler()` lives in app.py.\n' > note.md
-git add -A && git commit -q -m "app + note"
-
-cat > claims.json <<'JSON'
-{"claims": [
-  {"id": "handler-exists", "text": "handler() lives in app.py.",
-   "kind": "behavior", "load_bearing": true,
-   "checkers": [{"type": "C3", "program": "symbol:app.py::handler"}]}
-]}
-JSON
-
-dorian verify note.md --claims claims.json     # -> verified 1/1 claim(s)  (exit 0)
-
-# now a refactor renames the function the note claims exists:
-printf 'def renamed():\n    return 200\n' > app.py
-dorian revalidate --since HEAD                 # -> handler-exists BROKEN; WARRANTED -> REVOKED  (exit 4)
-```
-
-`note.md` never changed and `git`/CI stay quiet — but the warrant flips to REVOKED, naming
-the exact claim that stopped being true.
+Now that `dorian` is installed, the copy-paste runnable demo at the top —
+[Try it in 30 seconds](#try-it-in-30-seconds) — runs end to end against a throwaway repo.
 
 ## Writing claims an agent can be held to
 
@@ -374,13 +389,17 @@ shape-tolerant checks like `regex:`/`symbol:`/typed-C5 over brittle `string:`) �
 path/symbol/string/regex plus the V1 structural forms `py-signature:`/`py-const:` and the
 comment/docstring-stripped `code:`, C4 `pytest:<nodeid>`, C5 typed data) are documented in
 [`spec/checkers.md`](spec/checkers.md). What V1 strengthening does and does not promise is in
-[`docs/V1_SCOPE.md`](docs/V1_SCOPE.md).
+[`docs/V1_SCOPE.md`](docs/V1_SCOPE.md). Worked good/bad claim pairs — and the gutted-body
+ceiling, where an existence check is too weak and you need a C4/C5 behavior check — are in
+[`docs/WRITING_GOOD_CLAIMS.md`](docs/WRITING_GOOD_CLAIMS.md).
 
 > **Checker programs are executable.** `dorian verify` *runs* every checker at seal time. C3 and typed
 > C5 only inspect files, but C4 (`pytest:`) and C5 `shell:` execute code — review an agent-emitted
 > `claims.json` exactly as you would review agent-emitted code, and never run `verify` on claims from
 > an untrusted source. In untrusted contexts add `--deny-exec` to refuse the executable families
-> (fail-closed, not a sandbox — see [SECURITY.md](SECURITY.md)).
+> (fail-closed, not a sandbox — see [SECURITY.md](SECURITY.md)). For one copy-paste safe recipe for
+> public/untrusted fork PRs (`checker_trust: base` + `deny_exec`), see
+> [`docs/SECURITY_AND_SAFE_RUNNERS.md`](docs/SECURITY_AND_SAFE_RUNNERS.md).
 
 ## Command surface
 
@@ -416,6 +435,14 @@ claims.
   refuses the re-seal (exit 4) rather than being laundered into a fresh trusted state.
 - `dorian suggest-data-checks <path> [--columns ...] [--out f]` — born-verifiable C5 checker
   suggestions from a data file's current state, for review and pasting into a claim's `checkers` list.
+- `dorian suggest-claims <path.py> [--out f]` — born-verifiable C3 claim suggestions (`symbol:` for
+  defs/classes, `py-const:` for literal constants) for a Python file: each candidate is run and only
+  passing ones are emitted, `load_bearing` defaults to false, ambiguous symbols are skipped. Review
+  scaffolding (existence/value, not behavior) — see
+  [`docs/design/SUGGEST_CLAIMS.md`](docs/design/SUGGEST_CLAIMS.md).
+- `dorian export --in-toto <artifact>` — project a sealed `.warrant` into an experimental in-toto
+  `ClaimVerification` Statement (deterministic, no signing, zero deps); experimental interop —
+  see [`docs/ATTESTATION_INTEROP.md`](docs/ATTESTATION_INTEROP.md).
 - `dorian report --audit` — the full event log as `dorian-audit-v1` JSONL, byte-identical across
   runs; checker details truncated to 160 chars to bound source-content carryover.
 - `dorian revalidate --format md|json` — `md` is the PR-comment body posted by the
@@ -464,8 +491,9 @@ work perishable, so you find out when it expired.
 
 ## Roadmap
 
-- **Real catches on real repos** — the dogfood above made the loop usable; next is using it daily and
-  recording the breaks it catches that would otherwise have shipped.
+- **Real catches on real repos** — the loop is usable and the first documented cross-PR catch is
+  recorded ([`docs/REAL_CATCH_LOG.md`](docs/REAL_CATCH_LOG.md), on `encode/httpx`); next is using it
+  daily and recording more of the breaks it catches that would otherwise have shipped.
 - **The binding gap, narrowed and measured** — a symbol→defining-file index now re-checks a claim
   when its symbol's definer changes, closing the silent-skip *trigger* gap
   ([`docs/BENCHMARK_BINDING_LIFECYCLE.md`](docs/BENCHMARK_BINDING_LIFECYCLE.md)). What remains is the
@@ -479,8 +507,8 @@ work perishable, so you find out when it expired.
   ([`docs/BENCHMARK_PUBLIC_REAL_REPOS.md`](docs/BENCHMARK_PUBLIC_REAL_REPOS.md)). These are
   **reproducible on those frozen SHAs only** — not a real-world performance claim; the trigger and
   truth layers are reported separately.
-- **PyPI trusted publishing** — tagged releases now ship (latest: **`v1.0.0rc2`**, a V1 release
-  candidate / prerelease); publishing `dorian-vwp` to PyPI via a Trusted Publisher is next.
+- **PyPI trusted publishing** — `dorian-vwp` is published to PyPI via a Trusted Publisher
+  (latest: **`v1.0.0`**); `pip install dorian-vwp` installs the released package.
 
 Non-goals stay non-goals: no servers, no dashboards, no hosted control plane, no model at check time.
 Local-first is the design center.

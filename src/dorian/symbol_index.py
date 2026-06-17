@@ -181,7 +181,11 @@ def pyproject_script_definers(
     return out
 
 
-def claim_symbol_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple[str, ...]]:
+def claim_symbol_watch_paths(
+    repo: Path,
+    claims: list[Claim],
+    definers: dict[str, tuple[str, ...]] | None = None,
+) -> dict[str, tuple[str, ...]]:
     """claim id -> the sorted, unique defining files to add to that claim's watch
     set: for every identifier-shaped token in the claim text that names a symbol
     defined in EXACTLY ONE file. Claims mentioning no such symbol are omitted
@@ -197,10 +201,12 @@ def claim_symbol_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple
     }
     if not any(claim_tokens.values()):
         return {}
-    try:
-        index = python_symbol_definers(repo)
-    except gitio.GitError:
-        return {}
+    if definers is None:
+        try:
+            definers = python_symbol_definers(repo)
+        except gitio.GitError:
+            return {}
+    index = definers
     scripts = pyproject_script_definers(repo, index)  # console-script name -> target file
     out: dict[str, tuple[str, ...]] = {}
     for claim in claims:
@@ -266,7 +272,11 @@ def config_key_index(repo: Path) -> tuple[dict[str, tuple[str, ...]], tuple[str,
     return ({k: tuple(sorted(v)) for k, v in sorted(keys.items())}, tuple(sorted(unparseable)))
 
 
-def claim_config_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple[str, ...]]:
+def claim_config_watch_paths(
+    repo: Path,
+    claims: list[Claim],
+    config_index: dict[str, tuple[str, ...]] | None = None,
+) -> dict[str, tuple[str, ...]]:
     """claim id -> the config file(s) to add to its watch set: for every identifier-shaped
     token in the claim text that is a config key defined in EXACTLY ONE tracked .toml/.json.
     Ambiguous keys (>1 file) are skipped (see ambiguous_config_mentions). Additive and
@@ -274,7 +284,7 @@ def claim_config_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple
     claim_tokens = {c.id: _tokens(c.text) for c in claims if isinstance(c.text, str)}
     if not any(claim_tokens.values()):
         return {}
-    index, _ = config_key_index(repo)
+    index = config_index if config_index is not None else config_key_index(repo)[0]
     out: dict[str, tuple[str, ...]] = {}
     for claim in claims:
         paths: set[str] = set()
@@ -289,25 +299,35 @@ def claim_config_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple
     return out
 
 
-def claim_watch_paths(repo: Path, claims: list[Claim]) -> dict[str, tuple[str, ...]]:
+def claim_watch_paths(
+    repo: Path,
+    claims: list[Claim],
+    definers: dict[str, tuple[str, ...]] | None = None,
+    config_index: dict[str, tuple[str, ...]] | None = None,
+) -> dict[str, tuple[str, ...]]:
     """All deterministic re-check watches dorian binds per claim: Python symbol-definer
     files + pyproject console scripts (claim_symbol_watch_paths) UNION config-key files
     (claim_config_watch_paths). Union, sorted, deduped. Conservative and additive — it
     only ever widens the re-check trigger set; it never proves a claim true."""
     merged: dict[str, set[str]] = {}
-    for source in (claim_symbol_watch_paths(repo, claims), claim_config_watch_paths(repo, claims)):
+    for source in (
+        claim_symbol_watch_paths(repo, claims, definers),
+        claim_config_watch_paths(repo, claims, config_index),
+    ):
         for cid, paths in source.items():
             merged.setdefault(cid, set()).update(paths)
     return {cid: tuple(sorted(paths)) for cid, paths in merged.items()}
 
 
 def ambiguous_config_mentions(
-    repo: Path, claims: list[Claim]
+    repo: Path,
+    claims: list[Claim],
+    config_index: dict[str, tuple[str, ...]] | None = None,
 ) -> dict[str, dict[str, tuple[str, ...]]]:
     """claim id -> {config key: defining files} for keys a LOAD-BEARING claim mentions
     that are defined in MORE THAN ONE tracked config file — the ambiguous case binding
     skips. Lets verify/bind-suggest surface the skip rather than guess. {} if none."""
-    index, _ = config_key_index(repo)
+    index = config_index if config_index is not None else config_key_index(repo)[0]
     out: dict[str, dict[str, tuple[str, ...]]] = {}
     for claim in claims:
         if not claim.load_bearing or not isinstance(claim.text, str):
@@ -323,7 +343,9 @@ def ambiguous_config_mentions(
 
 
 def ambiguous_symbol_mentions(
-    repo: Path, claims: list[Claim]
+    repo: Path,
+    claims: list[Claim],
+    definers: dict[str, tuple[str, ...]] | None = None,
 ) -> dict[str, dict[str, tuple[str, ...]]]:
     """claim id -> {symbol: defining files} for symbols a LOAD-BEARING claim's text
     mentions that are defined in MORE THAN ONE tracked file — the ambiguous case the
@@ -331,10 +353,13 @@ def ambiguous_symbol_mentions(
     false precision). Lets `verify` / `bindings` surface that skip loudly and reviewably
     instead of hiding it; it never adds a watch. {} on a non-git repo.
     """
-    try:
-        index = python_symbol_definers(repo)
-    except gitio.GitError:
-        return {}
+    if definers is None:
+        try:
+            index = python_symbol_definers(repo)
+        except gitio.GitError:
+            return {}
+    else:
+        index = definers
     out: dict[str, dict[str, tuple[str, ...]]] = {}
     for claim in claims:
         if not claim.load_bearing or not isinstance(claim.text, str):

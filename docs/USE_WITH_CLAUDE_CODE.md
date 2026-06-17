@@ -19,6 +19,15 @@ emit the claims. A complete, runnable version of everything below is in
 > `--deny-exec` (env `DORIAN_DENY_EXEC=1`) so C4/C5 `shell:` ERROR instead of running — fail-closed,
 > but **not a sandbox** (see [`SECURITY.md`](../SECURITY.md)).
 
+> **⚠️ The agent only PROPOSES claims — dorian VERIFIES them. No model runs at check time.** The
+> agent writes prose (`change-note.md`) and a `claims.json`; that is *all* it decides. `dorian verify`
+> then runs each claim's deterministic checker against the real source — stdlib AST parsing, regex,
+> file/symbol lookups, an actual `pytest` run — with **no LLM, no model, no judgment call** anywhere
+> in the loop. A warrant is *born verifiable*: if any load-bearing checker FAILs or ERRORs, the seal
+> is **refused** and nothing is written (exit 4). **An agent cannot make a false claim seal** — a
+> failing checker refuses it, no matter how confidently the prose was worded. The agent's job is to
+> name what it did and pick a check; dorian's job is to decide whether the check passes.
+
 ## 1. The loop
 
 ```bash
@@ -104,21 +113,82 @@ The claims ([`examples/claude-code/claims.json`](../examples/claude-code/claims.
 }
 ```
 
+The output below is what running the shipped example prints (dorian 1.0.0). The leading
+`sha256:<warrant-id>` is the content-addressed warrant id — its exact digits vary per run, so it is
+shown abbreviated here; everything else is stable:
+
 ```text
 $ dorian verify change-note.md --claims claims.json
-verified 2/2 claim(s) against current sources -> change-note.md.warrant   # exit 0
+sha256:<warrant-id>
+verified 2/2 claim(s) against current sources -> change-note.md.warrant      # exit 0
 
 # later, app.py renames login_handler and drops the timeout to 10:
 $ dorian revalidate --since HEAD
-BROKEN  login-handler-added   C3: symbol_missing
-BROKEN  login-timeout-30s     C3: regex_missing
-fold    WARRANTED -> REVOKED                                              # exit 4
+checked 2 candidate claim(s)
+BROKEN    sha256:<warrant-id> login-handler-added  C3: symbol_missing
+BROKEN    sha256:<warrant-id> login-timeout-30s  C3: regex_missing
+fold      sha256:<warrant-id> WARRANTED -> REVOKED                           # exit 4
 ```
 
 Run it end-to-end with the copy-paste block in
-[`examples/claude-code/README.md`](../examples/claude-code/README.md).
+[`examples/claude-code/README.md`](../examples/claude-code/README.md) — the exact commands and
+expected output are in §4 below.
 
-## 4. Permissions
+## 4. Run the example yourself
+
+[`examples/claude-code/`](../examples/claude-code/) is a self-contained, **runnable** version of the
+files above (`app.py`, `change-note.md`, `claims.json`). Copy the three core files into a throwaway
+git repo so the sealed `.warrant` lands there, not in your working tree, then run:
+
+```bash
+cd examples/claude-code
+tmp=$(mktemp -d) && cp app.py change-note.md claims.json "$tmp" && cd "$tmp" && git init -q
+git add -A && git commit -q -m "login handler + note"
+
+dorian verify change-note.md --claims claims.json
+# then a refactor renames the function and drops the timeout — the note never changes:
+printf 'LOGIN_TIMEOUT = 10\n\n\ndef signin(request):\n    return {"ok": True}\n' > app.py
+dorian revalidate --since HEAD
+```
+
+Expected output (dorian 1.0.0; the `sha256:<warrant-id>` digits vary per run, the rest is stable):
+
+```text
+$ dorian verify change-note.md --claims claims.json
+sha256:<warrant-id>
+verified 2/2 claim(s) against current sources -> change-note.md.warrant      # exit 0
+
+$ dorian revalidate --since HEAD
+checked 2 candidate claim(s)
+BROKEN    sha256:<warrant-id> login-handler-added  C3: symbol_missing
+BROKEN    sha256:<warrant-id> login-timeout-30s  C3: regex_missing
+fold      sha256:<warrant-id> WARRANTED -> REVOKED                           # exit 4
+```
+
+`change-note.md` still reads perfectly and `git`/CI stay quiet — but the warrant flipped to REVOKED,
+naming the exact claims that stopped being true. (This whole flow is pinned by
+`tests/test_examples_claude_code.py`, so it fails CI if the example ever stops working.)
+
+**Reading the binding flags.** Before you trust a seal, run `dorian bindings change-note.md` (or
+`dorian verify … --binding-gate warn`). On this example it flags `login-handler-added` as **high
+risk** — a `behavior` claim backed only by a `symbol:` existence checker can prove the function still
+*exists*, not that it still *behaves*:
+
+```text
+$ dorian bindings change-note.md
+login-handler-added  flags: single-file
+  strength: existence  risk: high (adequacy_mismatch)
+  adequacy_mismatch: 'behavior' claim backed only by existence — only a C4 pytest checker proves behavior
+login-timeout-30s  flags: single-file
+  strength: raw_text  risk: low
+2 claim(s), 2 flagged
+```
+
+That is the tool doing its job: existence is the right *trigger* but not *proof of behavior*. To
+actually pin behavior you would add a `C4 pytest:` checker (which RUNS the test). The flag is a review
+smell, **not** a claim being false — the seal still succeeds.
+
+## 5. Permissions
 
 [`examples/claude-code/settings.example.json`](../examples/claude-code/settings.example.json) is a
 review-first snippet to merge into your project's `.claude/settings.json`. By default it pre-allows
@@ -137,14 +207,14 @@ only when you trust the local repo and review agent-emitted `claims.json` before
 trusted-local sample pre-allows `verify`/`revalidate` for speed, but it is not the default and still
 does not pre-allow `seal`, `--extract`, or arbitrary shell.
 
-## 5. Claim extraction is frozen — emit claims, don't extract them
+## 6. Claim extraction is frozen — emit claims, don't extract them
 
 `dorian seal --extract` (drafting claims with an LLM from a blank file) still works but is **frozen
 and experimental** — it failed its stability gate twice. The supported path is the agent emitting
 `claims.json` directly, as above; treat any `--extract` output as a draft for review, never a stable
 warrant input. dorian itself runs **no model at check time, ever** — that is the point.
 
-## 6. What dorian is / is not
+## 7. What dorian is / is not
 
 **Is:** a local-first, git-native CLI that turns the checkable claims in an AI-authored change into
 deterministic, token-free checks, seals them into a content-addressed `.warrant` sidecar, and

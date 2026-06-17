@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dorian-vwp"
-version = "1.0.0"
+version = "1.0.1"
 description = "Hold AI agents to what they said they did: deterministic, token-free verification of claims about a change."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -46,4 +46,23 @@ testpaths = ["tests"]
 addopts = "-q"
 markers = [
     "slow: heavy test (benchmark run, wheel build, or real pytest subprocess) — deselect with -m 'not slow'",
+]
+
+[tool.bandit]
+# dorian is a deterministic checker-EXECUTION tool: by design (and only through the
+# fail-closed deny-exec/deny-shell policy in src/dorian/policy.py — see
+# docs/SECURITY_BOUNDARY.md) it spawns subprocesses (C4 `pytest:`, `git`) and runs
+# read-only, authorizer-gated SQL (C5 data checks). The checks below flag exactly those
+# reviewed-by-design primitives, so they are excluded here; bandit still gates every OTHER
+# vulnerability class (eval/exec, pickle, weak crypto, yaml.load, requests verify=False, …).
+# The real execution control is policy.py, covered by tests/test_deny_exec_policy.py.
+skips = [
+    "B101",  # assert_used: asserts are internal invariants, not access control
+    "B105",  # hardcoded_password: false positive — "PASS" is a Verdict label
+    "B404",  # import subprocess: required to run the gated pytest/git primitives
+    "B603",  # subprocess_without_shell: list-form spawn (the SAFE, non-shell form)
+    "B607",  # start_process_with_partial_path: bare `python`/`git` via PATH, by design
+    "B602",  # subprocess shell=True: the GATED C5 `shell:` checker (deny-shell/deny-exec)
+    "B604",  # function shell=True: same gated shell path via run_readonly
+    "B608",  # hardcoded_sql: read-only, authorizer-gated SQL in the data-check suggester
 ]

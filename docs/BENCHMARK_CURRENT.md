@@ -10,20 +10,22 @@ and are kept as-is for provenance.
 
 | field | value |
 | --- | --- |
-| dorian version | `1.0.0rc2` (V1 release candidate) |
+| dorian version | `1.0.1` |
 | metric commit | `33e9eaf` (the benchmark figures were measured here, during the release audit) |
-| release commit | rc2 changes after the metric commit are release-state tooling, docs, and version metadata; the figures below remain the stamped metric-run evidence, not a fresh rc2 benchmark claim |
+| release commit | `81cebbc` (1.0.1). Changes since the metric commit include checker edge-case fixes (C4 leading-dash nodeid rejection, C5 reconcile per-query timeout), a byte-identical index-once `verify` refactor, and two additive commands (`suggest-claims`, `export --in-toto`); both suites below were **re-run at 1.0.1 and reproduce the metric-commit figures exactly** (binding-lifecycle to the same content-derived `run_id`), so these changes do not move what the suites measure |
 | Python | 3.12.4 |
 | platform | darwin (CI matrix: 3.11 / 3.12 / 3.13) |
 | reproduce | `dorian bench large-mutation` · `dorian bench binding-lifecycle` · `dorian bench realworld-usecases` |
 
-These numbers were re-run at the `1.0.0rc1` commit *after* the adversarial-review fixes
-landed AND again during the independent release audit, confirming those fixes (py-const type
-check, `code:` docstring handling, config-key stopwords) did not move the benchmark figures —
-expected, since the suites exercise C1/C3 (symbol/regex/string/path)/C5, not the new
-structural/config-binding paths. The `1.0.0rc2` stamp keeps this current-version doc aligned
-with the source package version without upgrading the benchmark claim beyond the recorded
-metric-run evidence.
+These numbers were re-run at the `1.0.0rc1` commit after the adversarial-review fixes landed,
+again during the independent release audit, and again at `1.0.1` — each time reproducing the
+metric-commit figures unchanged (the binding-lifecycle rerun lands on the same content-derived
+`run_id 168b50d9aa631d52`, a byte-identical result). The suites exercise C1/C3
+(symbol/regex/string/path) and C5, not malformed-nodeid, pathological-query, or the
+structural/config-binding paths, so the `1.0.1` checker fixes and the two additive commands do
+not — and did not — move them. The version stamp keeps this current-version doc aligned with the
+source package version without upgrading the benchmark claim beyond the recorded metric-run
+evidence.
 
 ## Results
 

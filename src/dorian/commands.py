@@ -23,7 +23,17 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from dorian import bindings, claims_io, datachecks, gitio, store, strength, symbol_index
+from dorian import (
+    bindings,
+    claims_io,
+    datachecks,
+    gitio,
+    intoto,
+    store,
+    strength,
+    suggestclaims,
+    symbol_index,
+)
 from dorian.blast import blast_conn
 from dorian.capture.manual import parse_manual
 from dorian.capture.transcript import parse_transcript
@@ -247,17 +257,25 @@ def cmd_verify(args: argparse.Namespace) -> int:
         # claims mention (even when no checker named them): the symbol-definer watch
         # the seal adds is then also captured + hashed + scope-linted honestly
         paths = referenced_paths(claims)
+        # build each whole-repo index ONCE and thread it into every consumer below; each
+        # builder is a pure function of the repo tree, so a shared copy yields byte-identical
+        # watches/warnings to rebuilding per call (TASK-005b). `definers` is None only on a
+        # non-git repo, where each symbol helper self-degrades to {} exactly as before.
+        try:
+            definers = symbol_index.python_symbol_definers(repo)
+        except gitio.GitError:
+            definers = None
+        config_index, unparseable_config = symbol_index.config_key_index(repo)
         # multi-index binding: Python symbol-definers + pyproject scripts + config keys
-        symbol_watch = symbol_index.claim_watch_paths(repo, claims)
+        symbol_watch = symbol_index.claim_watch_paths(repo, claims, definers, config_index)
         for path in sorted({p for ps in symbol_watch.values() for p in ps}):
             if path not in paths:
                 paths.append(path)
         readset = parse_manual(paths, repo)
         # a load-bearing claim naming an AMBIGUOUS symbol/config key (>1 definer) is left
         # unbound; do not let that skip be silent — warn so the author binds it explicitly
-        ambiguous = symbol_index.ambiguous_symbol_mentions(repo, claims)
-        ambiguous_config = symbol_index.ambiguous_config_mentions(repo, claims)
-        _, unparseable_config = symbol_index.config_key_index(repo)
+        ambiguous = symbol_index.ambiguous_symbol_mentions(repo, claims, definers)
+        ambiguous_config = symbol_index.ambiguous_config_mentions(repo, claims, config_index)
     except (ValueError, OSError, gitio.GitError) as exc:
         print(f"dorian verify: {exc}", file=sys.stderr)
         return EXIT_USAGE
@@ -369,6 +387,43 @@ def cmd_status(args: argparse.Namespace) -> int:
         return EXIT_OK
     finally:
         conn.close()
+
+
+def cmd_export(args: argparse.Namespace) -> int:
+    """Export a sealed warrant for interop. Currently one format: an experimental
+    in-toto Statement carrying a ClaimVerification predicate (`--in-toto`). A pure,
+    deterministic projection of the sidecar — no signing, no network, no model. The
+    Statement attests what was sealed/verified at seal time; the LIVE trust state
+    comes from `dorian status`, not this static export."""
+    if not args.in_toto:
+        print("dorian export: choose a format (currently only --in-toto)", file=sys.stderr)
+        return EXIT_USAGE
+    repo = _repo(args)
+    if _missing_repo(repo, "export"):
+        return EXIT_USAGE
+    raw = args.artifact.removesuffix(".warrant")  # accept the artifact or its sidecar path
+    try:
+        artifact_uri = _artifact_uri(repo, raw)
+    except ValueError as exc:
+        print(f"dorian export: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    sidecar = repo / (artifact_uri + ".warrant")
+    if not sidecar.is_file():
+        print(
+            f"dorian export: no warrant for {artifact_uri!r} (expected {sidecar.name})",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    try:
+        warrant = Warrant.load(sidecar)
+    except _SIDECAR_ERRORS as exc:
+        print(f"dorian export: corrupt warrant sidecar: {exc}", file=sys.stderr)
+        return EXIT_REVOKED
+    from dorian import __version__
+
+    stmt = intoto.warrant_to_statement(warrant, dorian_version=__version__)
+    print(json.dumps(stmt, indent=2, sort_keys=True, ensure_ascii=False))
+    return EXIT_OK
 
 
 def _drifted_entries(conn, repo: Path, warrant_id: str) -> list[str]:
@@ -787,6 +842,35 @@ def cmd_suggest_data_checks(args: argparse.Namespace) -> int:
     except (ValueError, OSError) as exc:
         print(f"dorian suggest-data-checks: {exc}", file=sys.stderr)
         return EXIT_USAGE
+    print(payload)
+    return EXIT_OK
+
+
+def cmd_suggest_claims(args: argparse.Namespace) -> int:
+    """Print born-verifiable C3 claim SUGGESTIONS for a Python file as a
+    {"claims": [...]} fragment to REVIEW and paste into claims.json — never applied
+    automatically, load_bearing defaults to false. Suggestions check existence/value,
+    not behavior (a gutted body keeps a symbol: claim green): pair behavior claims with
+    a C4/C5 check. Input problems are usage errors (2)."""
+    repo = _repo(args)
+    if _missing_repo(repo, "suggest-claims"):
+        return EXIT_USAGE
+    try:
+        uri = _artifact_uri(repo, args.path)
+        result = suggestclaims.suggest(repo, uri)
+        payload = json.dumps({"claims": result["claims"]}, indent=2, sort_keys=True)
+        if args.out:  # unwritable --out is a usage error, not a traceback
+            Path(args.out).write_text(payload + "\n")
+    except (ValueError, OSError) as exc:
+        print(f"dorian suggest-claims: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    for s in result["skipped"]:
+        if s["reason"] == "ambiguous_symbol":
+            print(
+                f"dorian suggest-claims: skipped {s['name']!r}: defined in "
+                f"{len(s['definers'])} files (ambiguous) — name the file explicitly",
+                file=sys.stderr,
+            )
     print(payload)
     return EXIT_OK
 

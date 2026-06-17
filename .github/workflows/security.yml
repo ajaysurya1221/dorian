@@ -1,0 +1,25 @@
+name: security
+on:
+  push: { branches: [main] }
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # weekly Monday 06:00 UTC — catch newly-disclosed CVEs
+# Least privilege: this job only reads the repo and queries advisory data.
+permissions:
+  contents: read
+jobs:
+  sca-sast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with: { python-version: "3.12" }
+      - run: uv sync --all-extras
+      # SCA: audit the resolved dependency tree (dev + extras) for known CVEs.
+      # Runtime deps are [], so the value is the dev/extras transitive trees.
+      - name: pip-audit (SCA)
+        run: uvx pip-audit
+      # SAST: static analysis of first-party source. Excludes the documented,
+      # policy-gated execution primitives via [tool.bandit] in pyproject.toml.
+      - name: bandit (SAST)
+        run: uvx bandit -c pyproject.toml -r src/

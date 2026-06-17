@@ -1,5 +1,14 @@
 # Public micro-benchmark protocol (pre-registration)
 
+> **Amendment (shipped) — read first.** The §2 repository table below (httpx/click) and the §3
+> "claims authored by hand" rule are the **original pre-registration**, kept verbatim so the design
+> cannot be retro-edited to flatter the outcome. **What actually shipped diverged**, by design — see
+> [§9 Amendment (shipped)](#9-amendment-shipped) for the executed repos (`humanize`, `python-dotenv`),
+> the machine-derived (Chain-of-Verification) ground-truth method that replaced hand-authored claims,
+> and why. The executed results live in
+> [`BENCHMARK_PUBLIC_REAL_REPOS.md`](BENCHMARK_PUBLIC_REAL_REPOS.md). Sections 1 and 4 (what this
+> proves; the two-layer split) carried through to the shipped run unchanged.
+
 **Status: protocol only — no results are published in this document.** This is the next rung of
 [`SOLO_VALIDATION_LADDER.md`](SOLO_VALIDATION_LADDER.md): moving from invented synthetic fixtures
 (the [v0.7.0 controlled-mutation benchmark](BENCHMARK_v0.7.0.md) and the
@@ -75,7 +84,13 @@ fields per (repo, artifact):
 3. Publish results in a separate doc that cites this protocol; never edit measured numbers to match
    the expectation — record the mismatch.
 
-## 7. Reproduce (once a harness lands)
+## 7. Reproduce
+
+> **Shipped status:** the `dorian bench public-repos` subcommand **is now implemented**
+> (`bench/public_repos.py`) and was executed against the [§9](#9-amendment-shipped) repo set; the
+> exact reproduce commands are in [`BENCHMARK_PUBLIC_REAL_REPOS.md`](BENCHMARK_PUBLIC_REAL_REPOS.md).
+> The paragraph below is the **original pre-registration text** (written when the harness was still a
+> scaffold) and is kept for the audit trail.
 
 A `dorian bench public-repos` subcommand is **not yet implemented** — see
 [`bench/public/README.md`](../bench/public/README.md) for the scaffold and
@@ -91,3 +106,40 @@ the pinned set", "reproducibility evidence, not a real-world performance claim".
 proven, validated, real-world validated, universal, guaranteed, production-ready, production-grade,
 semantic proof, "works on real repos", "fully solves" anything. Benchmark contributions carry
 aggregate numbers only — never private repository content.
+
+## 9. Amendment (shipped)
+
+The shipped run diverged from §2–§3 above on two points. Both divergences are recorded here rather
+than by editing the frozen pre-registration, so the change is visible.
+
+**(a) Repositories executed.** §2 pre-registered `encode/httpx` and `pallets/click` as the candidate
+inputs. The executed run instead used two smaller, stable-API repos with frozen SHAs:
+
+| repo | frozen SHA | license | status |
+|---|---|---|---|
+| `humanize` | `2ddb5903cdc1` | MIT | PASS (4 claims) |
+| `python-dotenv` | `36004e0e34be` | BSD-3-Clause | PASS (4 claims) |
+
+The candidate top-5 starter set (`humanize`, `python-dotenv`, `tomli`, `bandit`, `jaffle_shop_duckdb`,
+with `sigstore-python` excluded for an unconfirmed `NOASSERTION` license) is pinned in
+[`bench/public/manifest.v1.yaml`](../bench/public/manifest.v1.yaml). Only `humanize` and
+`python-dotenv` produced a `benchmark-ready` claim set; the other three remain `NO_CLAIMS` and emit no
+number. `httpx`/`click` were not executed; their SHAs stay pinned in
+[`bench/public/repos.public.json`](../bench/public/repos.public.json) as the original frozen inputs.
+
+**(b) How claims and ground truth are produced.** §3 pre-registered **hand-authored** claims. The
+shipped run replaced hand-authoring with a **deterministic, machine-derived** synthesizer
+([`bench/public_claims.py`](../bench/public_claims.py)) — `--extract` stays frozen and is still not
+used. The synthesizer extracts each claim operand from source with the stdlib (`ast` for Python,
+`tomllib`/`json` for config), then derives the ground-truth label by **Chain-of-Verification**:
+*"the truth label is machine-observed, not a human assertion"* — it applies the pre-declared mutation
+to a one-file copy, runs the real C3 checker, and records the **observed** verdict (`FAIL → BROKEN`,
+`PASS → TRUSTED`). Because the label comes from the checker's **own** verdict, this measures
+**determinism / reproducibility on these frozen SHAs**, not catch power: it cannot show the checker
+catches drift it would itself miss. A target whose clean claim does not PASS, or whose mutation does
+not produce the declared verdict, is auto-rejected and never forced into the set.
+
+**(c) What carried through unchanged.** §1 (reproducibility evidence only, not a real-world
+performance claim) and §4 (trigger/selection and truth/alarm layers reported separately, with
+`ERRORED` as its own bucket that is never an alarm) held for the shipped run. The §8 wording
+discipline is enforced mechanically by the report renderer.
