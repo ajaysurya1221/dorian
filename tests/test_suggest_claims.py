@@ -9,7 +9,7 @@ from pathlib import Path
 from conftest import commit_all, git, write
 from dorian import cli
 
-APP = '''\
+APP = """\
 TIMEOUT = 30
 NAME = "svc"
 PORTS = [80, 443]
@@ -28,7 +28,7 @@ _PRIVATE = 1
 
 def _helper():
     return None
-'''
+"""
 
 
 def _seed(tmp_path: Path) -> Path:
