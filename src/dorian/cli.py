@@ -1,5 +1,5 @@
 """dorian CLI: capture | seal | verify | status | blast | bindings | revalidate |
-report | suggest-data-checks | sync | bench.
+report | suggest-data-checks | sync | export | bench.
 
 Exit codes: 0 ok/TRUSTED · 2 usage/infra · 3 DEGRADED · 4 REVOKED/integrity ·
 5 ERRORED-only · 6 scope violation (ring 1).
@@ -214,6 +214,19 @@ def build_parser() -> argparse.ArgumentParser:
     sd.add_argument("--out", help="also write the JSON fragment to this file")
 
     sub.add_parser("sync", help="rebuild the index from sidecars")
+
+    ex = sub.add_parser(
+        "export",
+        help="export a sealed warrant for interop (experimental in-toto predicate)",
+        description="Project a sealed .warrant into an in-toto Statement with an experimental"
+        " ClaimVerification predicate (JSON to stdout). Deterministic; no signing or network.",
+    )
+    ex.add_argument("artifact", help="repo-relative artifact whose .warrant to export")
+    ex.add_argument(
+        "--in-toto",
+        action="store_true",
+        help="emit an in-toto Statement with a ClaimVerification predicate",
+    )
 
     bench = sub.add_parser(
         "bench", help="repo-local benchmark tooling (mutation, large-mutation, churn)"

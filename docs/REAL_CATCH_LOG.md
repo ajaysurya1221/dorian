@@ -69,8 +69,11 @@ verified 4/4 claim(s) against current sources -> note.md.warrant
 # exit 0
 ```
 
-The warrant id is `sha256(canonical_json(body))` — content-addressed, so it reproduces for
-this exact `note.md` + `claims.json` against httpx at SHA A.
+The warrant id is `sha256(canonical_json(body))` over the sealed body — **tamper-evident**
+(any later edit to the warrant is detected on load via an id mismatch). The body includes the
+seal timestamp, so a *fresh* seal of the same inputs produces a *different* id; the id shown
+here is from this run. What reproduces across runs is the **outcome**, not the id: a seal at A
+(exit 0, 4/4) and a flip to REVOKED at B (exit 4).
 
 **2. The real upstream drift — `git show 4fb9528 --stat`:**
 

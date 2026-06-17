@@ -23,7 +23,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from dorian import bindings, claims_io, datachecks, gitio, store, strength, symbol_index
+from dorian import bindings, claims_io, datachecks, gitio, intoto, store, strength, symbol_index
 from dorian.blast import blast_conn
 from dorian.capture.manual import parse_manual
 from dorian.capture.transcript import parse_transcript
@@ -377,6 +377,43 @@ def cmd_status(args: argparse.Namespace) -> int:
         return EXIT_OK
     finally:
         conn.close()
+
+
+def cmd_export(args: argparse.Namespace) -> int:
+    """Export a sealed warrant for interop. Currently one format: an experimental
+    in-toto Statement carrying a ClaimVerification predicate (`--in-toto`). A pure,
+    deterministic projection of the sidecar — no signing, no network, no model. The
+    Statement attests what was sealed/verified at seal time; the LIVE trust state
+    comes from `dorian status`, not this static export."""
+    if not args.in_toto:
+        print("dorian export: choose a format (currently only --in-toto)", file=sys.stderr)
+        return EXIT_USAGE
+    repo = _repo(args)
+    if _missing_repo(repo, "export"):
+        return EXIT_USAGE
+    raw = args.artifact.removesuffix(".warrant")  # accept the artifact or its sidecar path
+    try:
+        artifact_uri = _artifact_uri(repo, raw)
+    except ValueError as exc:
+        print(f"dorian export: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    sidecar = repo / (artifact_uri + ".warrant")
+    if not sidecar.is_file():
+        print(
+            f"dorian export: no warrant for {artifact_uri!r} (expected {sidecar.name})",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    try:
+        warrant = Warrant.load(sidecar)
+    except _SIDECAR_ERRORS as exc:
+        print(f"dorian export: corrupt warrant sidecar: {exc}", file=sys.stderr)
+        return EXIT_REVOKED
+    from dorian import __version__
+
+    stmt = intoto.warrant_to_statement(warrant, dorian_version=__version__)
+    print(json.dumps(stmt, indent=2, sort_keys=True, ensure_ascii=False))
+    return EXIT_OK
 
 
 def _drifted_entries(conn, repo: Path, warrant_id: str) -> list[str]:
