@@ -222,6 +222,29 @@ def test_nodeid_escaping_repo_is_error_bad_program(c4_repo):
         assert res.detail == "bad_program", prog
 
 
+def test_leading_dash_nodeid_is_error_no_spawn(c4_repo, monkeypatch):
+    """A nodeid whose file part is empty or starts with '-' would reach pytest as
+    an OPTION (-p / -c / --collect-only), not a file, and pytest would act on it.
+    It must be rejected as bad_program BEFORE any subprocess spawns (the argv has
+    no `--` fence, and `--` alone does not reliably fence option-looking values)."""
+    calls: list = []
+
+    class _ProbeSubprocess:
+        TimeoutExpired = subprocess.TimeoutExpired
+
+        @staticmethod
+        def run(*args, **kwargs):
+            calls.append(args)
+            raise OSError("probe: pytest must not spawn for a hostile nodeid")
+
+    monkeypatch.setattr(c4_mod, "subprocess", _ProbeSubprocess())
+    for prog in ("pytest:-pevil", "pytest:--collect-only", "pytest:-c/x.ini::test_a"):
+        res = run_c4(c4_repo, prog)
+        assert res.verdict is Verdict.ERROR, prog
+        assert res.detail == "bad_program", prog
+    assert calls == [], "no pytest subprocess may spawn for a leading-dash nodeid"
+
+
 # --- revalidation ordering: C4 is the most expensive checker ----------------------
 
 
