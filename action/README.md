@@ -28,8 +28,8 @@ jobs:
       - uses: ajaysurya1221/dorian/action@main
         with:
           fail_on: revoked
-          # until the first PyPI release, install from source:
-          install: 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'
+          # install defaults to the published PyPI package (dorian-vwp);
+          # override only to pin a version or install unreleased changes.
 ```
 
 `fetch-depth: 0` is required because `dorian revalidate --since` runs
@@ -126,12 +126,13 @@ Hard rules either way:
 | --------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
 | `fail_on`       | `revoked`                                    | when to fail the step: `revoked` (exit 4 only), `degraded` (3 or 4), `never` |
 | `base`          | `${{ github.event.pull_request.base.sha }}`  | git ref passed to `dorian revalidate --since`                            |
-| `install`       | `dorian-vwp`                                 | pip spec; until the first PyPI release use the git source spec (below), or `.` for checkout installs |
+| `install`       | `dorian-vwp`                                 | pip spec; defaults to the published PyPI package. Use the git source spec (below) for unreleased changes, or `.` for checkout installs |
 | `deny_exec`     | `false`                                      | refuse to run executable checkers (C4 pytest, C5 shell): they ERROR. For untrusted/fork PRs; fail-closed, not a sandbox |
 | `deny_shell`    | `false`                                      | narrower than `deny_exec`: block only C5 shell, still allow C4 pytest    |
 | `checker_trust` | `head`                                       | `head` runs the checked-out checker spec (trusted repos); `base` runs the base-ref spec so PR-authored executable checkers never run (public/fork PRs) |
 
-Until the first PyPI release of `dorian-vwp`, set `install` to a source spec:
+To install unreleased changes instead of the published `dorian-vwp` package, set
+`install` to a source spec:
 `install: 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'`.
 
 ## Behavior

@@ -286,8 +286,15 @@ rebuildable at any time with `dorian sync` — and is never committed.
 
 ## Getting started
 
-The distribution is `dorian-vwp`; the import and CLI are `dorian`. The first PyPI release is on the
-roadmap — until it lands, install from source:
+The distribution is `dorian-vwp`; the import and CLI are `dorian`. Install from PyPI:
+
+```bash
+pip install dorian-vwp             # core, zero runtime dependencies
+pip install 'dorian-vwp[data]'     # + duckdb for parquet data claims
+pip install 'dorian-vwp[extract]'  # + anthropic for LLM claim drafting (frozen/experimental)
+```
+
+To install the latest unreleased changes, install from source instead:
 
 ```bash
 pip install 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'
@@ -295,14 +302,6 @@ pip install 'dorian-vwp @ git+https://github.com/ajaysurya1221/dorian.git'
 # extras
 pip install 'dorian-vwp[data] @ git+https://github.com/ajaysurya1221/dorian.git'     # + duckdb for parquet data claims
 pip install 'dorian-vwp[extract] @ git+https://github.com/ajaysurya1221/dorian.git'  # + anthropic for LLM claim drafting (frozen/experimental)
-```
-
-After the first PyPI release:
-
-```bash
-pip install dorian-vwp             # core, zero runtime dependencies
-pip install 'dorian-vwp[data]'     # + duckdb for parquet data claims
-pip install 'dorian-vwp[extract]'  # + anthropic for LLM claim drafting (frozen/experimental)
 ```
 
 Then run `dorian verify <artifact> --claims claims.json` on one change. For CI, add the composite
@@ -479,8 +478,8 @@ work perishable, so you find out when it expired.
   ([`docs/BENCHMARK_PUBLIC_REAL_REPOS.md`](docs/BENCHMARK_PUBLIC_REAL_REPOS.md)). These are
   **reproducible on those frozen SHAs only** — not a real-world performance claim; the trigger and
   truth layers are reported separately.
-- **PyPI trusted publishing** — tagged releases now ship (latest: **`v1.0.0rc2`**, a V1 release
-  candidate / prerelease); publishing `dorian-vwp` to PyPI via a Trusted Publisher is next.
+- **PyPI trusted publishing** — `dorian-vwp` is published to PyPI via a Trusted Publisher
+  (latest: **`v1.0.0`**); `pip install dorian-vwp` installs the released package.
 
 Non-goals stay non-goals: no servers, no dashboards, no hosted control plane, no model at check time.
 Local-first is the design center.
