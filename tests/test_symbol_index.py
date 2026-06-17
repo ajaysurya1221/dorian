@@ -280,6 +280,41 @@ def test_non_git_repo_yields_no_watch(tmp_path: Path) -> None:
     assert symbol_index.claim_symbol_watch_paths(tmp_path, [claim]) == {}
 
 
+def test_pyproject_script_definers_non_git_yields_empty(tmp_path: Path) -> None:
+    # Regression (CodeRabbit/Codex): pyproject_script_definers reaches gitio.ls_files
+    # for the tracked-file set. In a non-git checkout that raises GitError; the function
+    # must degrade to {} (its documented "no scripts / malformed -> {}" contract), not
+    # blow up — even when a precomputed `definers` map is passed.
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "x"\nversion = "0"\n[project.scripts]\nmycli = "app:main"\n'
+    )
+    (tmp_path / "app.py").write_text("def main():\n    return 0\n")
+    assert symbol_index.pyproject_script_definers(tmp_path, {"main": ("app.py",)}) == {}
+
+
+def test_non_git_with_scripts_and_precomputed_definers_yields_no_watch(tmp_path: Path) -> None:
+    # The "non-git yields {}" promise of claim_symbol_watch_paths held only when definers
+    # were derived internally (the GitError there was caught). With a PRECOMPUTED definers
+    # map (the index-once verify path) plus a [project.scripts] table, control reached the
+    # unguarded ls_files inside pyproject_script_definers and raised. Must still yield {}.
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "x"\nversion = "0"\n[project.scripts]\nmycli = "app:main"\n'
+    )
+    (tmp_path / "app.py").write_text("def main():\n    return 0\n")
+    claim = Claim(
+        id="c",
+        text="`main` is the entry point",
+        kind="reference",
+        load_bearing=False,
+        checkers=(CheckerSpec(type="C3", program="symbol:app.py::main"),),
+    )
+    # No raise, and the symbol-definer binding (main -> app.py, from the precomputed map) is
+    # PRESERVED; only the git-dependent script-target resolution degrades to nothing.
+    assert symbol_index.claim_symbol_watch_paths(
+        tmp_path, [claim], definers={"main": ("app.py",)}
+    ) == {"c": ("app.py",)}
+
+
 # --- Acceptance A/B with a C4 pytest checker that EXERCISES the symbol ------------------
 # The checker is bound only to tests/test_auth.py and never names src/auth.py, so without
 # the symbol-definer binding a rename of verify_token in src/auth.py is silent. Because the

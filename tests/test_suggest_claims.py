@@ -89,3 +89,35 @@ def test_suggest_claims_rejects_non_python(tmp_path):
     write(repo, "data.txt", "hello\n")
     commit_all(repo, "txt")
     assert cli.main(["--repo", str(repo), "suggest-claims", "data.txt"]) != 0
+
+
+def test_suggest_claims_handles_pep263_non_utf8(tmp_path, capsys):
+    """Valid PEP 263 (non-UTF8) Python must be parsed via its encoding cookie, not
+    rejected by a hardcoded UTF-8 read. Latin-1 source with a 0xE9 byte in a comment;
+    ASCII def + ASCII constant so the run-and-keep-green checkers still pass."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git(repo, "init", "-q", "-b", "main")
+    src = (
+        "# -*- coding: latin-1 -*-\n# r\xe9sum\xe9\n"
+        "TIMEOUT = 30\n\n\ndef handler():\n    return 200\n"
+    )
+    (repo / "mod.py").write_bytes(src.encode("latin-1"))
+    commit_all(repo, "latin-1 module")
+    capsys.readouterr()
+    assert cli.main(["--repo", str(repo), "suggest-claims", "mod.py"]) == 0  # must not raise
+    frag = json.loads(capsys.readouterr().out)
+    progs = {ck["program"] for c in frag["claims"] for ck in c["checkers"]}
+    assert "symbol:mod.py::handler" in progs
+    assert "py-const:mod.py::TIMEOUT::30" in progs
+
+
+def test_suggest_claims_unsupported_codec_is_clear_usage_error(tmp_path):
+    """A file declaring an unknown codec is rejected with a usage error (exit != 0),
+    not an unhandled traceback."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git(repo, "init", "-q", "-b", "main")
+    (repo / "bad.py").write_bytes(b"# -*- coding: not-a-real-codec -*-\nX = 1\n")
+    commit_all(repo, "bad codec")
+    assert cli.main(["--repo", str(repo), "suggest-claims", "bad.py"]) != 0

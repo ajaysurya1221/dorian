@@ -68,6 +68,9 @@ _STALE_PREPYPI_PHRASES = (
     "first PyPI release is on the roadmap",
     "after the first PyPI release",
     "until the first PyPI release",
+    # the v1.0.1 audit (Codex FINDING-09) found this narrower variant slipped past the
+    # "first PyPI release" family — the README Action snippet said "until the PyPI release".
+    "until the PyPI release",
 )
 _STALE_RC_LITERAL = "v1.0.0rc2"
 
@@ -84,3 +87,26 @@ def test_no_stale_prepypi_or_rc_vocabulary_in_live_docs() -> None:
             if _STALE_RC_LITERAL in line:
                 offenders.append(f"{rel}:{lineno}: {_STALE_RC_LITERAL!r} -> {line.strip()}")
     assert not offenders, "stale pre-PyPI / rc2 vocabulary in live docs:\n" + "\n".join(offenders)
+
+
+# Public copy-paste must pin the dorian Action to an immutable released ref, never the
+# mutable @main (Codex FINDING-02). The composite Action lives in this same repo, so a
+# README/action-doc snippet telling users `dorian/action@main` ships a moving target.
+def test_no_dorian_action_at_main_in_public_snippets() -> None:
+    offenders: list[str] = []
+    for rel in ("README.md", "action/README.md"):
+        text = (REPO_ROOT / rel).read_text(encoding="utf-8")
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if "dorian/action@main" in line:
+                offenders.append(f"{rel}:{lineno}: {line.strip()}")
+    assert not offenders, "mutable dorian/action@main in public copy-paste:\n" + "\n".join(
+        offenders
+    )
+
+
+# The attestation-interop example must not pin a fixed dorianVersion (Codex FINDING-07): a
+# hardcoded "1.0.x" silently drifts every release. It is kept version-neutral instead.
+def test_attestation_interop_dorian_version_is_version_neutral() -> None:
+    text = (REPO_ROOT / "docs/ATTESTATION_INTEROP.md").read_text(encoding="utf-8")
+    stale = re.findall(r'"dorianVersion":\s*"\d[^"]*"', text)
+    assert not stale, f"hardcoded dorianVersion in attestation-interop example: {stale}"

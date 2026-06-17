@@ -60,8 +60,11 @@ def suggest(repo: Path, path: str) -> dict[str, Any]:
     if not p.is_file():
         raise ValueError(f"missing file: {path}")
     try:
-        tree = ast.parse(p.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, SyntaxError) as exc:
+        # Parse bytes so the file's own PEP 263 encoding cookie is honored (valid
+        # non-UTF8 Python is accepted; an unknown/declared-wrong codec surfaces as a
+        # SyntaxError and is reported as a usage error, not an unhandled traceback).
+        tree = ast.parse(p.read_bytes())
+    except (OSError, ValueError, SyntaxError) as exc:
         raise ValueError(f"unparseable python: {path}: {exc}") from None
 
     try:

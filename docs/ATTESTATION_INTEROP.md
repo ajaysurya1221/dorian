@@ -34,7 +34,7 @@ choice.
   "predicate": {
     "warrantId": "sha256:...",
     "specVersion": "...",
-    "dorianVersion": "1.0.0",
+    "dorianVersion": "<current dorian version>",
     "gitRef": "<commit at seal>",
     "sealedAt": "<RFC3339>",
     "bornVerifiable": true,
