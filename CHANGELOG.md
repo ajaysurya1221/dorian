@@ -4,6 +4,20 @@ All notable changes to dorian (`dorian-vwp`) are recorded here. Full per-release
 [`docs/releases/`](docs/releases/). The warrant format, checker grammar, exit codes, and trust
 semantics have been stable since 1.0.0.
 
+## [1.1.1] — 2026-06-19
+
+Golden-path polish. **No breaking changes** (a scaffold default only; verification, warrant format,
+checker grammar, exit codes, and trust semantics are unchanged).
+
+### Changed
+- **`dorian init`'s starter claim is now load-bearing.** Previously it sealed as a non-load-bearing
+  claim, so a later break folded the warrant to DEGRADED (exit 3) — which the scaffolded
+  `fail_on: revoked` Action does not block on, letting a first broken promise silently ship. The
+  starter is now load-bearing, so breaking it folds to **REVOKED (exit 4)** and the default Action
+  **blocks the PR** — the golden path now demonstrates the gate it advertises. This also matches the
+  scaffolded change note, which already described these as "load-bearing facts." Sealing is
+  unaffected (the starter still seals green on a fresh `dorian verify`).
+
 ## [1.1.0] — 2026-06-18
 
 Productization release — easier first run, clearer PR output, cleaner package. **No breaking
