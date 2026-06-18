@@ -31,3 +31,7 @@ research_packets/
 codex_validation/
 .bench/
 .release/
+
+# editor / cloud-sync duplicate artifacts (e.g. "suggestclaims 2.py"); never tracked or shipped
+* 2.py
+* 2.md

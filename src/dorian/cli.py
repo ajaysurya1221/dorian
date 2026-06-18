@@ -1,5 +1,5 @@
-"""dorian CLI: capture | seal | verify | status | blast | bindings | revalidate |
-report | suggest-data-checks | suggest-claims | sync | export | bench.
+"""dorian CLI: init | capture | seal | verify | status | blast | bindings |
+revalidate | report | suggest-data-checks | suggest-claims | sync | export | bench.
 
 Exit codes: 0 ok/TRUSTED · 2 usage/infra · 3 DEGRADED · 4 REVOKED/integrity ·
 5 ERRORED-only · 6 scope violation (ring 1).
@@ -50,6 +50,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--repo", default=".", help="repository root (default: .)")
     p.add_argument("--json", action="store_true", help="machine-readable output")
     sub = p.add_subparsers(dest="command", required=True)
+
+    ini = sub.add_parser(
+        "init",
+        help="scaffold a starter claims.json, change note, and GitHub Action workflow",
+        description="Scaffold a born-verifiable starter setup so a first run reaches a"
+        " sealed warrant in minutes: a starter claims.json, the change note it backs, and"
+        " a GitHub Action workflow that re-checks the claims on every pull request. Writes"
+        " files only — never runs a checker or executes code, never writes outside the repo,"
+        " and never overwrites an existing file without --force. Use the global --json for a"
+        " machine-readable summary.",
+    )
+    ini.add_argument(
+        "--force", action="store_true", help="overwrite existing files (default: skip them)"
+    )
+    ini.add_argument("--dry-run", action="store_true", help="print the plan; write nothing")
 
     cap = sub.add_parser("capture", help="build a read-set from a run")
     cap.add_argument("--transcript", help="Claude Code session .jsonl")
