@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dorian-vwp"
-version = "1.0.2"
+version = "1.1.0"
 description = "Hold AI agents to what they said they did: deterministic, token-free verification of claims about a change."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,6 +30,9 @@ dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.8", "pyyaml>=6"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dorian"]
+# defense in depth: never package editor/cloud-sync duplicate artifacts ("foo 2.py"),
+# even from a dirty working tree (they are also git-ignored, so never tracked)
+exclude = ["**/* 2.py"]
 
 [tool.ruff]
 line-length = 100

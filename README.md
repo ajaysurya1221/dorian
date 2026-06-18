@@ -347,7 +347,17 @@ pip install 'dorian-vwp[data] @ git+https://github.com/ajaysurya1221/dorian.git'
 pip install 'dorian-vwp[extract] @ git+https://github.com/ajaysurya1221/dorian.git'  # + anthropic for LLM claim drafting (frozen/experimental)
 ```
 
-Then run `dorian verify <artifact> --claims claims.json` on one change. For CI, add the composite
+The fastest start is `dorian init`, which scaffolds a born-verifiable starter `claims.json`, the
+change note it backs, and a GitHub Action workflow — so the very first `dorian verify` seals green:
+
+```bash
+cd your-repo
+dorian init                                                # writes claims.json + change note + .github/workflows/dorian.yml
+dorian verify dorian-change-note.md --claims claims.json   # seals the warrant — exit 0
+```
+
+Edit `claims.json` for the real facts your change depends on (add code claims with
+`dorian suggest-claims <module.py>`), then commit `dorian-change-note.md.warrant`. For CI, add the composite
 [GitHub Action](action/README.md) — it revalidates the claims a pull request touches and posts a
 sticky PR comment. **Read its
 [security notes](action/README.md#security-checker-execution-and-untrusted-pull-requests) first:**
@@ -371,7 +381,7 @@ jobs:
         with:
           fetch-depth: 0             # revalidate diffs against the PR base sha
           persist-credentials: false # the Action only reads the diff + posts via GITHUB_TOKEN
-      - uses: ajaysurya1221/dorian/action@v1.0.2
+      - uses: ajaysurya1221/dorian/action@v1.1.0
         with:
           fail_on: revoked
           # install defaults to the published PyPI package (dorian-vwp); pin a
@@ -409,6 +419,10 @@ The core loop is `verify` (auto-capture the read-set, run every checker, seal th
 `revalidate` (re-check only what changed). `capture` + `seal` are the lower-level path for C1 span
 claims.
 
+- `dorian init [--force] [--dry-run]` — first-run scaffolding: writes a born-verifiable starter
+  `claims.json`, the change note it backs, and a `.github/workflows/dorian.yml` Action workflow.
+  Writes files only (never runs a checker or executes code), stays inside the repo, and skips
+  existing files unless `--force`. The global `--json` prints a machine-readable plan.
 - `dorian verify <artifact> --claims claims.json` — the one-shot agent-claims entry point:
   auto-derive the read-set from each C3/C4/C5 checker, then seal (born-verifiable). C1 span claims
   use `dorian capture` + `dorian seal` instead.
@@ -510,7 +524,7 @@ work perishable, so you find out when it expired.
   **reproducible on those frozen SHAs only** — not a real-world performance claim; the trigger and
   truth layers are reported separately.
 - **PyPI trusted publishing** — `dorian-vwp` is published to PyPI via a Trusted Publisher
-  (latest: **`v1.0.2`**); `pip install dorian-vwp` installs the released package.
+  (latest: **`v1.1.0`**); `pip install dorian-vwp` installs the released package.
 
 Non-goals stay non-goals: no servers, no dashboards, no hosted control plane, no model at check time.
 Local-first is the design center.
