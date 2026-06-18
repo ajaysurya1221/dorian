@@ -164,6 +164,16 @@ def test_mixed_run_markdown(fixture_repo: Path) -> None:
     assert "- `c0`: no checker registered for C9" in md
     assert md.count("BROKEN") == 2
 
+    # explicit allow/block verdict, scannable at the top
+    assert "**Status:** Blocked — 2 broken claim(s)" in md
+    # aggregate trust-outcome counts (folds record only the warrants that changed)
+    assert "| REVOKED | 1 |" in md
+    assert "| UNKNOWN | 1 |" in md
+    # each artifact section names the sidecar its claims were sealed into
+    assert "_sealed in `docs/design.md.warrant`_" in md
+    # verdict-keyed remediation tells the reviewer what to do next
+    assert "**What to do:**" in md
+
     # fold transitions labeled by artifact uri (PR readers know paths, not warrant ids)
     assert "- `docs/design.md`: WARRANTED -> REVOKED" in md
     assert "- `docs/g.md`: WARRANTED -> UNKNOWN" in md

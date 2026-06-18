@@ -380,6 +380,22 @@ _EXIT_MEANINGS = {
     EXIT_ERRORED: "checker errors only (infra, not failures)",
 }
 
+# Verdict-keyed "what to do next" guidance for the PR comment. Lowercase "broken"
+# deliberately (the uppercase BROKEN token is reserved for verdict cells). ERROR is
+# never a failure, so its guidance says so explicitly.
+_REMEDIATION = {
+    EXIT_REVOKED: "A load-bearing claim is broken, so a touched warrant is REVOKED. Fix the"
+    " change so the claim holds again, update the claim to match the new intent, or supersede"
+    " the warrant with reviewer approval.",
+    EXIT_DEGRADED: "A non-load-bearing claim is broken (DEGRADED) — not blocking by default."
+    " Address or update the broken claim.",
+    EXIT_ERRORED: "A checker could not run (ERROR is not a failure). Fix the checker or its"
+    " environment and re-run — ERROR never silently passes the gate.",
+}
+
+# Aggregate trust-outcome ordering for the counts table (most severe first).
+_TRUST_ORDER = ["REVOKED", "DEGRADED", "TRUSTED", "WARRANTED", "UNKNOWN", "SUPERSEDED"]
+
 
 def _md_cell(text: str) -> str:
     """One markdown detail cell: bound content carryover, escape pipes, flatten
@@ -403,6 +419,34 @@ def render_md(result: RevalResult) -> str:
     else:
         lines.append("### dorian: warranted claims re-checked; none broken")
 
+    # explicit allow/block verdict, scannable above the per-claim detail
+    if result.broken:
+        lines.append(f"**Status:** Blocked — {len(result.broken)} broken claim(s)")
+    elif result.errored:
+        lines.append(
+            f"**Status:** Errored — {len(result.errored)} checker(s) could not run (not a verdict)"
+        )
+    else:
+        lines.append("**Status:** Passed — warranted claims re-checked; none broken")
+
+    # aggregate trust outcomes this change produced (folds record only changes)
+    if result.folds:
+        tally: dict[str, int] = {}
+        for _old, new in result.folds.values():
+            tally[new] = tally.get(new, 0) + 1
+        states = [s for s in _TRUST_ORDER if s in tally] + sorted(
+            s for s in tally if s not in _TRUST_ORDER
+        )
+        lines += [
+            "",
+            "Trust changes from this change:",
+            "",
+            "| trust state | warrants |",
+            "| --- | ---: |",
+        ]
+        for s in states:
+            lines.append(f"| {s} | {tally[s]} |")
+
     rows: dict[str, list[tuple[str, str, str]]] = {}
     for verdict, recs in (
         ("BROKEN", result.broken),
@@ -418,6 +462,8 @@ def render_md(result: RevalResult) -> str:
     for wid in sorted(rows.keys() | errors.keys()):
         label = result.artifacts.get(wid, wid[:23])
         lines += ["", f"#### `{label}`"]
+        if wid in result.artifacts:  # the sidecar these claims were sealed into
+            lines.append(f"_sealed in `{result.artifacts[wid]}.warrant`_")
         if wid in rows:
             lines += ["", "| claim | verdict | why |", "| --- | --- | --- |"]
             for cid, verdict, detail in rows[wid]:
@@ -439,6 +485,10 @@ def render_md(result: RevalResult) -> str:
         lines += ["", "Checker-source notes (trusted-base mode):"]
         for note in result.notes:
             lines.append(f"- {_md_cell(note)}")
+
+    tip = _REMEDIATION.get(result.exit_code)
+    if tip:
+        lines += ["", f"**What to do:** {tip}"]
 
     checks = sum(map(len, (result.broken, result.relocated, result.errored, result.passed)))
     meaning = _EXIT_MEANINGS.get(result.exit_code, "unknown")
