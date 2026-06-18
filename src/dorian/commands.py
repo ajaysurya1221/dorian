@@ -28,6 +28,7 @@ from dorian import (
     claims_io,
     datachecks,
     gitio,
+    init,
     intoto,
     store,
     strength,
@@ -879,6 +880,60 @@ def cmd_suggest_claims(args: argparse.Namespace) -> int:
             )
     print(payload)
     return EXIT_OK
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    """Scaffold a born-verifiable starter setup (claims.json, change note,
+    GitHub Action workflow) so a first run reaches a sealed warrant in minutes.
+    Writes files only — never runs a checker, never executes code, never writes
+    outside the repo, never overwrites without --force. Re-running is idempotent:
+    existing files are left untouched. Path/permission problems are usage errors."""
+    repo = _repo(args)
+    if _missing_repo(repo, "init"):
+        return EXIT_USAGE
+    try:
+        plan = init.build_plan(repo)
+        result = init.apply(plan, force=args.force, dry_run=args.dry_run)
+    except (ValueError, OSError) as exc:
+        print(f"dorian init: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "repo": str(repo),
+                    "dry_run": args.dry_run,
+                    "created": list(result.created),
+                    "overwritten": list(result.overwritten),
+                    "skipped": list(result.skipped),
+                    "warnings": list(result.warnings),
+                    "next_steps": list(init.NEXT_STEPS),
+                },
+                indent=2,
+            )
+        )
+    else:
+        _print_init_summary(plan, result, dry_run=args.dry_run)
+    return EXIT_OK
+
+
+def _print_init_summary(plan, result, *, dry_run: bool) -> None:
+    blurbs = {f.path: f.blurb for f in plan.files}
+    header = "dorian init --dry-run (no files written)" if dry_run else "dorian initialized."
+    print(header)
+    written = list(result.created) + list(result.overwritten)
+    if written:
+        print("\nWould create:" if dry_run else "\nWrote:")
+        width = max(len(p) for p in written)
+        for p in written:
+            print(f"  {p.ljust(width)}  {blurbs.get(p, '')}")
+    if result.skipped:
+        print("\nSkipped (already present — use --force to overwrite):")
+        for p in result.skipped:
+            print(f"  {p}")
+    print("\nNext:")
+    for i, step in enumerate(init.NEXT_STEPS, 1):
+        print(f"  {i}. {step}")
 
 
 def cmd_sync(args: argparse.Namespace) -> int:
