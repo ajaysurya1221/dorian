@@ -112,7 +112,7 @@ def _starter(repo: Path) -> tuple[dict, str, str]:
             "id": "package-name",
             "text": f'The package name declared in pyproject.toml is "{name}".',
             "kind": "fact",
-            "load_bearing": False,
+            "load_bearing": True,
             "checkers": [{"type": "C3", "program": program}],
         }
         fact = f"The package name declared in `pyproject.toml` (`project.name`) is `{name}`."
@@ -123,7 +123,7 @@ def _starter(repo: Path) -> tuple[dict, str, str]:
         "id": f"{_slug(Path(rel).stem)}-present",
         "text": f"The file {rel} is present.",
         "kind": "fact",
-        "load_bearing": False,
+        "load_bearing": True,
         "checkers": [{"type": "C3", "program": f"path:{rel}"}],
     }
     return claim, f"The file `{rel}` is present.", f"path: {rel} exists"

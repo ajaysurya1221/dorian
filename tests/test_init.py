@@ -169,6 +169,51 @@ def test_init_falls_back_to_path_claim_without_pyproject(tmp_path: Path) -> None
     claim = claims_io.load_claims(repo / init.CLAIMS_FILE)[0]
     programs = [c.program for c in claim.checkers]
     assert any(p.startswith("path:") for p in programs)
+    # the path-fallback starter must also be load-bearing, so breaking it REVOKES
+    # (exit 4, blocks) rather than only DEGRADES — same contract as the config-value path
+    assert claim.load_bearing is True
+
+
+def test_init_starter_claim_is_load_bearing(tmp_path: Path) -> None:
+    """The scaffold exists to demonstrate the gate: its starter claim is
+    load-bearing, so a later break REVOKES (which the default `fail_on: revoked`
+    Action blocks on) rather than only DEGRADES and silently ships."""
+    repo = tmp_path / "repo"
+    _seed_repo(repo)
+    plan = init.build_plan(repo)
+    claim = json.loads(_claims_content(plan))["claims"][0]
+    assert claim["load_bearing"] is True
+
+
+def test_init_scaffold_blocks_a_broken_promise_end_to_end(tmp_path: Path) -> None:
+    """The golden path's payoff: seal the starter claim, break it, and revalidate
+    folds the warrant to REVOKED with exit 4 — the verdict a default-configured
+    Dorian Action blocks the PR on. A non-load-bearing scaffold would only DEGRADE
+    (exit 3) and silently ship under the scaffolded `fail_on: revoked` gate."""
+    repo = tmp_path / "repo"
+    _seed_repo(repo)
+    _git(repo, "init", "-q")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "seed repo")
+
+    assert _dorian("init", repo=repo).returncode == 0
+    assert (
+        _dorian("verify", init.NOTE_FILE, "--claims", init.CLAIMS_FILE, repo=repo).returncode == 0
+    )
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "dorian init + sealed warrant")
+
+    # break the starter config-value claim by renaming the package
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "renamed-app"\nversion = "0.1.0"\n', encoding="utf-8"
+    )
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "rename package — breaks the sealed claim")
+
+    r = _dorian("revalidate", "--since", "HEAD~1", repo=repo)
+    assert r.returncode == 4, f"{r.returncode}\n{r.stdout}\n{r.stderr}"  # REVOKED, not DEGRADED(3)
+    assert "REVOKED" in r.stdout
+    assert "package-name" in r.stdout  # the broken claim is named
 
 
 def _claims_content(plan: init.InitPlan) -> str:
