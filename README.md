@@ -356,8 +356,10 @@ dorian init                                                # writes claims.json 
 dorian verify dorian-change-note.md --claims claims.json   # seals the warrant — exit 0
 ```
 
-Edit `claims.json` for the real facts your change depends on (add code claims with
-`dorian suggest-claims <module.py>`), then commit `dorian-change-note.md.warrant`. For CI, add the composite
+The starter claim is **load-bearing**: if a later change breaks it, `dorian revalidate` folds the
+warrant to **REVOKED** (exit 4) and a default `fail_on: revoked` Action blocks the PR — so the broken
+promise can't silently ship. Edit `claims.json` for the real facts your change depends on (add code
+claims with `dorian suggest-claims <module.py>`), then commit `dorian-change-note.md.warrant`. For CI, add the composite
 [GitHub Action](action/README.md) — it revalidates the claims a pull request touches and posts a
 sticky PR comment. **Read its
 [security notes](action/README.md#security-checker-execution-and-untrusted-pull-requests) first:**
@@ -381,7 +383,7 @@ jobs:
         with:
           fetch-depth: 0             # revalidate diffs against the PR base sha
           persist-credentials: false # the Action only reads the diff + posts via GITHUB_TOKEN
-      - uses: ajaysurya1221/dorian/action@v1.1.0
+      - uses: ajaysurya1221/dorian/action@v1.1.1
         with:
           fail_on: revoked
           # install defaults to the published PyPI package (dorian-vwp); pin a
@@ -524,7 +526,7 @@ work perishable, so you find out when it expired.
   **reproducible on those frozen SHAs only** — not a real-world performance claim; the trigger and
   truth layers are reported separately.
 - **PyPI trusted publishing** — `dorian-vwp` is published to PyPI via a Trusted Publisher
-  (latest: **`v1.1.0`**); `pip install dorian-vwp` installs the released package.
+  (latest: **`v1.1.1`**); `pip install dorian-vwp` installs the released package.
 
 Non-goals stay non-goals: no servers, no dashboards, no hosted control plane, no model at check time.
 Local-first is the design center.
