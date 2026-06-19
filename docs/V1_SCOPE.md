@@ -22,6 +22,10 @@ All additive and backward-compatible; default behavior is unchanged unless you o
   pytest node). Advisory; it never changes a verdict, trust state, or exit code.
 - **Multi-index binding** — config keys in tracked `.toml`/`.json` files now widen a claim's
   re-check trigger set (with provenance in `bind-suggest`). Conservative and trigger-only.
+- **C4 import-aware binding** — a `pytest:` test's statically resolved repo-local imports
+  (stdlib `ast`, read-only — no execution) now widen the behavior claim's re-check trigger set,
+  so an implementation edit re-runs the test even when the claim text names no symbol. Trigger
+  coverage only — the test still decides truth (`dorian bench c4-import-binding`).
 - **Trusted-base checker-source mode** — `revalidate --checker-source base` / Action
   `checker_trust: base` runs only base-approved checker specs, for public/fork PRs.
 - **Warrant-quality harness** — `dorian bench warrant-quality` scores per-claim whether a

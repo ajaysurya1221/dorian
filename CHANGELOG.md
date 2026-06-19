@@ -4,6 +4,33 @@ All notable changes to dorian (`dorian-vwp`) are recorded here. Full per-release
 [`docs/releases/`](docs/releases/). The warrant format, checker grammar, exit codes, and trust
 semantics have been stable since 1.0.0.
 
+## [Unreleased]
+
+C4 import-aware dependency binding. **No breaking changes** (a re-check *trigger* widening only;
+warrant schema, checker grammar, exit codes, fold policy, and security posture are unchanged).
+
+### Added
+- **C4 import-aware binding** (`src/dorian/test_deps.py`). A `pytest:` checker proves behavior *when
+  it runs*, but its sealed watch was only the nodeid's test file — so an edit to the implementation the
+  test imports could be silently skipped at revalidation even though an adequate behavior checker
+  existed (a re-check *trigger* gap, not a truth gap). `dorian verify` and `dorian rebind` now
+  statically parse the test file (stdlib `ast`, read-only — **no import execution, no `sys.path`
+  mutation, no package introspection, no network**) and add the tracked repo-local `.py` files it
+  imports to the claim's watch and auto-captured read-set. A source edit then re-runs the existing C4
+  checker; **the checker still decides truth** (a file change never marks a claim `BROKEN` by itself).
+  Conservative: an import resolving to zero or to more than one tracked file is skipped, not guessed.
+- **`dorian bench c4-import-binding`** — a deterministic, known-truth synthetic suite for the above:
+  the pre-fix test-file-only watcher selects 0% of implementation-only edits, the import-aware watcher
+  100% of direct-import ones, with zero false `BROKEN` from a behavior-preserving edit.
+- **`dorian bind-suggest`** now reports a third provenance, `bind_test_deps` / `bind (test-dep)`, for
+  the implementation files a claim's C4 test imports (content-free; paths only).
+
+### Changed
+- The `bindings` / `--binding-gate` `trigger-only-symbol` diagnostic now treats a C4 test's
+  import-derived watches as **checker-exercised** (the test imports and runs them), so widening a
+  behavior claim's watch never spuriously flags it — and `--binding-gate=fail` does not start refusing
+  good C4 behavior claims.
+
 ## [1.1.1] — 2026-06-19
 
 Golden-path polish. **No breaking changes** (a scaffold default only; verification, warrant format,

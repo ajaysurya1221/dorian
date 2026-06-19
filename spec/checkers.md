@@ -140,9 +140,23 @@ Runs `python -m pytest <nodeid>` (PATH interpreter, stripped env, repo cwd,
 4 FAIL `test_gone` only on the nodeid-gone stderr signatures ("ERROR: file or
 directory not found" / "ERROR: not found:") — any other exit 4 (broken
 conftest, bad ini/plugin, unimportable target file) is ERROR, as are exits
-2/3, timeouts, spawn failures, and a PATH python lacking pytest. Derived
-watch: the nodeid's file part. The file part resolves through the rename log,
-so a renamed test file is not "gone".
+2/3, timeouts, spawn failures, and a PATH python lacking pytest. The file part
+resolves through the rename log, so a renamed test file is not "gone".
+
+**Derived watch (import-aware).** The nodeid's test file, *plus* the repo-local
+implementation files that test statically imports. When a claim is sealed through
+`dorian verify` or `dorian rebind`, dorian parses the test file with the stdlib
+`ast` (read-only — **no import execution, no `sys.path` mutation, no package
+introspection, no network**) and adds the tracked `.py` files its imports resolve
+to (`src/dorian/test_deps.py`). So an edit to the implementation a behavior test
+exercises re-runs that test even when the claim text names no uniquely indexed
+symbol — closing a silent re-check skip. This widens the re-check *trigger* set
+only: the C4 test still decides truth, and an imported file changing never makes a
+claim `BROKEN` by itself (the test does). An import resolving to zero or to more
+than one tracked file (ambiguous) is skipped, not guessed. The plain explicit
+`dorian seal --readset` path keeps its given watch unchanged; run `dorian rebind`
+(or `dorian bind-suggest` to preview) to add the import-derived watches to an
+older warrant. This is not a sandbox — see `docs/SECURITY_BOUNDARY.md`.
 
 ## C5 — data reconciliation
 
