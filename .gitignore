@@ -21,6 +21,7 @@ bench/real/
 .gitnexus/
 
 # internal program/audit working docs — provenance only, never shipped in the release
+/docs/design/C4_IMPORT_BINDING_REPORT.md
 /RESEARCH_REPORT_DORIAN_0_11_0.md
 /V1_IMPLEMENTATION_TRACKER.md
 /V1_ALIGNMENT_REPORT.md

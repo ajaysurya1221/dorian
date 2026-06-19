@@ -34,6 +34,7 @@ from dorian import (
     strength,
     suggestclaims,
     symbol_index,
+    test_deps,
 )
 from dorian.blast import blast_conn
 from dorian.capture.manual import parse_manual
@@ -267,8 +268,14 @@ def cmd_verify(args: argparse.Namespace) -> int:
         except gitio.GitError:
             definers = None
         config_index, unparseable_config = symbol_index.config_key_index(repo)
-        # multi-index binding: Python symbol-definers + pyproject scripts + config keys
-        symbol_watch = symbol_index.claim_watch_paths(repo, claims, definers, config_index)
+        # multi-index binding: Python symbol-definers + pyproject scripts + config keys,
+        # UNIONed with the repo-local implementation files a C4 pytest test statically
+        # imports (test_deps) — so an edit to the code a behavior test exercises re-runs
+        # that C4 checker even when the claim text names no uniquely indexed symbol.
+        symbol_watch = test_deps.merge_watch_maps(
+            symbol_index.claim_watch_paths(repo, claims, definers, config_index),
+            test_deps.c4_dependency_watch_paths(repo, claims),
+        )
         for path in sorted({p for ps in symbol_watch.values() for p in ps}):
             if path not in paths:
                 paths.append(path)
@@ -561,9 +568,10 @@ def cmd_bind_suggest(args: argparse.Namespace) -> int:
     except (ValueError, OSError) as exc:
         print(f"dorian bind-suggest: {exc}", file=sys.stderr)
         return EXIT_USAGE
-    # multi-index binding with provenance: symbol-definer/script vs config-key
+    # multi-index binding with provenance: symbol-definer/script vs config-key vs C4 test-dep
     watch = symbol_index.claim_symbol_watch_paths(repo, claims)
     config_watch = symbol_index.claim_config_watch_paths(repo, claims)
+    test_dep_watch = test_deps.c4_dependency_watch_paths(repo, claims)
     ambiguous = symbol_index.ambiguous_symbol_mentions(repo, claims)
     ambiguous_config = symbol_index.ambiguous_config_mentions(repo, claims)
     _, unparseable_config = symbol_index.config_key_index(repo)
@@ -575,14 +583,16 @@ def cmd_bind_suggest(args: argparse.Namespace) -> int:
             covered = set()  # C1 span / C5 shell: no auto-derivable read-set to compare
         bind = [f for f in watch.get(c.id, ()) if f not in covered]
         bind_config = [f for f in config_watch.get(c.id, ()) if f not in covered]
+        bind_test_deps = [f for f in test_dep_watch.get(c.id, ()) if f not in covered]
         amb = {s: list(files) for s, files in ambiguous.get(c.id, {}).items()}
         amb_cfg = {k: list(files) for k, files in ambiguous_config.get(c.id, {}).items()}
-        if bind or bind_config or amb or amb_cfg:
+        if bind or bind_config or bind_test_deps or amb or amb_cfg:
             suggestions.append(
                 {
                     "claim_id": c.id,
                     "bind": bind,  # symbol-definer / console-script provenance
                     "bind_config": bind_config,  # config-key provenance
+                    "bind_test_deps": bind_test_deps,  # C4 test-import impl-file provenance
                     "ambiguous": amb,
                     "ambiguous_config": amb_cfg,
                 }
@@ -600,6 +610,8 @@ def cmd_bind_suggest(args: argparse.Namespace) -> int:
             print(f"{s['claim_id']}  bind (symbol): {', '.join(s['bind'])}")
         if s["bind_config"]:
             print(f"{s['claim_id']}  bind (config): {', '.join(s['bind_config'])}")
+        if s["bind_test_deps"]:
+            print(f"{s['claim_id']}  bind (test-dep): {', '.join(s['bind_test_deps'])}")
         for sym, files in sorted(s["ambiguous"].items()):
             print(f"{s['claim_id']}  ambiguous symbol: {sym} ({len(files)} definers, unbound)")
         for key, files in sorted(s["ambiguous_config"].items()):
@@ -647,7 +659,10 @@ def cmd_rebind(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return EXIT_USAGE
-    symbol_watch = symbol_index.claim_watch_paths(repo, claims)  # symbol-definer + config-key
+    symbol_watch = test_deps.merge_watch_maps(
+        symbol_index.claim_watch_paths(repo, claims),  # symbol-definer + config-key
+        test_deps.c4_dependency_watch_paths(repo, claims),  # C4 test-import impl files
+    )
     new_paths = {p for ps in symbol_watch.values() for p in ps}
     already_watched = {w for c in claims for spec in c.checkers for w in spec.watch}
     if new_paths <= already_watched:
@@ -793,6 +808,7 @@ _BENCH_DISPATCH: dict[str, tuple[str, bool]] = {
     "mutation": ("bench.controlled_mutation", False),
     "large-mutation": ("bench.large_mutation", False),
     "binding-lifecycle": ("bench.binding_lifecycle", False),
+    "c4-import-binding": ("bench.c4_import_binding", False),
     "realworld-usecases": ("bench.realworld_usecases", False),
     "warrant-quality": ("bench.warrant_quality", False),
     "public-repos": ("bench.public_repos", False),

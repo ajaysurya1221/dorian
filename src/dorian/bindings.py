@@ -125,9 +125,9 @@ def analyze_candidate(
         amb = ambiguous.get(claim.id, {})
         if any(not any(_covered(f, cover) for f in files) for files in amb.values()):
             flags.append("ambiguous-mention")
-        named = _checker_named_files(claim, entry_uris)
+        exercised = _checker_exercised_files(repo, claim, entry_uris)
         if claim.load_bearing and any(
-            w not in named for spec in claim.checkers for w in spec.watch
+            w not in exercised for spec in claim.checkers for w in spec.watch
         ):
             flags.append("trigger-only-symbol")
         mentions: list[dict] = []
@@ -193,10 +193,11 @@ def weak_binding_lines(diags: list[dict]) -> list[str]:
 
 
 def _checker_named_files(claim: Claim, entry_uris: dict[str, str]) -> set[str]:
-    """The files a claim's checker PROGRAMS name (the truth they verify), independent of
-    symbol-definer watch paths added at verify time. A watch path NOT in this set is a
-    re-check TRIGGER that no checker exercises — the binding fix's trigger != truth gap,
-    which the 'trigger-only-symbol' flag surfaces."""
+    """The files a claim's checker PROGRAMS literally name (the truth they verify),
+    independent of symbol-definer watch paths added at verify time. This is the narrow,
+    pre-binding-fix watch surface — the bench's ``checker_path_watcher`` ablation depends
+    on it staying narrow, so C4 test-import deps are NOT added here (they live in
+    ``_checker_exercised_files``)."""
     # lazy: reuse seal's canonical C3 file-operand form set and C5 path grammar
     from dorian.seal import _C3_FILE_OPERAND_FORMS, _c5_data_paths
 
@@ -217,6 +218,24 @@ def _checker_named_files(claim: Claim, entry_uris: dict[str, str]) -> set[str]:
             # gets a spurious 'trigger-only-symbol' flag).
             named.update(_c5_data_paths(prefix, rest) or spec.watch)
     return {f for f in named if f}
+
+
+def _checker_exercised_files(repo: Path, claim: Claim, entry_uris: dict[str, str]) -> set[str]:
+    """The files a claim's checkers actually EXERCISE when they run: the checker-named
+    files PLUS, for each C4 ``pytest:`` checker, the repo-local implementation files its
+    test statically imports. A watch path NOT in this set is a re-check TRIGGER that no
+    checker exercises — the binding fix's trigger != truth gap the 'trigger-only-symbol'
+    flag surfaces. Adding C4 import-deps here keeps import-aware C4 binding from spuriously
+    flagging a good behavior claim (and so from tripping --binding-gate=fail): a test
+    IMPORTS and runs the files it depends on, so those widened watches are exercised."""
+    from dorian import test_deps  # lazy: cycle-safe module load (cached); the cost is gated below
+
+    exercised = _checker_named_files(claim, entry_uris)
+    for spec in claim.checkers:
+        test_file = test_deps._c4_test_file(spec)
+        if test_file:
+            exercised.update(test_deps.python_import_dependencies(repo, test_file))
+    return exercised
 
 
 def _backtick_binds(tok: str) -> bool:

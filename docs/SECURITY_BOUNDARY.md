@@ -25,6 +25,11 @@ the deny-exec gate and these docs both derive from it.
 - Strips the environment of executed checkers to a small allowlist
   (`PATH`, `HOME`, `LANG`, `LC_ALL`) so secrets in other env vars do not leak in.
 - Confines checker file references to the repo root (path-escape attempts ERROR).
+- Resolves a C4 test's import dependencies **statically** at seal/rebind time
+  (stdlib `ast` over tracked `.py` files only): it parses source to widen the
+  re-check watch set — it never imports application modules, executes setup code,
+  mutates `sys.path`, inspects installed packages, or reaches the network, and an
+  unresolvable/untracked/ambiguous import simply adds nothing (`src/dorian/test_deps.py`).
 - Bounds C3 `regex:` patterns to 500 chars, compile-guards them, and runs the
   match in a worker process killed at `timeout_s` so catastrophic backtracking
   cannot stall the run (ERROR `regex_timeout`).

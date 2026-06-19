@@ -234,6 +234,18 @@ closes a silent-skip gap, but it is the honest half of the story: **binding wide
 re-checked; the checker still decides whether it's true.** A watched file changing never makes a claim
 `BROKEN` by itself.
 
+The same trigger-coverage idea extends to behavior claims backed by a `pytest:` test. A C4 test proves
+behavior *when it runs*, but its sealed watch used to be only the test file — so an edit to the
+implementation the test imports could be silently skipped. `dorian` now statically parses the test
+file (stdlib `ast`, read-only — no import execution, no `sys.path` mutation) and also watches the
+repo-local files it imports, so a source edit re-runs the existing test even when the claim text names
+no uniquely indexed symbol. It is the same honest split: **the test still decides truth; an imported
+file changing only triggers the re-check.** Ambiguity is skipped, not guessed, and it is **not** a
+sandbox. The `dorian bench c4-import-binding` suite measures it: the pre-fix test-file-only watcher
+selects **0%** of implementation-only edits, the import-aware watcher **100%** of direct-import ones,
+with zero false `BROKEN` from a behavior-preserving edit (the verdict tracks the test, not the file
+change).
+
 The binding-lifecycle benchmark measures exactly that split over **808 (artifact, mutation) pairs**
 across 63 invented domains, with two mechanically-frozen labels per edit — *should re-check* and
 *should alarm*:
@@ -442,15 +454,16 @@ claims.
   `behavior` claim backed only by an existence checker, a vacuous pytest node). Informational, never a
   gate; output carries file paths only, never matched content.
 - `dorian bind-suggest --claims claims.json` — read-only preview of the files `verify` would auto-bind
-  for each claim, **with provenance** (symbol-definer vs config-key), the ambiguous symbols/keys it
-  would skip, and any unparseable config file. Writes nothing, never a gate.
+  for each claim, **with provenance** (symbol-definer, config-key, and C4 test-import dependency), the
+  ambiguous symbols/keys it would skip, and any unparseable config file. Writes nothing, never a gate.
 - `dorian revalidate --checker-source base` (also Action `checker_trust: base`; default `head`) —
   resolve each claim's checker spec from the `--since` base ref so a PR-added or PR-modified executable
   checker is never executed (public/fork PRs). Fail-closed, **not a sandbox** — pair with `--deny-exec`.
-- `dorian rebind <artifact>` — re-derive a warrant's symbol-definer watches with the current binding
-  logic and re-seal it (born-verifiable, superseding the old id), so a warrant sealed before the symbol
-  index existed gains the wider watches. The watch only ever widens; a claim that has since become false
-  refuses the re-seal (exit 4) rather than being laundered into a fresh trusted state.
+- `dorian rebind <artifact>` — re-derive a warrant's symbol-definer **and C4 test-import** watches with
+  the current binding logic and re-seal it (born-verifiable, superseding the old id), so a warrant sealed
+  before the symbol index or C4 import binding existed gains the wider watches. The watch only ever
+  widens; a claim that has since become false refuses the re-seal (exit 4) rather than being laundered
+  into a fresh trusted state.
 - `dorian suggest-data-checks <path> [--columns ...] [--out f]` — born-verifiable C5 checker
   suggestions from a data file's current state, for review and pasting into a claim's `checkers` list.
 - `dorian suggest-claims <path.py> [--out f]` — born-verifiable C3 claim suggestions (`symbol:` for
@@ -514,10 +527,13 @@ work perishable, so you find out when it expired.
   daily and recording more of the breaks it catches that would otherwise have shipped.
 - **The binding gap, narrowed and measured** — a symbol→defining-file index now re-checks a claim
   when its symbol's definer changes, closing the silent-skip *trigger* gap
-  ([`docs/BENCHMARK_BINDING_LIFECYCLE.md`](docs/BENCHMARK_BINDING_LIFECYCLE.md)). What remains is the
-  honest ceiling: a definer change triggers a re-check, but only a behavior checker proves a behavior
-  change (the gutted-body case), and ambiguous or non-Python symbols are still left for explicit
-  binding ([`docs/NEXT_ALGORITHMIC_BETS.md`](docs/NEXT_ALGORITHMIC_BETS.md)).
+  ([`docs/BENCHMARK_BINDING_LIFECYCLE.md`](docs/BENCHMARK_BINDING_LIFECYCLE.md)). C4 behavior claims
+  get the same treatment: `dorian` statically resolves the repo-local files a `pytest:` test imports
+  and watches them too, so an implementation edit re-runs the test even when the claim text names no
+  symbol (`dorian bench c4-import-binding`). What remains is the honest ceiling: a trigger fires the
+  re-check, but only the behavior checker proves a behavior change (the gutted-body case), and
+  ambiguous or non-Python imports are still left for explicit binding
+  ([`docs/NEXT_ALGORITHMIC_BETS.md`](docs/NEXT_ALGORITHMIC_BETS.md)).
 - **A public benchmark on real repositories** — the `dorian bench public-repos` harness now runs
   **machine-derived** structural claims (operands extracted from source; known-truth observed by
   running the checker on the mutated copy) against frozen public-repo SHAs. Two subjects
