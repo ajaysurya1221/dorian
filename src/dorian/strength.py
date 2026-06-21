@@ -60,8 +60,23 @@ _C3_STRENGTH = {
     "config-value": "structural",
 }
 
-# claim kinds and the WEAK strengths that under-verify them
-_WEAK_FOR_BEHAVIOR = {"existence", "raw_text", "semantic_text", "snapshot", "data"}
+# claim kinds and the WEAK strengths that under-verify them. `shell_executable` is
+# OPAQUE — dorian cannot see whether the command actually proves behavior — so it is
+# treated as too weak for a behavior claim, never silently adequate. It ranks BELOW
+# existence (`_RANK`), so omitting it would let the weakest backing pass the lint a
+# stronger existence backing trips: a truth-axis inversion.
+_WEAK_FOR_BEHAVIOR = {
+    "shell_executable",
+    "existence",
+    "raw_text",
+    "semantic_text",
+    "snapshot",
+    "data",
+}
+# strengths too weak to verify a quantity's VALUE: existence proves the file/symbol is
+# present, an opaque shell cannot be introspected — neither pins a value. raw_text and
+# up (anchored regex, py-const, config-value, typed C5) can.
+_WEAK_FOR_QUANTITY = {"existence", "shell_executable"}
 
 
 def checker_strength(spec: CheckerSpec) -> str:
@@ -150,10 +165,10 @@ def adequacy_notes(repo: Path, claim: Claim) -> list[str]:
             f"adequacy_mismatch: 'behavior' claim backed only by {strongest}"
             " — only a C4 pytest checker proves behavior"
         )
-    if claim.kind == "quantity" and all(checker_strength(s) == "existence" for s in claim.checkers):
+    if claim.kind == "quantity" and claim_strength(claim) in _WEAK_FOR_QUANTITY:
         notes.append(
-            "adequacy_mismatch: 'quantity' claim backed only by an existence checker"
-            " — use py-const:/anchored regex:/typed C5 to verify the value"
+            "adequacy_mismatch: 'quantity' claim backed only by an existence/opaque checker"
+            " — use py-const:/anchored regex:/config-value:/typed C5 to verify the value"
         )
     for spec in claim.checkers:
         if spec.type == "C4":
@@ -176,7 +191,12 @@ def claim_risk(
         if adequacy:
             reasons.append("adequacy_mismatch")
             if claim.load_bearing:
-                level = "high" if strongest in ("existence", "raw_text") else "medium"
+                # existence/raw_text/opaque-shell are the weakest tiers (<= existence in
+                # `_RANK`): a load-bearing claim leaning on them is the clearest false-
+                # confidence case -> high. semantic_text/snapshot/data are weak-but-closer
+                # -> medium (surfaced, not refused).
+                weakest = strongest in ("existence", "raw_text", "shell_executable")
+                level = "high" if weakest else "medium"
     high_binding = {
         "short-literal",
         "ambiguous-mention",
@@ -224,3 +244,18 @@ def summary_line(diags: list[dict]) -> str:
     for d in diags:
         counts[d["risk"]] = counts.get(d["risk"], 0) + 1
     return f"claim-risk: {counts['high']} high, {counts['medium']} medium, {counts['low']} low"
+
+
+def gate_blocking(diags: list[dict]) -> list[dict]:
+    """``analyze`` diagnostics that ``--strength-gate=fail`` refuses on — the TRUTH-axis
+    companion to ``bindings.blocking_findings`` (the trigger axis). A diagnostic blocks
+    iff it is a LOAD-BEARING claim scored ``high`` risk: its strongest checker is too
+    weak to falsify the claim's kind (an ``adequacy_mismatch``), or it has no backing at
+    all (``unbacked``). ``risk == "high"`` already implies ``load_bearing`` (see
+    ``claim_risk``); the explicit check states the invariant. Soft (non-load-bearing)
+    claims and ``medium``/``low`` risk never block.
+
+    Like the binding gate, this NEVER marks a claim false: weak truth backing is false
+    CONFIDENCE, not falsity, so the refusal maps to the seal-refused path (exit 4),
+    never to a trust or claim state."""
+    return [d for d in diags if d["load_bearing"] and d["risk"] == "high"]

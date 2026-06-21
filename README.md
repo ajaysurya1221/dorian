@@ -444,6 +444,21 @@ claims.
   weak-binding review gate: `warn` prints binding diagnostics after a successful seal; `fail`
   refuses the seal (writing nothing, exit 4) when a claim carries a high-risk weak-binding flag.
   It never marks a claim false and never changes trust state; `single-file` is warn-only.
+- `dorian verify … --strength-gate off|warn|fail` (also on `seal`; default `off`) — the **truth-axis**
+  companion to `--binding-gate`. Binding gates *when* a claim re-checks; strength gates *whether* its
+  checker can falsify it. `warn` prints checker-strength/adequacy diagnostics after a successful seal;
+  `fail` refuses the seal (writing nothing, exit 4) when a **load-bearing** claim's checker is too weak
+  to falsify its kind — a `behavior` claim backed only by an existence/text/opaque-shell checker, a
+  `quantity` claim backed only by existence, or an unbacked claim. It never marks a claim false and
+  never changes trust state; non-load-bearing claims and merely-`medium` risk never block.
+  - The two gates are **orthogonal and compose**, one per layer of the protocol (see
+    [Binding is a re-check trigger, not a behavior proof](#binding-is-a-re-check-trigger-not-a-behavior-proof)
+    and [`docs/VALIDATION_HONESTY.md`](docs/VALIDATION_HONESTY.md)): `--binding-gate` is the
+    **trigger/selection** axis (*will a relevant later change re-check this claim?*); `--strength-gate`
+    is the **truth/alarm** axis (*can the checker actually falsify this claim?*). A claim can be
+    perfectly bound yet weakly backed, or strongly backed yet weakly bound — turn on whichever axis
+    your review cares about, or both. Neither ever marks a claim false; both map to seal-refused (exit 4).
+    Copy-paste walkthrough: [`docs/STRENGTH_GATE_DEMO.md`](docs/STRENGTH_GATE_DEMO.md).
 - `dorian blast <path|warrant-id> [--max-depth N]` — downstream warrants reachable through the
   derives graph. When `revalidate` newly breaks a claim, every downstream warrant gets a `recalled`
   event: a flag only — downstream is never re-checked and its states are untouched. Re-seal with

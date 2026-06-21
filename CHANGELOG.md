@@ -6,8 +6,9 @@ semantics have been stable since 1.0.0.
 
 ## [Unreleased]
 
-C4 import-aware dependency binding. **No breaking changes** (a re-check *trigger* widening only;
-warrant schema, checker grammar, exit codes, fold policy, and security posture are unchanged).
+C4 import-aware dependency binding, and the opt-in truth-axis `--strength-gate`. **No breaking
+changes** (both are opt-in or a re-check *trigger* widening only; warrant schema, checker grammar,
+exit codes, fold policy, and security posture are unchanged; default behavior is identical).
 
 ### Added
 - **C4 import-aware binding** (`src/dorian/test_deps.py`). A `pytest:` checker proves behavior *when
@@ -30,6 +31,29 @@ warrant schema, checker grammar, exit codes, fold policy, and security posture a
   import-derived watches as **checker-exercised** (the test imports and runs them), so widening a
   behavior claim's watch never spuriously flags it — and `--binding-gate=fail` does not start refusing
   good C4 behavior claims.
+- **`--strength-gate off|warn|fail`** (on `seal` and `verify`; default `off`) — the **truth-axis**
+  companion to `--binding-gate`. The protocol keeps two questions apart: binding gates *when* a claim
+  re-checks (trigger), strength gates *whether* its checker can falsify it (truth). `strength.py`
+  already classified checker strength and flagged adequacy mismatches, but only *printed* them
+  (advisory); a load-bearing `behavior` claim backed only by an existence check therefore still sealed
+  green — the review's named #1 false-confidence risk. `--strength-gate=warn` surfaces those
+  diagnostics after a successful seal; `--strength-gate=fail` refuses the seal (writing nothing,
+  exit 4, atomic no-write — mirroring `--binding-gate`) when a **load-bearing** claim is high-risk
+  (`behavior` backed only by existence/raw-text/opaque-shell, `quantity` backed only by existence, or
+  unbacked). It never marks a claim false and never touches trust/claim state; non-load-bearing claims
+  and merely-`medium` risk never block; default `off` is byte-identical to prior behavior. The
+  `strength` module stays out of the trust-state fold path (`fold.py`/`revalidate.py`); a regression
+  test pins that invariant.
+
+### Fixed
+- **Truth-strength inversion in the adequacy lint.** A `behavior` claim backed *only* by an opaque
+  C5 `shell:` checker (truth strength `shell_executable`, ranked *below* existence) received **no**
+  `adequacy_mismatch`, because the behavior rule fired only on strengths in `_WEAK_FOR_BEHAVIOR`,
+  which omitted `shell_executable` — so the weakest, un-introspectable backing silently passed a lint
+  that a stronger existence backing tripped. `shell_executable` is now treated as too weak for
+  `behavior` and `quantity` claims (it is opaque: dorian cannot see whether the command proves the
+  claim), and the same fix lets a quantity claim backed only by an opaque shell be flagged. Advisory
+  output only; no verdict, trust state, or exit code changes outside the new opt-in `--strength-gate`.
 
 ## [1.1.1] — 2026-06-19
 
