@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dorian bindings:*)",
+      "Bash(dorian bind-suggest:*)",
+      "Bash(dorian status:*)"
+    ]
+  }
+}

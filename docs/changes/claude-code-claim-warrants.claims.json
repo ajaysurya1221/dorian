@@ -1,0 +1,103 @@
+{
+  "claims": [
+    {
+      "id": "cli-exposes-install-claim-warrants",
+      "text": "The CLI registers the `install-claim-warrants` subcommand.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "regex:src/dorian/cli.py::\"install-claim-warrants\"" }
+      ]
+    },
+    {
+      "id": "cli-handler-exists",
+      "text": "commands.py defines the claude-code command handler.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "symbol:src/dorian/commands.py::cmd_claude_code" }
+      ]
+    },
+    {
+      "id": "skill-template-shipped",
+      "text": "The skill SKILL.md template ships in source package data.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "path:src/dorian/templates/claude_code/dorian-claim-warrants/SKILL.md" }
+      ]
+    },
+    {
+      "id": "hook-handles-stop-hook-active",
+      "text": "The Stop hook template handles stop_hook_active (loop guard).",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "regex:src/dorian/templates/claude_code/hooks/dorian_claim_warrants_stop.py::stop_hook_active" }
+      ]
+    },
+    {
+      "id": "hook-uses-additional-context",
+      "text": "The Stop hook template emits additionalContext (reminder, not block).",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "regex:src/dorian/templates/claude_code/hooks/dorian_claim_warrants_stop.py::additionalContext" }
+      ]
+    },
+    {
+      "id": "docs-hook-reminder-only",
+      "text": "The skill doc states the hook is reminder-only.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "regex:docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md::reminder-only" }
+      ]
+    },
+    {
+      "id": "docs-model-drafts-dorian-verifies",
+      "text": "The skill doc states the model drafts and Dorian proves.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "regex:docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md::The model drafts" }
+      ]
+    },
+    {
+      "id": "docs-not-a-sandbox",
+      "text": "The skill doc states Dorian is not a sandbox.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "regex:docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md::not a sandbox" }
+      ]
+    },
+    {
+      "id": "docs-agent-receipts-comparison",
+      "text": "A docs page compares Dorian claim warrants with Agent Receipts.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "regex:docs/CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md::Agent Receipts" }
+      ]
+    },
+    {
+      "id": "zero-runtime-dependencies",
+      "text": "dorian's core ships zero runtime dependencies.",
+      "kind": "quantity",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "config-value:pyproject.toml:project.dependencies:[]" }
+      ]
+    },
+    {
+      "id": "demo-uses-strength-gate-fail",
+      "text": "The integration's documented verify command uses --strength-gate=fail.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "regex:docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md::strength-gate=fail" }
+      ]
+    }
+  ]
+}

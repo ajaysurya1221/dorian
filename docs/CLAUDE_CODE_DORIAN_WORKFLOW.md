@@ -1,8 +1,15 @@
-# Claude Code + Dorian — turn your agent's summary into receipts
+# Claude Code + Dorian — turn your agent's summary into claim warrants
 
 > A practical workflow for Claude Code / Codex / Cursor users. When the agent finishes a change, it
 > ends with a summary of specific claims. This is how to make the **checkable** subset into deterministic
-> git receipts that fail later if the code drifts — token-free, in a trusted repo.
+> git **claim warrants** (receipts for checkable claims) that fail later if the code drifts — token-free,
+> in a trusted repo.
+
+> **One-command Claude Code setup.** `dorian claude-code install-claim-warrants` scaffolds a
+> `/dorian-claim-warrants` skill (and an opt-in reminder hook) that drafts the change note + `claims.json`
+> for you, then prints the `dorian verify` command. The model drafts; Dorian proves. See
+> [`DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md`](DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md). The manual
+> loop below is the same thing by hand.
 
 ## The loop
 
@@ -62,7 +69,7 @@ dorian status                              # trust state of every warranted arti
 ## GitHub Action
 
 ```yaml
-- uses: ajaysurya1221/dorian/action@v1.2.0
+- uses: ajaysurya1221/dorian/action@v1.3.0
   with:
     fail_on: revoked        # block the PR when a sealed claim breaks
     # for semi-trusted contributors, also: checker_source: base  + deny_exec: true

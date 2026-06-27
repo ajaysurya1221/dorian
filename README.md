@@ -308,6 +308,17 @@ claim, so use the lower-level two-step instead: `dorian capture` to build the re
 
 ## Using dorian with Claude Code
 
+> **One command: `dorian claude-code install-claim-warrants`.** In a trusted repo this scaffolds a
+> project-local Claude Code skill — invoke **`/dorian-claim-warrants`** after a change — that drafts the
+> change note + `claims.json` for the checkable facts your agent claimed, then prints the verify command:
+> `dorian verify docs/changes/<slug>.md --claims docs/changes/<slug>.claims.json --strength-gate=fail
+> --binding-gate=warn`. The **model only drafts; `dorian verify` proves** it deterministically and
+> token-free. Later, `dorian revalidate --since <base>` REVOKEs a claim the code drifted away from. Add
+> `--with-hook` for an opt-in, reminder-only Stop hook. Not a sandbox — trusted repos only. Guide:
+> [`docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md`](docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md)
+> (and how it differs from Agent Receipts:
+> [`docs/CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md`](docs/CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md)).
+
 The intended loop is an agent-in, checker-out handshake: a coding agent writes the change *and* the
 `claims.json` for what it just did, dorian verifies those claims against the real code, and then
 keeps re-checking them on every later commit. Nothing about dorian is Claude-specific — any agent (or
@@ -395,7 +406,7 @@ jobs:
         with:
           fetch-depth: 0             # revalidate diffs against the PR base sha
           persist-credentials: false # the Action only reads the diff + posts via GITHUB_TOKEN
-      - uses: ajaysurya1221/dorian/action@v1.2.0
+      - uses: ajaysurya1221/dorian/action@v1.3.0
         with:
           fail_on: revoked
           # install defaults to the published PyPI package (dorian-vwp); pin a
@@ -437,6 +448,11 @@ claims.
   `claims.json`, the change note it backs, and a `.github/workflows/dorian.yml` Action workflow.
   Writes files only (never runs a checker or executes code), stays inside the repo, and skips
   existing files unless `--force`. The global `--json` prints a machine-readable plan.
+- `dorian claude-code install-claim-warrants [--with-hook] [--dry-run] [--force]` — scaffold a
+  project-local Claude Code skill (`/dorian-claim-warrants`) that drafts a change note + `claims.json`
+  for the checkable facts your agent claimed, plus review-first settings examples and an opt-in,
+  reminder-only Stop hook. The model only drafts; `dorian verify` proves. Writes files only; idempotent.
+  See [`docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md`](docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md).
 - `dorian verify <artifact> --claims claims.json` — the one-shot agent-claims entry point:
   auto-derive the read-set from each C3/C4/C5 checker, then seal (born-verifiable). C1 span claims
   use `dorian capture` + `dorian seal` instead.
@@ -557,7 +573,7 @@ work perishable, so you find out when it expired.
   **reproducible on those frozen SHAs only** — not a real-world performance claim; the trigger and
   truth layers are reported separately.
 - **PyPI trusted publishing** — `dorian-vwp` is published to PyPI via a Trusted Publisher
-  (latest: **`v1.2.0`**); `pip install dorian-vwp` installs the released package.
+  (latest: **`v1.3.0`**); `pip install dorian-vwp` installs the released package.
 
 Non-goals stay non-goals: no servers, no dashboards, no hosted control plane, no model at check time.
 Local-first is the design center.

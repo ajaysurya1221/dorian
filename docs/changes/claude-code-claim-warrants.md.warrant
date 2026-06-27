@@ -1,0 +1,294 @@
+{
+  "spec_version": "0.1",
+  "warrant": {
+    "id": "sha256:009ee3c892d9cbe4da843977b777fead934c6994a759fb68374978e610a62d2c",
+    "artifact": {
+      "uri": "docs/changes/claude-code-claim-warrants.md",
+      "content_hash": "sha256:0ebf93ef602303c13f926de33cc984dda14b83bab09dd7aac82613421cacf71b",
+      "git_ref": "84db0878d04dc4accdd1474e6b62344157ccc9b1"
+    },
+    "produced_by": {
+      "runner": "manual",
+      "captured_at": "2026-06-27T19:24:26.515852+00:00",
+      "run_ref": "",
+      "model": "",
+      "prompt_hash": ""
+    },
+    "read_set": [
+      {
+        "id": "rs-0",
+        "uri": "src/dorian/cli.py",
+        "selector": null,
+        "hash": "sha256:3b4fadcbf3119b33bfab487a9e0692ca3368f8f7354da672068e356a5d52e1ab",
+        "version": "84db0878d04dc4accdd1474e6b62344157ccc9b1",
+        "scope": "project"
+      },
+      {
+        "id": "rs-1",
+        "uri": "src/dorian/commands.py",
+        "selector": null,
+        "hash": "sha256:caca1b5423e8f0002c6752754b91750fa178405b356ba3607b682a7ec074c1b6",
+        "version": "84db0878d04dc4accdd1474e6b62344157ccc9b1",
+        "scope": "project"
+      },
+      {
+        "id": "rs-2",
+        "uri": "src/dorian/templates/claude_code/dorian-claim-warrants/SKILL.md",
+        "selector": null,
+        "hash": "sha256:77a452b85bde24e304f544c2b2a74b8b765955509d6d6119335017c9c7d9c5e4",
+        "version": "84db0878d04dc4accdd1474e6b62344157ccc9b1",
+        "scope": "project"
+      },
+      {
+        "id": "rs-3",
+        "uri": "src/dorian/templates/claude_code/hooks/dorian_claim_warrants_stop.py",
+        "selector": null,
+        "hash": "sha256:84f0aae81d1ffb0ea5da821ec4fa1880aab8e24a2c255a33584ee8282804b872",
+        "version": "84db0878d04dc4accdd1474e6b62344157ccc9b1",
+        "scope": "project"
+      },
+      {
+        "id": "rs-4",
+        "uri": "docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md",
+        "selector": null,
+        "hash": "sha256:58c0b3cdf5d39cfebd1e8ca2e21bf18899d40d76f48778b31592565c05817c27",
+        "version": "84db0878d04dc4accdd1474e6b62344157ccc9b1",
+        "scope": "project"
+      },
+      {
+        "id": "rs-5",
+        "uri": "docs/CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md",
+        "selector": null,
+        "hash": "sha256:0850666e836aa7bf96a2117b83f290c9e5d70fb8f3ef351b71ab2675ff79d0dc",
+        "version": "84db0878d04dc4accdd1474e6b62344157ccc9b1",
+        "scope": "project"
+      },
+      {
+        "id": "rs-6",
+        "uri": "pyproject.toml",
+        "selector": null,
+        "hash": "sha256:2c2ebbbf8a81a09caf84472633a4133c3b96d2cb4a77786f76a55830e2ee3a50",
+        "version": "84db0878d04dc4accdd1474e6b62344157ccc9b1",
+        "scope": "project"
+      }
+    ],
+    "claims": [
+      {
+        "id": "cli-exposes-install-claim-warrants",
+        "text": "The CLI registers the `install-claim-warrants` subcommand.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:src/dorian/cli.py::\"install-claim-warrants\"",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/cli.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "cli-handler-exists",
+        "text": "commands.py defines the claude-code command handler.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "symbol:src/dorian/commands.py::cmd_claude_code",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/commands.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "skill-template-shipped",
+        "text": "The skill SKILL.md template ships in source package data.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "path:src/dorian/templates/claude_code/dorian-claim-warrants/SKILL.md",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/templates/claude_code/dorian-claim-warrants/SKILL.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "hook-handles-stop-hook-active",
+        "text": "The Stop hook template handles stop_hook_active (loop guard).",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:src/dorian/templates/claude_code/hooks/dorian_claim_warrants_stop.py::stop_hook_active",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/templates/claude_code/hooks/dorian_claim_warrants_stop.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "hook-uses-additional-context",
+        "text": "The Stop hook template emits additionalContext (reminder, not block).",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:src/dorian/templates/claude_code/hooks/dorian_claim_warrants_stop.py::additionalContext",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/templates/claude_code/hooks/dorian_claim_warrants_stop.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "docs-hook-reminder-only",
+        "text": "The skill doc states the hook is reminder-only.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md::reminder-only",
+            "expect": "exit:0",
+            "watch": [
+              "docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "docs-model-drafts-dorian-verifies",
+        "text": "The skill doc states the model drafts and Dorian proves.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md::The model drafts",
+            "expect": "exit:0",
+            "watch": [
+              "docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "docs-not-a-sandbox",
+        "text": "The skill doc states Dorian is not a sandbox.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md::not a sandbox",
+            "expect": "exit:0",
+            "watch": [
+              "docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "docs-agent-receipts-comparison",
+        "text": "A docs page compares Dorian claim warrants with Agent Receipts.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:docs/CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md::Agent Receipts",
+            "expect": "exit:0",
+            "watch": [
+              "docs/CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "zero-runtime-dependencies",
+        "text": "dorian's core ships zero runtime dependencies.",
+        "kind": "quantity",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "config-value:pyproject.toml:project.dependencies:[]",
+            "expect": "exit:0",
+            "watch": [
+              "pyproject.toml"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "demo-uses-strength-gate-fail",
+        "text": "The integration's documented verify command uses --strength-gate=fail.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md::strength-gate=fail",
+            "expect": "exit:0",
+            "watch": [
+              "docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      }
+    ],
+    "derives_from": [],
+    "fold_policy": {
+      "revoke_on": "load_bearing_broken",
+      "degrade_on": "any_stale_or_broken"
+    },
+    "sealed_at": "2026-06-27T19:24:26Z",
+    "supersedes": null
+  }
+}
