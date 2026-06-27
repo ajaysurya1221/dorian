@@ -121,3 +121,30 @@ def test_installed_entrypoint_full_verify(installed_dorian: Path, tmp_path: Path
     assert r.returncode == 0, r.stderr
     assert "verified 1/1 claim(s)" in r.stdout
     assert (repo / "note.md.warrant").is_file()
+
+
+def test_installed_scaffolds_claim_warrants_skill(installed_dorian: Path, tmp_path: Path) -> None:
+    """The packaged binary scaffolds the claim-warrants skill from package data —
+    proving the templates ship in the wheel and resolve via importlib.resources."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True, capture_output=True)
+    r = subprocess.run(
+        [
+            str(installed_dorian),
+            "--repo",
+            str(repo),
+            "claude-code",
+            "install-claim-warrants",
+            "--with-hook",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    skill = repo / ".claude/skills/dorian-claim-warrants/SKILL.md"
+    assert skill.is_file()
+    assert (repo / ".claude/hooks/dorian_claim_warrants_stop.py").is_file()
+    text = skill.read_text(encoding="utf-8")
+    for phrase in ("DRAFT", "not a sandbox", "strength-gate=fail"):
+        assert phrase in text
