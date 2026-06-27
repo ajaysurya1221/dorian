@@ -1,0 +1,46 @@
+{
+  "claims": [
+    {
+      "id": "pyproject-version-1-2-0",
+      "text": "dorian-vwp is version 1.2.0 (the version the demo installs).",
+      "kind": "quantity",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "config-value:pyproject.toml:project.version:\"1.2.0\"" }]
+    },
+    {
+      "id": "zero-runtime-dependencies",
+      "text": "dorian's core ships zero runtime dependencies.",
+      "kind": "quantity",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "config-value:pyproject.toml:project.dependencies:[]" }]
+    },
+    {
+      "id": "cli-exposes-revalidate",
+      "text": "The CLI exposes the `revalidate` command the demo's drift step uses.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "regex:src/dorian/cli.py::add_parser\\(\"revalidate\"" }]
+    },
+    {
+      "id": "security-boundary-not-a-sandbox",
+      "text": "SECURITY_BOUNDARY.md states the not-a-sandbox boundary the positioning relies on.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "regex:docs/SECURITY_BOUNDARY.md::Not a sandbox" }]
+    },
+    {
+      "id": "best-use-case-doc-exists",
+      "text": "The best-use-case deliverable exists.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "path:docs/BEST_USE_CASE_2026_06_27.md" }]
+    },
+    {
+      "id": "demo-script-doc-exists",
+      "text": "The demo script deliverable exists.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "path:docs/DEMO_SCRIPT_BEST_USE_CASE.md" }]
+    }
+  ]
+}

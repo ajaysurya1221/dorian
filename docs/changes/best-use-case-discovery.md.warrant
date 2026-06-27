@@ -1,0 +1,192 @@
+{
+  "spec_version": "0.1",
+  "warrant": {
+    "id": "sha256:17b3187f107c8d00f12c18062d0336c78cb6f0aa7c3c684af5fecc474bcd9766",
+    "artifact": {
+      "uri": "docs/changes/best-use-case-discovery.md",
+      "content_hash": "sha256:70ae592528abff9f2a7a52262aea4884c2666d4f9319cce366119c1c5fa13467",
+      "git_ref": "0e99d46ad84acb916fa3dc5b5655602bc878db7f"
+    },
+    "produced_by": {
+      "runner": "manual",
+      "captured_at": "2026-06-27T14:47:21.681741+00:00",
+      "run_ref": "",
+      "model": "",
+      "prompt_hash": ""
+    },
+    "read_set": [
+      {
+        "id": "rs-0",
+        "uri": "pyproject.toml",
+        "selector": null,
+        "hash": "sha256:6a0c7b8ca3cebffe92270fb7f302f4f77ba722db696d435357eacd524249286d",
+        "version": "0e99d46ad84acb916fa3dc5b5655602bc878db7f",
+        "scope": "project"
+      },
+      {
+        "id": "rs-1",
+        "uri": "src/dorian/cli.py",
+        "selector": null,
+        "hash": "sha256:f02d719cf5c318f9b92efc1727e8ed011a54ce7027736bcc701504592179279c",
+        "version": "0e99d46ad84acb916fa3dc5b5655602bc878db7f",
+        "scope": "project"
+      },
+      {
+        "id": "rs-2",
+        "uri": "docs/SECURITY_BOUNDARY.md",
+        "selector": null,
+        "hash": "sha256:b606bcbf87d45f8e4abe3e533946e06890a36e6688270e53c09a7984cc0add74",
+        "version": "0e99d46ad84acb916fa3dc5b5655602bc878db7f",
+        "scope": "project"
+      },
+      {
+        "id": "rs-3",
+        "uri": "docs/BEST_USE_CASE_2026_06_27.md",
+        "selector": null,
+        "hash": "sha256:50b287f6de60804c25df1e15b32aab215d122c1b916f625efd1056085b5c52c6",
+        "version": "0e99d46ad84acb916fa3dc5b5655602bc878db7f",
+        "scope": "project"
+      },
+      {
+        "id": "rs-4",
+        "uri": "docs/DEMO_SCRIPT_BEST_USE_CASE.md",
+        "selector": null,
+        "hash": "sha256:02bd774fb2468b00a79974b453667d728a66f1fb1cb6cdaa722229d05fcffa60",
+        "version": "0e99d46ad84acb916fa3dc5b5655602bc878db7f",
+        "scope": "project"
+      },
+      {
+        "id": "rs-5",
+        "uri": "src/dorian/revalidate.py",
+        "selector": null,
+        "hash": "sha256:3983ca4569cb8eca1f5f718d1a4476e19998c8f192586501d7390b5a18ef627b",
+        "version": "0e99d46ad84acb916fa3dc5b5655602bc878db7f",
+        "scope": "project"
+      }
+    ],
+    "claims": [
+      {
+        "id": "pyproject-version-1-2-0",
+        "text": "dorian-vwp is version 1.2.0 (the version the demo installs).",
+        "kind": "quantity",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "config-value:pyproject.toml:project.version:\"1.2.0\"",
+            "expect": "exit:0",
+            "watch": [
+              "pyproject.toml"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "zero-runtime-dependencies",
+        "text": "dorian's core ships zero runtime dependencies.",
+        "kind": "quantity",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "config-value:pyproject.toml:project.dependencies:[]",
+            "expect": "exit:0",
+            "watch": [
+              "pyproject.toml"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "cli-exposes-revalidate",
+        "text": "The CLI exposes the `revalidate` command the demo's drift step uses.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:src/dorian/cli.py::add_parser\\(\"revalidate\"",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/cli.py",
+              "src/dorian/revalidate.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "security-boundary-not-a-sandbox",
+        "text": "SECURITY_BOUNDARY.md states the not-a-sandbox boundary the positioning relies on.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:docs/SECURITY_BOUNDARY.md::Not a sandbox",
+            "expect": "exit:0",
+            "watch": [
+              "docs/SECURITY_BOUNDARY.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "best-use-case-doc-exists",
+        "text": "The best-use-case deliverable exists.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "path:docs/BEST_USE_CASE_2026_06_27.md",
+            "expect": "exit:0",
+            "watch": [
+              "docs/BEST_USE_CASE_2026_06_27.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "demo-script-doc-exists",
+        "text": "The demo script deliverable exists.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "path:docs/DEMO_SCRIPT_BEST_USE_CASE.md",
+            "expect": "exit:0",
+            "watch": [
+              "docs/DEMO_SCRIPT_BEST_USE_CASE.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      }
+    ],
+    "derives_from": [],
+    "fold_policy": {
+      "revoke_on": "load_bearing_broken",
+      "degrade_on": "any_stale_or_broken"
+    },
+    "sealed_at": "2026-06-27T14:47:21Z",
+    "supersedes": null
+  }
+}
