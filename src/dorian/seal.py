@@ -489,7 +489,10 @@ def seal_artifact(
     if existing is not None and _material(existing.body_dict()) == _material(warrant.body_dict()):
         warrant = existing
     else:
-        tmp_path = sidecar_path.with_name(sidecar_path.name + ".tmp")
+        # per-process temp name so two concurrent seals of the SAME artifact (e.g.
+        # pre-commit + CI + editor-on-save) each promote their own private file via
+        # os.replace, instead of racing on one shared `.tmp` and tearing it
+        tmp_path = sidecar_path.with_name(f"{sidecar_path.name}.{os.getpid()}.tmp")
         warrant.dump(tmp_path)
         os.replace(tmp_path, sidecar_path)
 

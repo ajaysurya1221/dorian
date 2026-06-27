@@ -22,7 +22,9 @@ import csv
 import re
 import sqlite3
 import time
+from datetime import datetime
 from pathlib import Path
+from urllib.parse import quote
 
 from dorian.checkers import registry
 from dorian.checkers.base import CheckContext, CheckResult, Verdict, resolve_path, run_readonly
@@ -176,22 +178,47 @@ def _domain(ctx: CheckContext, rest: str) -> CheckResult:
     )
 
 
+def _parse_iso_date(s: str) -> datetime:
+    """Parse an ISO-8601 date or datetime; raise ValueError on a non-date.
+
+    A `freshness:` claim is about dates, so it must compare *parsed dates*, never raw
+    strings. A non-date value like ``zzzz`` lexicographically sorts ABOVE any real date,
+    so the old string ``max(values) >= bound`` returned a false PASS on garbage data.
+    """
+    return datetime.fromisoformat(s)
+
+
 def _freshness(ctx: CheckContext, rest: str) -> CheckResult:
     uri, column, bound_s = _parts(rest, 3, "freshness")
     m = _FRESHNESS_RE.match(bound_s.strip())
     if not m:
         raise _BadProgram(f"freshness expects '>= <ISO-date>', got {bound_s!r}")
-    bound = m.group(1)
+    try:
+        bound = _parse_iso_date(m.group(1))
+    except ValueError:
+        raise _BadProgram(f"freshness bound is not an ISO date: {m.group(1)!r}") from None
     cols, rows = _load_table(_data_path(ctx, uri))
     if not rows:
         return CheckResult(Verdict.FAIL, detail=f"no_rows: {uri} is empty")
-    values = [str(v).strip() for v in _column(cols, rows, column) if not _is_null(v)]
-    if not values:
+    raw = [str(v).strip() for v in _column(cols, rows, column) if not _is_null(v)]
+    if not raw:
         return CheckResult(Verdict.FAIL, detail=f"no values in column {column}")
-    newest = max(values)
+    parsed: list[datetime] = []
+    for v in raw:
+        try:
+            parsed.append(_parse_iso_date(v))
+        except ValueError:
+            # a non-date value must never decide a date freshness verdict by sorting
+            return CheckResult(Verdict.FAIL, detail=f"non-date value in column {column}: {v!r}")
+    newest = max(parsed)
     if newest >= bound:
-        return CheckResult(Verdict.PASS, detail=f"max({column})={newest} >= {bound}")
-    return CheckResult(Verdict.FAIL, detail=f"max({column}) observed={newest} expected >= {bound}")
+        return CheckResult(
+            Verdict.PASS, detail=f"max({column})={newest.isoformat()} >= {bound.isoformat()}"
+        )
+    return CheckResult(
+        Verdict.FAIL,
+        detail=f"max({column}) observed={newest.isoformat()} expected >= {bound.isoformat()}",
+    )
 
 
 def _snapshot(ctx: CheckContext, rest: str) -> CheckResult:
@@ -242,7 +269,9 @@ def _reconcile_side(ctx: CheckContext, side: str) -> int:
         if not sep or not query.strip():
             raise _BadProgram(f"sqlite side expects '<db-path>::<SELECT query>', got {side!r}")
         path = _data_path(ctx, db_uri)
-        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        # percent-encode the path: an in-repo file whose NAME contains a URI query
+        # (e.g. `a?mode=rwc`) must not be able to inject params that override mode=ro
+        con = sqlite3.connect(f"file:{quote(str(path))}?mode=ro", uri=True)
         deadline = time.monotonic() + _SQLITE_QUERY_TIMEOUT_S
         timed_out = False
 
@@ -300,17 +329,36 @@ def _shell(ctx: CheckContext, spec: CheckerSpec, cmd: str) -> CheckResult:
             return CheckResult(Verdict.PASS, detail="exit 0")
         return CheckResult(Verdict.FAIL, detail=f"exit code {rc}: {err.strip()[:200]}")
     if mode == "regex":
+        # ReDoS guard: bound the pattern and run the match in the SAME spawned-worker /
+        # hard-timeout harness C3 uses. A catastrophic-backtracking expect-regex must
+        # ERROR, never hang the verifier process after the shell command has completed.
+        from dorian.checkers.c3_ref import _MAX_PATTERN_LEN, _search_with_timeout
+
+        if len(arg) > _MAX_PATTERN_LEN:
+            raise _BadProgram(f"expect regex too long (> {_MAX_PATTERN_LEN} chars): {arg!r}")
         try:
-            pattern = re.compile(arg)
+            re.compile(arg)  # validate before spawning the worker
         except re.error as exc:
             raise _BadProgram(f"bad regex {arg!r}: {exc}") from None
-        if pattern.search(out):
+        status = _search_with_timeout(arg, 0, out, spec.timeout_s)
+        if status == "match":
             return CheckResult(Verdict.PASS, detail=f"stdout matched {arg!r}")
-        return CheckResult(Verdict.FAIL, detail=f"regex {arg!r} not found in stdout")
+        if status == "nomatch":
+            return CheckResult(Verdict.FAIL, detail=f"regex {arg!r} not found in stdout")
+        if status == "timeout":
+            return CheckResult(
+                Verdict.ERROR,
+                detail=f"expect regex_timeout (>{spec.timeout_s}s — catastrophic backtracking?)",
+            )
+        return CheckResult(Verdict.ERROR, detail=f"expect regex worker {status}")
     if mode == "eq":
         if out.strip() == arg:
             return CheckResult(Verdict.PASS, detail=f"stdout == {arg!r}")
-        return CheckResult(Verdict.FAIL, detail=f"stdout observed={out.strip()!r} expected={arg!r}")
+        # bound the observed output in the detail: a shell command can print a very large
+        # (or sensitive) stdout, and this detail flows to text/JSON renderers
+        return CheckResult(
+            Verdict.FAIL, detail=f"stdout observed={out.strip()[:200]!r} expected={arg!r}"
+        )
     raise _BadProgram(f"unknown expect: {spec.expect!r}")
 
 

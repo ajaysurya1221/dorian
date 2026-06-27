@@ -204,7 +204,7 @@ def _ensure_within(repo: Path, target: Path) -> None:
 
 def _atomic_write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")  # per-process: no shared-.tmp race
     tmp.write_text(content, encoding="utf-8")
     os.replace(tmp, path)
 
