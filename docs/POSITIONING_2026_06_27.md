@@ -5,9 +5,27 @@
 > [`VALIDATION_HONESTY.md`](VALIDATION_HONESTY.md): no sandbox, no LLM judging, no semantic proof, no
 > broad compliance, not a replacement for tests/review.
 
+## Naming update (v1.3.0)
+
+> **Product name: "claim warrants."** After discovering the nearby **Agent Receipts** / Obsigna project
+> (a signed, hash-chained audit trail of agent *actions* — W3C Verifiable Credentials, Ed25519), the
+> shipped product name is **Dorian claim warrants**, not "agent receipts." "Receipt" stays only as an
+> explanatory metaphor: a Dorian claim warrant is a *receipt for a checkable engineering claim, not a
+> receipt for an agent action.* The two are complementary, not substitutes — see
+> [`CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md`](CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md). Updated tagline:
+>
+> **Claim warrants for what your coding agent said changed.**
+>
+> Shipped in v1.3.0 as a one-command Claude Code skill: `dorian claude-code install-claim-warrants` →
+> `/dorian-claim-warrants` (the model drafts; Dorian proves). See
+> [`DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md`](DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md).
+
 ## Primary tagline
 
-> **Receipts for what your AI coding agent claimed it changed.**
+> **Claim warrants for what your coding agent said changed.**
+
+(Earlier metaphor framing: "receipts for what your AI coding agent claimed it changed" — kept only as
+descriptive prose, never as the brand.)
 
 Sub-line (when there's room):
 
