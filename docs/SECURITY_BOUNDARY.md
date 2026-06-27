@@ -102,3 +102,20 @@ The residual, stated plainly: even in base mode a base-approved code-executing
 checker runs PR-head code, so **without deny-exec or external sandboxing this is
 not safe for fully untrusted code.** For trusted/internal repos, `head` mode
 remains correct and unchanged.
+
+**A second residual — claim *selection* and *read-set* still come from the PR-head
+sidecar, not base.** `--checker-source base` substitutes only the checker *spec*.
+The set of claims that get re-checked (each claim's `watch`) and the read-set
+hashes a non-executing `C1`/`snapshot:` checker compares against are still read
+from the PR-head `.warrant`. So a **hostile** fork that rewrites its own committed
+sidecar can (a) drop a file from a claim's `watch` to suppress that claim's
+re-check, or (b) forge a read-set hash so a `C1`/`snapshot:` base-spec checker
+passes against altered content — the content-address check only proves the warrant
+is *internally* consistent, which a fork can recompute. Base mode therefore hardens
+the **executable-checker** path (a PR's malicious `pytest:`/`shell:` spec never
+runs), but is **not** a complete defense against a hostile fork's sidecar metadata.
+Deriving selection and the read-set from the base ref as well is **tracked
+hardening** (see [`NEXT_ALGORITHMIC_BETS.md`](NEXT_ALGORITHMIC_BETS.md)); until
+then, treat `checker_trust: base` as a checker-spec trust root for *semi-trusted*
+contributors, and for genuinely untrusted forks rely on required review of the
+`.warrant` diff and branch protection (plus `deny_exec`), not on base mode alone.

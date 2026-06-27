@@ -98,3 +98,21 @@ before any run. That instrument is now built and pre-registered
 candidate-first prefilter this bet originally named — segment first, classify
 only — ships as its pre-registered challenger (`--extract-mode candidate`).
 The "not yet" list stands.*
+
+## Security hardening (tracked)
+
+- **Base-ref selection + read-set for `--checker-source base`.** Today base mode
+  substitutes only the checker *spec*; candidate selection (a claim's `watch`) and
+  the read-set hashes a non-executing `C1`/`snapshot:` checker compares against are
+  still read from the PR-head sidecar. A hostile fork that rewrites its own
+  committed `.warrant` can therefore suppress a re-check or forge a read-set hash
+  (disclosed in [`SECURITY_BOUNDARY.md`](SECURITY_BOUNDARY.md)). The hardening:
+  in base mode, derive the candidate set, `watch`, `supports`, and read-set entries
+  from the base-ref sidecar (fail closed if absent), reading current content but
+  trusting only base metadata. **Acceptance test:** a PR that removes a watch or
+  forges a `C1`/`snapshot:` read-set hash cannot suppress the re-check or produce a
+  PASS. Scoped as careful work with new `tests/test_trusted_base.py` cases — not
+  rushed into a release, because it touches the security-critical revalidation
+  selection path. Until shipped, the boundary doc states the residual plainly and
+  the recommendation is required `.warrant`-diff review + branch protection for
+  untrusted forks. *(Independently surfaced by an external Codex review, 2026-06-27.)*
