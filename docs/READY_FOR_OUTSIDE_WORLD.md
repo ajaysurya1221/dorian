@@ -102,5 +102,23 @@ semantic correctness beyond what the deterministic checkers verify.
 
 ## Judge verdict
 
-<!-- JUDGE_VERDICT -->
-_Pending final independent-judge transcript; recorded in `.claude/ready_world_judge_verdicts.jsonl`._
+An independent, fresh-context release judge (read-only, instructed to look for reasons *not* to ship)
+returned **`BLOCKED BY EXTERNAL CONSTRAINT`**, with **no code/quality blockers**:
+
+> "The release is genuinely ready on every axis that engineering can control — fixes are real and
+> fail-closed, honesty is best-in-class, version story is enforced by a passing test — and the **only**
+> thing standing between it and READY is an owner-only PyPI Trusted-Publisher action."
+
+- **Fix verification:** all five fixed findings confirmed real and correct (the judge independently
+  reproduced the freshness false-PASS and the sqlite URI injection).
+- **Honesty:** PASS on every doc reviewed (README, SECURITY_BOUNDARY, DORIAN_USEFULNESS,
+  OUTSIDE_WORLD_VALIDATION, BENCHMARK_CURRENT) — no sandbox/fork-safety/LLM-judge/market overclaim;
+  trigger-vs-truth preserved.
+- **F1:** agreed with disclose-and-defer for the trusted-repo scope (rushing a rewrite of the
+  security-critical revalidation selection path would be riskier than the disclosed residual).
+- **One nit it raised was fixed in response:** `freshness:` on mixed timezone-aware/naive dates now
+  returns an explicit ERROR (it was already caught as ERROR by the harness; now it is explicit, with a
+  test). The other nits (untracked snapshot files containing stale `1.1.1`; this placeholder) are
+  cosmetic/operational and non-blocking.
+
+Full transcript recorded in `.claude/ready_world_judge_verdicts.jsonl`.
