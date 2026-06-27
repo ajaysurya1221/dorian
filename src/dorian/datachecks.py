@@ -36,6 +36,7 @@ import re
 import sqlite3
 from datetime import date
 from pathlib import Path
+from urllib.parse import quote
 
 # reuse the checker's own loader and null predicate so suggestions are
 # computed by the same code that will later check them
@@ -239,7 +240,9 @@ def _sqlite_table_suggestions(
 
 def _sqlite_suggestions(p: Path, path: str, columns: list[str] | None) -> list[dict]:
     try:
-        con = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+        # percent-encode the path so a '?'/'#'/'%' in the filename cannot inject URI
+        # query params that override mode=ro (mirrors the sealed C5 reconcile path)
+        con = sqlite3.connect(f"file:{quote(str(p))}?mode=ro", uri=True)
         try:
             tables = [
                 r[0]
