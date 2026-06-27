@@ -236,6 +236,40 @@ def test_reconcile_sqlite_attach_write_escape_is_blocked(fixture_repo):
     assert not evil.exists()  # read-only contract: no file created outside the repo
 
 
+def _make_question_named_db(repo: Path) -> Path:
+    # an in-repo sqlite file whose NAME contains a URI '?'. Without percent-encoding the
+    # path, `file:{path}?mode=ro` truncates at the '?', opening the WRONG file (and a
+    # name like `a?mode=rwc` would inject mode=rwc, defeating mode=ro).
+    p = repo / "data" / "q?.db"
+    con = sqlite3.connect(p)  # plain path (not a URI): the '?' is literal in the filename
+    con.execute("CREATE TABLE t (lot_id TEXT)")
+    con.executemany("INSERT INTO t VALUES (?)", [("L001",), ("L002",), ("L003",), ("L004",)])
+    con.commit()
+    con.close()
+    return p
+
+
+def test_reconcile_sqlite_question_mark_named_file_opens_the_right_file(fixture_repo):
+    # the percent-encoded path opens the '?'-named DB itself (4 rows == the csv), not a
+    # path-truncated phantom — reverting the encoding fix turns this PASS into an ERROR.
+    _make_question_named_db(fixture_repo)
+    prog = f"reconcile:csv:{LOTS}~~sqlite:data/q?.db::SELECT COUNT(*) FROM t"
+    assert run_c5(fixture_repo, prog).verdict is Verdict.PASS
+
+
+def test_reconcile_sqlite_question_mark_named_file_stays_read_only(fixture_repo):
+    # mode=ro must hold even for a '?'-named file: a CREATE TABLE through the reconcile
+    # path is rejected and the DB is left unmodified (the '?' cannot inject mode=rwc).
+    db = _make_question_named_db(fixture_repo)
+    prog = f"reconcile:csv:{LOTS}~~sqlite:data/q?.db::CREATE TABLE evil (x)"
+    res = run_c5(fixture_repo, prog)
+    assert res.verdict is Verdict.ERROR
+    con = sqlite3.connect(db)
+    tables = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    con.close()
+    assert tables == {"t"}  # no write leaked through; read-only enforced
+
+
 def test_reconcile_sqlite_pathological_query_is_error_quickly(fixture_repo, monkeypatch):
     """A recursive CTE is permitted by the read-only authorizer (SQLITE_RECURSIVE is a
     read op) and runs unbounded, so without a per-query bound it hangs the process even
