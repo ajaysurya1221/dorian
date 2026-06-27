@@ -122,6 +122,16 @@ def build_parser() -> argparse.ArgumentParser:
         " diagnostics after a successful seal; 'fail' refuses the seal (writing nothing)"
         " on a high-risk weak binding. Never marks a claim false; 'single-file' is warn-only.",
     )
+    seal.add_argument(
+        "--strength-gate",
+        choices=["off", "warn", "fail"],
+        default="off",
+        help="opt-in TRUTH-axis review gate (default off), the companion to --binding-gate:"
+        " 'warn' prints checker-strength/adequacy diagnostics after a successful seal; 'fail'"
+        " refuses the seal (writing nothing) when a load-bearing claim's checker is too weak to"
+        " falsify its kind (e.g. a behavior claim backed only by an existence check). Never"
+        " marks a claim false.",
+    )
     _add_exec_policy_flags(seal)
 
     vf = sub.add_parser(
@@ -153,6 +163,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="opt-in weak-binding review gate (default off): 'warn' prints binding"
         " diagnostics after a successful seal; 'fail' refuses the seal (writing nothing)"
         " on a high-risk weak binding. Never marks a claim false; 'single-file' is warn-only.",
+    )
+    vf.add_argument(
+        "--strength-gate",
+        choices=["off", "warn", "fail"],
+        default="off",
+        help="opt-in TRUTH-axis review gate (default off), the companion to --binding-gate:"
+        " 'warn' prints checker-strength/adequacy diagnostics after a successful seal; 'fail'"
+        " refuses the seal (writing nothing) when a load-bearing claim's checker is too weak to"
+        " falsify its kind (e.g. a behavior claim backed only by an existence check). Never"
+        " marks a claim false.",
     )
     _add_exec_policy_flags(vf)
 

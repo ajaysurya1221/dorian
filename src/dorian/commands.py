@@ -50,6 +50,7 @@ from dorian.seal import (
     ScopeConfigError,
     ScopeViolation,
     SealError,
+    StrengthGateError,
     referenced_paths,
     seal_artifact,
 )
@@ -124,6 +125,46 @@ def _print_binding_gate_refusal(prog: str, exc: BindingGateError) -> None:
     """--binding-gate=fail refused: print each blocking claim, then the refusal."""
     for line in bindings.weak_binding_lines(exc.findings):
         print(f"{prog}: weak binding: {line}", file=sys.stderr)
+    print(f"{prog}: {exc}", file=sys.stderr)
+
+
+def _emit_strength_gate_warnings(prog: str, repo: Path, artifact_uri: str, mode: str) -> None:
+    """After a successful seal under --strength-gate warn|fail, print the TRUTH-axis
+    checker-strength / adequacy diagnostics for review (stderr). Informational only —
+    exit stays 0; weak truth backing is a false-confidence smell, never proof a claim
+    is false. Distinct from --binding-gate output so a CI integrator can tell a weak-
+    binding refusal from a weak-checker one."""
+    try:
+        claims = list(Warrant.load(repo / (artifact_uri + ".warrant")).claims)
+    except (gitio.GitError, *_SIDECAR_ERRORS):
+        print(
+            f"{prog}: warning: --strength-gate={mode} diagnostics could not be read back; "
+            "seal remains valid",
+            file=sys.stderr,
+        )
+        return
+    sdiags = strength.analyze(repo, claims)
+    for s in sdiags:
+        for note in s["adequacy"]:
+            print(f"{prog}: {s['claim_id']}: {note}", file=sys.stderr)
+    blocking = len(strength.gate_blocking(sdiags))
+    print(
+        f"{prog}: --strength-gate={mode}: {strength.summary_line(sdiags)}; {blocking} load-bearing"
+        " high-risk (checker too weak to falsify the claim's kind; not proof a claim is false)",
+        file=sys.stderr,
+    )
+
+
+def _print_strength_gate_refusal(prog: str, exc: StrengthGateError) -> None:
+    """--strength-gate=fail refused: print each blocking claim (id, kind, strongest
+    backing, adequacy notes), then the refusal."""
+    for d in exc.findings:
+        note = "; ".join(d["adequacy"]) or "; ".join(d["reasons"])
+        print(
+            f"{prog}: weak checker: claim {d['claim_id']!r} (kind={d['kind']}, "
+            f"backed only by {d['strength']}) — {note}",
+            file=sys.stderr,
+        )
     print(f"{prog}: {exc}", file=sys.stderr)
 
 
@@ -220,6 +261,7 @@ def cmd_seal(args: argparse.Namespace) -> int:
             allow_restricted=args.allow_restricted,
             no_quotes=args.no_quotes,
             binding_gate=args.binding_gate,
+            strength_gate=args.strength_gate,
             policy=ExecutionPolicy.from_flags_and_env(
                 deny_exec=args.deny_exec, deny_shell=args.deny_shell
             ),
@@ -233,11 +275,16 @@ def cmd_seal(args: argparse.Namespace) -> int:
     except BindingGateError as exc:  # before SealError: same exit 4, with the findings
         _print_binding_gate_refusal("dorian seal", exc)
         return EXIT_REVOKED
+    except StrengthGateError as exc:  # before SealError: same exit 4, truth-axis findings
+        _print_strength_gate_refusal("dorian seal", exc)
+        return EXIT_REVOKED
     except SealError as exc:
         print(f"dorian seal: {exc}", file=sys.stderr)
         return EXIT_REVOKED
     if args.binding_gate in ("warn", "fail"):
         _emit_binding_gate_warnings("dorian seal", repo, artifact_uri, args.binding_gate)
+    if args.strength_gate in ("warn", "fail"):
+        _emit_strength_gate_warnings("dorian seal", repo, artifact_uri, args.strength_gate)
     print(warrant.id)
     return EXIT_OK
 
@@ -298,6 +345,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
             no_quotes=args.no_quotes,
             extra_watch=symbol_watch,
             binding_gate=args.binding_gate,
+            strength_gate=args.strength_gate,
             policy=ExecutionPolicy.from_flags_and_env(
                 deny_exec=args.deny_exec, deny_shell=args.deny_shell
             ),
@@ -310,6 +358,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
         return EXIT_USAGE
     except BindingGateError as exc:  # before SealError: same exit 4, with the findings
         _print_binding_gate_refusal("dorian verify", exc)
+        return EXIT_REVOKED
+    except StrengthGateError as exc:  # before SealError: same exit 4, truth-axis findings
+        _print_strength_gate_refusal("dorian verify", exc)
         return EXIT_REVOKED
     except SealError as exc:
         print(f"dorian verify: {exc}", file=sys.stderr)
@@ -344,6 +395,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
     )
     if args.binding_gate in ("warn", "fail"):
         _emit_binding_gate_warnings("dorian verify", repo, artifact_uri, args.binding_gate)
+    if args.strength_gate in ("warn", "fail"):
+        _emit_strength_gate_warnings("dorian verify", repo, artifact_uri, args.strength_gate)
     return EXIT_OK
 
 

@@ -73,6 +73,26 @@ class BindingGateError(SealError):
         )
 
 
+class StrengthGateError(SealError):
+    """--strength-gate=fail refused the seal: a load-bearing claim's strongest checker
+    is too weak to falsify its kind (a `behavior` claim backed only by existence/text/an
+    opaque shell, a `quantity` claim backed only by existence, or an unbacked claim).
+    The TRUTH-axis companion to BindingGateError (which gates WHEN a claim re-checks;
+    this gates WHETHER its checker can falsify it). Carries the blocking findings; NO
+    sidecar is written. Weak truth backing is false CONFIDENCE, never a claim being
+    false — so this maps to the existing seal-refused exit (4), not to any trust or
+    claim state."""
+
+    def __init__(self, findings: list[dict]) -> None:
+        self.findings = findings
+        ids = ", ".join(repr(d["claim_id"]) for d in findings)
+        super().__init__(
+            f"--strength-gate=fail refused seal: {len(findings)} load-bearing claim(s) whose "
+            f"checker is too weak to falsify the claim's kind require review ({ids}); "
+            "no sidecar written"
+        )
+
+
 class ScopeConfigError(ValueError):
     """[tool.dorian.scopes] could not be read (malformed pyproject.toml): caller
     input, mapped to exit 2 — never a scope violation or a seal refusal."""
@@ -287,6 +307,7 @@ def seal_artifact(
     no_quotes: bool = False,
     extra_watch: Mapping[str, tuple[str, ...]] | None = None,
     binding_gate: str = "off",
+    strength_gate: str = "off",
     policy: ExecutionPolicy | None = None,
 ) -> Warrant:
     """Scope-lint the read-set, run every checker, then write the sidecar + index.
@@ -299,6 +320,16 @@ def seal_artifact(
     sidecar/store write, and raises BindingGateError (writing nothing) when a claim
     carries a high-risk weak-binding flag. Weak binding is a false-confidence smell,
     never proof a claim is false.
+
+    strength_gate (off | warn | fail; default off) is the TRUTH-axis companion: where
+    binding_gate gates WHEN a claim re-checks, this gates WHETHER its checker can falsify
+    it. 'fail' computes the strength/adequacy diagnostics on the candidate claims (same
+    after-checkers / before-write position as binding_gate, so it is atomic no-write) and
+    raises StrengthGateError when a LOAD-BEARING claim is high-risk — its strongest checker
+    is too weak for its kind (a behavior claim backed only by existence/text/opaque shell,
+    a quantity claim backed only by existence, or an unbacked claim). Like binding_gate it
+    never changes default behavior, trust/claim state, the schema, or fold policy, and never
+    marks a claim false.
 
     extra_watch (claim id -> repo-relative paths) widens a backed claim's checker
     watch set with files the claim depends on but its checker did not name — the
@@ -395,6 +426,20 @@ def seal_artifact(
         blocking = bindings.blocking_findings(diags)
         if blocking:
             raise BindingGateError(blocking)
+
+    # 2.6 opt-in TRUTH-axis strength gate (default off). The truth companion to the
+    #     trigger-axis binding gate above: that gates WHEN a claim re-checks; this gates
+    #     WHETHER its checker can falsify it. Same atomic-no-write position — after every
+    #     checker passed (step 2) and BEFORE any sidecar/store write below — so `fail` is
+    #     atomic no-write. It only ever REFUSES a load-bearing high-risk claim; it never
+    #     marks a claim broken/false and never touches trust/claim state. The strength
+    #     import is lazy so the default seal path never pulls in the advisory module.
+    if strength_gate == "fail":
+        from dorian import strength
+
+        blocking = strength.gate_blocking(strength.analyze(repo, sealed_claims))
+        if blocking:
+            raise StrengthGateError(blocking)
 
     # 3. derives_from: project read-set entries that are themselves warranted
     derives: list[str] = []
