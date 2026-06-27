@@ -1,0 +1,56 @@
+{
+  "claims": [
+    {
+      "id": "cli-exposes-strength-gate",
+      "text": "The CLI exposes a --strength-gate option.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "regex:src/dorian/cli.py::--strength-gate" }]
+    },
+    {
+      "id": "strength-truth-axis-gate",
+      "text": "strength.py defines the truth-axis gate that --strength-gate=fail refuses on.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "symbol:src/dorian/strength.py::gate_blocking" }]
+    },
+    {
+      "id": "seal-strength-gate-error",
+      "text": "The seal layer raises a dedicated StrengthGateError the command layer catches.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "symbol:src/dorian/seal.py::StrengthGateError" },
+        { "type": "C3", "program": "regex:src/dorian/commands.py::StrengthGateError" }
+      ]
+    },
+    {
+      "id": "binding-gate-trigger-axis",
+      "text": "The companion trigger-axis binding gate is implemented in bindings.py.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "symbol:src/dorian/bindings.py::analyze" }]
+    },
+    {
+      "id": "python-floor-3-11",
+      "text": "dorian-vwp targets Python >=3.11.",
+      "kind": "quantity",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "config-value:pyproject.toml:project.requires-python:\">=3.11\"" }]
+    },
+    {
+      "id": "zero-runtime-dependencies",
+      "text": "dorian's core ships zero runtime dependencies.",
+      "kind": "quantity",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "config-value:pyproject.toml:project.dependencies:[]" }]
+    },
+    {
+      "id": "strength-gate-tested",
+      "text": "A test suite covers the strength gate.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "path:tests/test_adequacy_gate.py" }]
+    }
+  ]
+}
