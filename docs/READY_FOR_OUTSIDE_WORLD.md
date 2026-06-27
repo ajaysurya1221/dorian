@@ -74,16 +74,26 @@ produced WARRANTED → **REVOKED** (exit 4). Full detail and honest limits in
 
 ## Release path
 
-The publish automation is sound but **owner-gated**:
+The publish automation is sound but **owner-gated** — and this was confirmed empirically, not just by
+reading the workflow:
 - `publish.yml` — manual `workflow_dispatch`, builds from the tag, verifies tag == pyproject version,
   publishes to **PyPI via OIDC Trusted Publishing** through the protected GitHub Environment `pypi`.
-- **Blocker:** PyPI Trusted Publishing requires a one-time Trusted-Publisher entry for project
+- **Dry-run evidence (TestPyPI):** dispatching `publish-testpypi.yml` against tag `v1.2.0` (run
+  `28290320524`) ran the **build job green** — exercising the Dependabot-bumped `actions/checkout@v6`,
+  `actions/upload-artifact@v7`, and `actions/download-artifact@v8` end-to-end (the v7→v8 artifact
+  hand-off works) — and then **failed at exactly one step**: `Publish to TestPyPI` with
+  `invalid-publisher: valid token, but no corresponding publisher`. That is the OIDC token being minted
+  correctly and PyPI having **no Trusted-Publisher** registered for it. The wiring is right; the
+  registration is the gap.
+- **Blocker:** PyPI/TestPyPI Trusted Publishing requires a one-time Trusted-Publisher entry for project
   `dorian-vwp` → repo `ajaysurya1221/dorian` → workflow `publish.yml` → environment `pypi`, created on
-  pypi.org by the account owner. It cannot be created from CI or by this session. The `testpypi`
-  environment does not exist, so even the dry-run rehearsal cannot run here.
-- **One action to unblock:** the owner confirms/creates that Trusted Publisher, then runs the `publish`
-  workflow against tag `v1.2.0`. After it publishes, install from PyPI in a clean env and re-run the
-  golden path to flip this verdict to READY.
+  pypi.org **by the account owner**. It cannot be created from CI or by this session.
+- **One action to unblock:** the owner creates that Trusted Publisher on pypi.org, then runs the
+  `publish` workflow against tag `v1.2.0`. After it publishes, install from PyPI in a clean env and
+  re-run the golden path to flip this verdict to READY.
+- **Meanwhile, v1.2.0 is already publicly installable** from the GitHub release (verified by a clean
+  isolated install from the public asset URL → `dorian-vwp==1.2.0`, zero deps) and via
+  `pip install "git+https://github.com/ajaysurya1221/dorian@v1.2.0"`.
 
 ## What READY would mean — and what it does not
 
