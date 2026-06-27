@@ -348,3 +348,52 @@ def test_paths_resolve_through_rename_map(fixture_repo):
         rename_map={LOTS: "data/lots_v2.csv"},
     )
     assert res.verdict is Verdict.PASS
+
+
+# --- freshness false-PASS regression (non-date values, invalid bound) -----------
+
+
+def test_freshness_nondate_value_is_fail_not_false_pass(fixture_repo):
+    # a non-date value lexicographically sorts ABOVE any real date; the old string
+    # `max(values) >= bound` returned PASS on garbage. It must now FAIL, never PASS,
+    # even against a far-future bound the real data could not satisfy.
+    append_row(fixture_repo, "L099,delft,open,zzzz\n")
+    res = run_c5(fixture_repo, f"freshness:{LOTS}::loaded_at::>= 2099-01-01")
+    assert res.verdict is Verdict.FAIL
+    assert "non-date" in res.detail
+
+
+def test_freshness_invalid_bound_is_error(fixture_repo):
+    res = run_c5(fixture_repo, f"freshness:{LOTS}::loaded_at::>= notadate")
+    assert res.verdict is Verdict.ERROR
+    assert "bad_program" in res.detail
+
+
+def test_freshness_mixed_tz_aware_and_naive_is_error_not_crash(fixture_repo):
+    # a column mixing naive dates with a tz-aware timestamp cannot be compared; the
+    # checker must ERROR explicitly, never crash or guess (fails closed, never PASS).
+    append_row(fixture_repo, "L100,delft,open,2026-01-06T00:00:00+00:00\n")
+    res = run_c5(fixture_repo, f"freshness:{LOTS}::loaded_at::>= 2026-01-01")
+    assert res.verdict is Verdict.ERROR
+    assert "timezone" in res.detail.lower()
+
+
+# --- C5 shell expect hardening (ReDoS + unbounded output) ------------------------
+
+
+def test_shell_expect_regex_catastrophic_is_error_not_hang(fixture_repo):
+    # a catastrophic-backtracking expect-regex against adversarial stdout must be
+    # bounded by the same spawned-worker timeout C3 uses — ERROR, never a hang.
+    prog = "shell:printf '" + "a" * 40 + "b'"
+    res = run_c5(fixture_repo, prog, expect="regex:(a+)+$", timeout_s=1)
+    assert res.verdict is Verdict.ERROR
+    assert "regex" in res.detail.lower()
+
+
+def test_shell_expect_eq_mismatch_bounds_observed_output(fixture_repo):
+    # a shell command can print a huge/sensitive stdout; the eq-mismatch detail must
+    # be bounded so it cannot bloat or leak the full output through the renderers.
+    prog = "shell:printf '" + "X" * 300 + "'"
+    res = run_c5(fixture_repo, prog, expect="eq:NOPE")
+    assert res.verdict is Verdict.FAIL
+    assert "X" * 200 in res.detail and "X" * 201 not in res.detail

@@ -6,9 +6,12 @@ semantics have been stable since 1.0.0.
 
 ## [Unreleased]
 
-C4 import-aware dependency binding, and the opt-in truth-axis `--strength-gate`. **No breaking
-changes** (both are opt-in or a re-check *trigger* widening only; warrant schema, checker grammar,
-exit codes, fold policy, and security posture are unchanged; default behavior is identical).
+## [1.2.0] — 2026-06-27
+
+C4 import-aware dependency binding, the opt-in truth-axis `--strength-gate`, and the
+production-readiness / outside-world release docs. **No breaking changes** (the features are opt-in
+or a re-check *trigger* widening only; warrant schema, checker grammar, exit codes, fold policy, and
+security posture are unchanged; default behavior is identical).
 
 ### Added
 - **C4 import-aware binding** (`src/dorian/test_deps.py`). A `pytest:` checker proves behavior *when
@@ -25,6 +28,11 @@ exit codes, fold policy, and security posture are unchanged; default behavior is
   100% of direct-import ones, with zero false `BROKEN` from a behavior-preserving edit.
 - **`dorian bind-suggest`** now reports a third provenance, `bind_test_deps` / `bind (test-dep)`, for
   the implementation files a claim's C4 test imports (content-free; paths only).
+- **Production-readiness & outside-world docs** — [`docs/PRODUCTION_READINESS_AUDIT.md`](docs/PRODUCTION_READINESS_AUDIT.md),
+  [`docs/DORIAN_USEFULNESS.md`](docs/DORIAN_USEFULNESS.md), [`docs/READY_FOR_OUTSIDE_WORLD.md`](docs/READY_FOR_OUTSIDE_WORLD.md),
+  and [`docs/OUTSIDE_WORLD_VALIDATION.md`](docs/OUTSIDE_WORLD_VALIDATION.md): an evidence-backed
+  readiness review, the why-it-matters framing, the release-readiness verdict, and real external-repo
+  validation trials (install-from-wheel on public projects, with drift/revocation).
 
 ### Changed
 - The `bindings` / `--binding-gate` `trigger-only-symbol` diagnostic now treats a C4 test's
@@ -44,6 +52,10 @@ exit codes, fold policy, and security posture are unchanged; default behavior is
   and merely-`medium` risk never block; default `off` is byte-identical to prior behavior. The
   `strength` module stays out of the trust-state fold path (`fold.py`/`revalidate.py`); a regression
   test pins that invariant.
+- **CI / release action pins bumped** (Dependabot #9–#13): `actions/checkout` v6.0.3,
+  `actions/upload-artifact` v7.0.1, `actions/download-artifact` v8.0.1, `actions/cache` v5.0.5,
+  `actions/attest-build-provenance` v4.1.0. These touch the release/publish/micro-benchmark workflows
+  only — no runtime dependency, check-path, or default-behavior impact (core stays zero-dependency).
 
 ### Fixed
 - **Truth-strength inversion in the adequacy lint.** A `behavior` claim backed *only* by an opaque
@@ -54,6 +66,10 @@ exit codes, fold policy, and security posture are unchanged; default behavior is
   `behavior` and `quantity` claims (it is opaque: dorian cannot see whether the command proves the
   claim), and the same fix lets a quantity claim backed only by an opaque shell be flagged. Advisory
   output only; no verdict, trust state, or exit code changes outside the new opt-in `--strength-gate`.
+- **README quickstart claim kind.** The "Try it in 30 seconds" demo's existence claim
+  (`handler() lives in app.py`, backed by a C3 `symbol:` existence check) was tagged `kind: behavior` —
+  exactly the mismatch `--strength-gate=fail` refuses. Retagged `reference` so the headline demo is
+  clean under the project's own truth-axis gate. Behavior-preserving under the default gate (off).
 
 ## [1.1.1] — 2026-06-19
 

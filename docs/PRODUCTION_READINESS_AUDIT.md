@@ -1,5 +1,11 @@
 # Dorian — Production-Readiness Audit
 
+> **Update (2026-06-27, v1.2.0):** this audit (the v1.1.1-era baseline, verdict *MOSTLY READY*) is
+> superseded for release purposes by [`READY_FOR_OUTSIDE_WORLD.md`](READY_FOR_OUTSIDE_WORLD.md), which
+> adds an independent Codex review, an adversarial security-audit workflow (with fixes), real
+> external-repo validation ([`OUTSIDE_WORLD_VALIDATION.md`](OUTSIDE_WORLD_VALIDATION.md)), and the
+> v1.2.0 release-path assessment. Read that first for the current verdict; this remains as provenance.
+
 > A point-in-time, evidence-backed readiness review. Every claim below was checked live against
 > the repo, the test suite, the built package, and GitHub. Where a check could not be run, that is
 > stated explicitly. This document follows the honesty contract in
