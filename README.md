@@ -76,7 +76,7 @@ git add -A && git commit -q -m "app + note"
 cat > claims.json <<'JSON'
 {"claims": [
   {"id": "handler-exists", "text": "handler() lives in app.py.",
-   "kind": "behavior", "load_bearing": true,
+   "kind": "reference", "load_bearing": true,
    "checkers": [{"type": "C3", "program": "symbol:app.py::handler"}]}
 ]}
 JSON

@@ -28,7 +28,7 @@ _GIT_ENV = {
 _CLAIMS_JSON = (
     '{"claims": [\n'
     '  {"id": "handler-exists", "text": "handler() lives in app.py.",\n'
-    '   "kind": "behavior", "load_bearing": true,\n'
+    '   "kind": "reference", "load_bearing": true,\n'
     '   "checkers": [{"type": "C3", "program": "symbol:app.py::handler"}]}\n'
     "]}\n"
 )
