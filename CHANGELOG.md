@@ -6,6 +6,43 @@ semantics have been stable since 1.0.0.
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-06-28
+
+The **Dorian Claim Warrants for Claude Code** integration: one command scaffolds a project-local Claude
+Code skill that drafts claim warrants for the checkable facts a coding agent says it changed, which
+`dorian verify` then proves deterministically. **No breaking changes** — purely additive (a new CLI
+subcommand, packaged templates, docs); warrant schema, checker grammar, exit codes, fold policy, and
+security posture are unchanged, the core stays zero-dependency, and **no model is ever added to the
+verification path**.
+
+### Added
+- **`dorian claude-code install-claim-warrants`** (`src/dorian/claude_code.py`) — scaffolds a
+  project-local Claude Code skill at `.claude/skills/dorian-claim-warrants/` (invoked as
+  **`/dorian-claim-warrants`**) that drafts `docs/changes/<slug>.md` + `docs/changes/<slug>.claims.json`
+  for the *checkable* subset of a change summary (config values, signatures/defaults, constants,
+  file/symbol references), then prints `dorian verify … --strength-gate=fail --binding-gate=warn`. The
+  **model only drafts; Dorian verifies**. Writes files only (never runs a checker or executes code),
+  stays inside the target repo, never overwrites without `--force`, and is idempotent. Flags:
+  `--with-hook`, `--no-hook`, `--settings-only`, `--dry-run`, `--force`, `--print-next-steps`,
+  `--target`.
+- **Packaged skill templates** (`src/dorian/templates/claude_code/…`, shipped as wheel package data):
+  `SKILL.md`, a bundle `README.md`, `examples/` (good/bad claims, a final-message walkthrough),
+  `templates/` (change-note + claims.json skeletons), and `reference/` (checker-selection map,
+  safety-boundary).
+- **Opt-in, reminder-only Stop hook** (`hooks/dorian_claim_warrants_stop.py`, stdlib only). It returns a
+  soft `additionalContext` nudge — **never a block**, so it cannot loop — and only when a turn left
+  relevant, un-warranted code/config changes. It never runs `dorian verify` or tests, never writes
+  files, and never executes project code (its only side effect is a read-only `git status`); it fails
+  open. Not enabled by scaffolding — register it under `hooks.Stop` yourself.
+- **Docs** — [`docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md`](docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md)
+  (the integration guide) and [`docs/CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md`](docs/CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md)
+  (how Dorian claim warrants differ from — and complement — the Agent Receipts action-audit protocol).
+
+### Changed
+- README, `docs/CLAUDE_CODE_DORIAN_WORKFLOW.md`, and `docs/POSITIONING_2026_06_27.md` adopt the
+  **"claim warrants"** name (keeping "receipt" only as an explanatory metaphor, to avoid collision with
+  the Agent Receipts project).
+
 ## [1.2.0] — 2026-06-27
 
 C4 import-aware dependency binding, the opt-in truth-axis `--strength-gate`, and the
