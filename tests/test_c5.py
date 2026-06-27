@@ -369,6 +369,15 @@ def test_freshness_invalid_bound_is_error(fixture_repo):
     assert "bad_program" in res.detail
 
 
+def test_freshness_mixed_tz_aware_and_naive_is_error_not_crash(fixture_repo):
+    # a column mixing naive dates with a tz-aware timestamp cannot be compared; the
+    # checker must ERROR explicitly, never crash or guess (fails closed, never PASS).
+    append_row(fixture_repo, "L100,delft,open,2026-01-06T00:00:00+00:00\n")
+    res = run_c5(fixture_repo, f"freshness:{LOTS}::loaded_at::>= 2026-01-01")
+    assert res.verdict is Verdict.ERROR
+    assert "timezone" in res.detail.lower()
+
+
 # --- C5 shell expect hardening (ReDoS + unbounded output) ------------------------
 
 

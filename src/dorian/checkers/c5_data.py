@@ -210,8 +210,17 @@ def _freshness(ctx: CheckContext, rest: str) -> CheckResult:
         except ValueError:
             # a non-date value must never decide a date freshness verdict by sorting
             return CheckResult(Verdict.FAIL, detail=f"non-date value in column {column}: {v!r}")
-    newest = max(parsed)
-    if newest >= bound:
+    try:
+        newest = max(parsed)
+        fresh = newest >= bound
+    except TypeError:
+        # mixing tz-aware and naive ISO timestamps cannot be compared; that is a data
+        # problem the checker must not adjudicate by guessing — ERROR, never PASS/FAIL
+        return CheckResult(
+            Verdict.ERROR,
+            detail=f"mixed timezone-aware and naive dates in column {column} (cannot compare)",
+        )
+    if fresh:
         return CheckResult(
             Verdict.PASS, detail=f"max({column})={newest.isoformat()} >= {bound.isoformat()}"
         )
