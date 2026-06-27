@@ -26,6 +26,7 @@ from pathlib import Path
 from dorian import (
     bindings,
     claims_io,
+    claude_code,
     datachecks,
     gitio,
     init,
@@ -1003,6 +1004,109 @@ def _print_init_summary(plan, result, *, dry_run: bool) -> None:
     print("\nNext:")
     for i, step in enumerate(init.NEXT_STEPS, 1):
         print(f"  {i}. {step}")
+
+
+def cmd_claude_code(args: argparse.Namespace) -> int:
+    """Dispatch `dorian claude-code <subcommand>`."""
+    if args.cc_command == "install-claim-warrants":
+        return _cmd_install_claim_warrants(args)
+    print(f"dorian claude-code: '{args.cc_command}' not implemented", file=sys.stderr)
+    return EXIT_USAGE
+
+
+def _install_groups(args: argparse.Namespace) -> frozenset[str] | None:
+    """Resolve the manifest groups to install from the flags, or None on conflict."""
+    if args.with_hook and args.no_hook:
+        print(
+            "dorian claude-code: --with-hook and --no-hook are mutually exclusive",
+            file=sys.stderr,
+        )
+        return None
+    if args.settings_only:
+        return frozenset({"settings"})
+    groups = set(claude_code.DEFAULT_GROUPS)
+    if args.with_hook:
+        groups.add("hook")
+    return frozenset(groups)
+
+
+def _cmd_install_claim_warrants(args: argparse.Namespace) -> int:
+    """Scaffold the Dorian claim-warrants Claude Code skill (+ opt-in Stop hook).
+    Writes files only; never overwrites without --force; idempotent. Path/permission
+    problems are usage errors (exit 2)."""
+    if args.print_next_steps:
+        _print_claim_warrants_next_steps(with_hook=args.with_hook)
+        return EXIT_OK
+    target = Path(args.target).resolve() if args.target else _repo(args)
+    if _missing_repo(target, "claude-code install-claim-warrants"):
+        return EXIT_USAGE
+    groups = _install_groups(args)
+    if groups is None:
+        return EXIT_USAGE
+    try:
+        plan = claude_code.build_plan(target, groups=groups)
+        result = claude_code.apply(plan, force=args.force, dry_run=args.dry_run)
+    except (ValueError, OSError) as exc:
+        print(f"dorian claude-code install-claim-warrants: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    hook_installed = any(f.group == "hook" for f in plan.files)
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "repo": str(plan.repo_root),
+                    "is_git": plan.is_git,
+                    "dry_run": args.dry_run,
+                    "created": list(result.created),
+                    "overwritten": list(result.overwritten),
+                    "skipped": list(result.skipped),
+                    "warnings": list(result.warnings),
+                    "hook_installed": hook_installed,
+                    "next_steps": list(claude_code.NEXT_STEPS),
+                    "trust_boundary": claude_code.TRUST_BOUNDARY,
+                },
+                indent=2,
+            )
+        )
+    else:
+        _print_install_summary(plan, result, dry_run=args.dry_run, hook_installed=hook_installed)
+    return EXIT_OK
+
+
+def _print_install_summary(plan, result, *, dry_run: bool, hook_installed: bool) -> None:
+    blurbs = {f.path: f.blurb for f in plan.files}
+    header = (
+        "dorian claude-code install-claim-warrants --dry-run (no files written)"
+        if dry_run
+        else "Dorian claim-warrants skill installed."
+    )
+    print(header)
+    written = list(result.created) + list(result.overwritten)
+    if written:
+        print("\nWould create:" if dry_run else "\nWrote:")
+        width = max(len(p) for p in written)
+        for p in written:
+            print(f"  {p.ljust(width)}  {blurbs.get(p, '')}")
+    if result.skipped:
+        print("\nSkipped (already present — use --force to overwrite):")
+        for p in result.skipped:
+            print(f"  {p}")
+    for w in result.warnings:
+        print(f"\nwarning: {w}")
+    _print_claim_warrants_next_steps(with_hook=hook_installed)
+
+
+def _print_claim_warrants_next_steps(*, with_hook: bool) -> None:
+    print("\nNext:")
+    for i, step in enumerate(claude_code.NEXT_STEPS, 1):
+        print(f"  {i}. {step}")
+    if with_hook:
+        print(
+            "\nThe reminder Stop hook was scaffolded but is OFF until you register it"
+            " under hooks.Stop in .claude/settings.json — the exact snippet is in"
+            f"\n  {claude_code.SKILL_DIR}/README.md (it never blocks, never runs verify)."
+        )
+    print(f"\nTrust boundary: {claude_code.TRUST_BOUNDARY}")
 
 
 def cmd_sync(args: argparse.Namespace) -> int:

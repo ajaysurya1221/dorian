@@ -1,0 +1,13 @@
+{
+  "claims": [
+    {
+      "id": "example-config-value",
+      "text": "Replace with the specific, checkable fact your change asserts.",
+      "kind": "quantity",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "config-value:pyproject.toml:project.version:\"1.2.3\"" }
+      ]
+    }
+  ]
+}

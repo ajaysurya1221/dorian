@@ -1,0 +1,49 @@
+{
+  "claims": [
+    {
+      "id": "requires-python-3-11",
+      "text": "pyproject.toml declares requires-python >=3.11.",
+      "kind": "quantity",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "config-value:pyproject.toml:project.requires-python:\">=3.11\"" }
+      ]
+    },
+    {
+      "id": "verify-token-signature",
+      "text": "verify_token(token, algo=\"RS256\") -> bool keeps its signature and default.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "py-signature:src/auth.py::verify_token::token, algo=\"RS256\" -> bool" }
+      ]
+    },
+    {
+      "id": "login-timeout-constant",
+      "text": "The LOGIN_TIMEOUT constant is 30.",
+      "kind": "quantity",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C3", "program": "py-const:src/auth.py::LOGIN_TIMEOUT::30" }
+      ]
+    },
+    {
+      "id": "login-handler-exists",
+      "text": "app.py defines a login_handler symbol (existence/reference only).",
+      "kind": "reference",
+      "load_bearing": false,
+      "checkers": [
+        { "type": "C3", "program": "symbol:src/app.py::login_handler" }
+      ]
+    },
+    {
+      "id": "rs256-roundtrip-behaves",
+      "text": "RS256 tokens verify end to end (backed by a real test node — this RUNS pytest).",
+      "kind": "behavior",
+      "load_bearing": true,
+      "checkers": [
+        { "type": "C4", "program": "pytest:tests/test_auth.py::test_rs256_roundtrip" }
+      ]
+    }
+  ]
+}

@@ -279,6 +279,50 @@ def build_parser() -> argparse.ArgumentParser:
         "bench", help="repo-local benchmark tooling (mutation, large-mutation, churn)"
     )
     bench.add_argument("rest", nargs=argparse.REMAINDER)
+
+    cc = sub.add_parser(
+        "claude-code",
+        help="scaffold Claude Code integrations (claim-warrants skill + opt-in hook)",
+        description="Scaffold Claude Code integrations for Dorian. Writes files only —"
+        " never runs a checker, executes code, or writes outside the target repo.",
+    )
+    cc_sub = cc.add_subparsers(dest="cc_command", required=True)
+    icw = cc_sub.add_parser(
+        "install-claim-warrants",
+        help="scaffold the Dorian claim-warrants skill (and optional reminder Stop hook)"
+        " into .claude/ so /dorian-claim-warrants drafts claim warrants you then verify",
+        description="Scaffold a project-local Claude Code skill at"
+        " .claude/skills/dorian-claim-warrants/ (invoked as /dorian-claim-warrants) that"
+        " DRAFTS Dorian claim warrants for the checkable facts in a change summary, plus"
+        " review-first settings examples and an opt-in, reminder-only Stop hook. The skill"
+        " only drafts; `dorian verify` proves the claims deterministically. Writes files"
+        " only; never overwrites without --force; idempotent. Not a sandbox — trusted repos.",
+    )
+    icw.add_argument(
+        "--force", action="store_true", help="overwrite existing scaffolded files (default: skip)"
+    )
+    icw.add_argument("--dry-run", action="store_true", help="print the plan; write nothing")
+    icw.add_argument(
+        "--with-hook",
+        action="store_true",
+        help="also scaffold the opt-in reminder Stop hook (a file only — not auto-enabled)",
+    )
+    icw.add_argument(
+        "--no-hook",
+        action="store_true",
+        help="skill + settings only, no hook (this is already the default)",
+    )
+    icw.add_argument(
+        "--settings-only", action="store_true", help="write only the settings examples"
+    )
+    icw.add_argument(
+        "--print-next-steps",
+        action="store_true",
+        help="print the post-install usage guide and trust boundary, then exit (no writes)",
+    )
+    icw.add_argument(
+        "--target", help="target repo/project root (default: --repo, i.e. current directory)"
+    )
     return p
 
 
