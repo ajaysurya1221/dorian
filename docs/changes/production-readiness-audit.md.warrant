@@ -1,0 +1,228 @@
+{
+  "spec_version": "0.1",
+  "warrant": {
+    "id": "sha256:63316def4164e2136b4548ecfee35a32a091385c9daf2e8b0fee8f8477f8b4d7",
+    "artifact": {
+      "uri": "docs/changes/production-readiness-audit.md",
+      "content_hash": "sha256:8e75f2b152cc957506b97836c8f40d688dc755aaaadcfa8ef44180c62457f4aa",
+      "git_ref": "b63c4dbb473ab7089dbb5317ecdbe81d427c4713"
+    },
+    "produced_by": {
+      "runner": "manual",
+      "captured_at": "2026-06-27T08:07:31.160212+00:00",
+      "run_ref": "",
+      "model": "",
+      "prompt_hash": ""
+    },
+    "read_set": [
+      {
+        "id": "rs-0",
+        "uri": "src/dorian/cli.py",
+        "selector": null,
+        "hash": "sha256:f02d719cf5c318f9b92efc1727e8ed011a54ce7027736bcc701504592179279c",
+        "version": "b63c4dbb473ab7089dbb5317ecdbe81d427c4713",
+        "scope": "project"
+      },
+      {
+        "id": "rs-1",
+        "uri": "src/dorian/strength.py",
+        "selector": null,
+        "hash": "sha256:0eb9ccb4183636bc195260bc46ade8375e43f8b5a86fcab3aa172d1024505e9b",
+        "version": "b63c4dbb473ab7089dbb5317ecdbe81d427c4713",
+        "scope": "project"
+      },
+      {
+        "id": "rs-2",
+        "uri": "src/dorian/seal.py",
+        "selector": null,
+        "hash": "sha256:53a66402d480fe190c12cf0063fbbefcf65fbaf1234d39950646d7bbce75cb9d",
+        "version": "b63c4dbb473ab7089dbb5317ecdbe81d427c4713",
+        "scope": "project"
+      },
+      {
+        "id": "rs-3",
+        "uri": "src/dorian/commands.py",
+        "selector": null,
+        "hash": "sha256:8579f373c7012ebf5cafd9b1e07673c42ab829eef55ee2965d9513c9e808fe50",
+        "version": "b63c4dbb473ab7089dbb5317ecdbe81d427c4713",
+        "scope": "project"
+      },
+      {
+        "id": "rs-4",
+        "uri": "src/dorian/bindings.py",
+        "selector": null,
+        "hash": "sha256:355a1335befad3777b5c85e29c7d34ce87ac1a3076ba37b81b36649d572de767",
+        "version": "b63c4dbb473ab7089dbb5317ecdbe81d427c4713",
+        "scope": "project"
+      },
+      {
+        "id": "rs-5",
+        "uri": "pyproject.toml",
+        "selector": null,
+        "hash": "sha256:049d72a1fb4435f565e622316d6b0b2e31b9792d80d1b40178c6de124d7ef2f6",
+        "version": "b63c4dbb473ab7089dbb5317ecdbe81d427c4713",
+        "scope": "project"
+      },
+      {
+        "id": "rs-6",
+        "uri": "tests/test_adequacy_gate.py",
+        "selector": null,
+        "hash": "sha256:ea8a74f7c8896165d4d5e16a896164c66a9324fb20f7dafc7e760b8654501a26",
+        "version": "b63c4dbb473ab7089dbb5317ecdbe81d427c4713",
+        "scope": "project"
+      }
+    ],
+    "claims": [
+      {
+        "id": "cli-exposes-strength-gate",
+        "text": "The CLI exposes a --strength-gate option.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:src/dorian/cli.py::--strength-gate",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/cli.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "strength-truth-axis-gate",
+        "text": "strength.py defines the truth-axis gate that --strength-gate=fail refuses on.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "symbol:src/dorian/strength.py::gate_blocking",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/strength.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "seal-strength-gate-error",
+        "text": "The seal layer raises a dedicated StrengthGateError the command layer catches.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "symbol:src/dorian/seal.py::StrengthGateError",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/seal.py"
+            ],
+            "timeout_s": 30
+          },
+          {
+            "type": "C3",
+            "program": "regex:src/dorian/commands.py::StrengthGateError",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/commands.py",
+              "src/dorian/seal.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "binding-gate-trigger-axis",
+        "text": "The companion trigger-axis binding gate is implemented in bindings.py.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "symbol:src/dorian/bindings.py::analyze",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/bindings.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "python-floor-3-11",
+        "text": "dorian-vwp targets Python >=3.11.",
+        "kind": "quantity",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "config-value:pyproject.toml:project.requires-python:\">=3.11\"",
+            "expect": "exit:0",
+            "watch": [
+              "pyproject.toml"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "zero-runtime-dependencies",
+        "text": "dorian's core ships zero runtime dependencies.",
+        "kind": "quantity",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "config-value:pyproject.toml:project.dependencies:[]",
+            "expect": "exit:0",
+            "watch": [
+              "pyproject.toml"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "strength-gate-tested",
+        "text": "A test suite covers the strength gate.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "path:tests/test_adequacy_gate.py",
+            "expect": "exit:0",
+            "watch": [
+              "tests/test_adequacy_gate.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      }
+    ],
+    "derives_from": [],
+    "fold_policy": {
+      "revoke_on": "load_bearing_broken",
+      "degrade_on": "any_stale_or_broken"
+    },
+    "sealed_at": "2026-06-27T08:07:31Z",
+    "supersedes": null
+  }
+}
