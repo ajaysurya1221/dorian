@@ -1,0 +1,39 @@
+# Example: run Dorian loop preflight as a deterministic steering step.
+#
+# This is an EXAMPLE, not auto-installed into your workflows. It runs `dorian loop
+# preflight` on each pull request and fails the job only on ESCALATE (a checker errored,
+# a sensitive path, over-reach, or the repair cap) — REPAIR and CONTINUE do not block, so
+# the loop is not stopped unnecessarily. Tighten with `--fail-on repair` if you want a
+# load-bearing break to block too.
+#
+# SECURITY: `dorian revalidate` (which preflight calls) RUNS each touched claim's checker;
+# C4 pytest: / C5 shell: execute code. This is NOT a sandbox. Recommended for trusted /
+# internal repos. For public/fork PRs, add `--checker-source base --deny-exec` (fail-closed,
+# still not a sandbox) — see docs/SECURITY_BOUNDARY.md.
+
+name: dorian-loop
+on: [pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0              # preflight diffs against the PR base sha
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install dorian-vwp
+      - name: dorian loop preflight
+        run: |
+          dorian loop preflight \
+            --since "origin/${{ github.base_ref }}" \
+            --policy assist \
+            --scope 'src/**' --scope 'docs/**' \
+            --fail-on escalate \
+            --format md | tee "$GITHUB_STEP_SUMMARY"

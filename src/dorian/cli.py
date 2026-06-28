@@ -323,7 +323,148 @@ def build_parser() -> argparse.ArgumentParser:
     icw.add_argument(
         "--target", help="target repo/project root (default: --repo, i.e. current directory)"
     )
+
+    _add_loop_parser(sub)
     return p
+
+
+def _add_loop_steer_flags(parser: argparse.ArgumentParser) -> None:
+    """Inputs shared by `loop preflight` and `loop prompt`: the change window, the
+    steering policy, repair-cap accounting, scope/denylist, and the execution policy."""
+    parser.add_argument("--since", help="git ref to diff from (e.g. the loop's base ref)")
+    parser.add_argument("--changed-paths", help="file listing changed paths (one per line)")
+    parser.add_argument(
+        "--policy",
+        choices=["cautious", "assist", "unattended"],
+        default="assist",
+        help="steering policy (default assist). cautious: repair even non-load-bearing breaks,"
+        " cap 1. assist: repair load-bearing, continue past non-load-bearing, cap 3. unattended:"
+        " like assist but REQUIRES --scope before repairing a load-bearing break (L3 needs a"
+        " bounded lane), cap 3.",
+    )
+    parser.add_argument(
+        "--max-repairs",
+        type=int,
+        default=None,
+        help="repair-attempt cap before escalating (default: per-policy — cautious 1, else 3)",
+    )
+    parser.add_argument(
+        "--repair-attempts",
+        type=int,
+        default=0,
+        help="prior repair attempts for the current broken set (the loop threads this in;"
+        " reaching --max-repairs escalates as an infinite-fix-loop guard)",
+    )
+    parser.add_argument(
+        "--state-file",
+        help="optional JSON loop-state file; reads repair_attempts from it (a --repair-attempts"
+        " flag wins). Dorian never writes it — the loop owns its state.",
+    )
+    parser.add_argument(
+        "--scope",
+        action="append",
+        default=[],
+        metavar="GLOB",
+        help="allowlist glob (repeatable): a load-bearing break whose files fall outside every"
+        " --scope glob ESCALATES (over-reach guard) instead of being repaired",
+    )
+    parser.add_argument(
+        "--deny-path",
+        action="append",
+        default=[],
+        metavar="GLOB",
+        help="extra sensitive-path glob (repeatable), added to the built-in security/infra/secrets"
+        " set; a break touching one ESCALATES regardless of policy",
+    )
+    parser.add_argument(
+        "--checker-source",
+        choices=["head", "base"],
+        default=None,
+        help="which sidecar a claim's checker SPEC is read from (passed through to revalidate);"
+        " 'base' never executes a PR-added checker. Env: DORIAN_CHECKER_SOURCE.",
+    )
+    parser.add_argument("--enable-c2lite", action="store_true")
+    _add_exec_policy_flags(parser)
+
+
+def _add_loop_parser(sub: argparse._SubParsersAction) -> None:
+    """`dorian loop`: deterministic CONTINUE/REPAIR/ESCALATE steering for AI coding loops."""
+    lp = sub.add_parser(
+        "loop",
+        help="loop steering: preflight (continue/repair/escalate), prompt, and install the skill",
+        description="Dorian Loop Guard — a deterministic, token-free steering layer for AI coding"
+        " loops. `preflight` re-checks the warrants a change touched and classifies"
+        " the result into CONTINUE / REPAIR / ESCALATE; `prompt` renders that as a next-iteration"
+        " instruction; `install` scaffolds the Claude Code loop-guard skill. No model runs at check"
+        " time, and it never judges whole-loop success — not a sandbox, trusted repos only.",
+    )
+    lp_sub = lp.add_subparsers(dest="loop_command", required=True)
+
+    pf = lp_sub.add_parser(
+        "preflight",
+        help="re-check touched warrants and emit a continue/repair/escalate decision packet",
+        description="Re-check the claim warrants the change touched and classify the deterministic"
+        " result into a CONTINUE/REPAIR/ESCALATE loop-decision packet. Exits 0 on success by"
+        " default (the decision is in the output — Dorian does not stop the loop by default); use"
+        " --fail-on to map a decision to exit 4 for a hard CI gate.",
+    )
+    _add_loop_steer_flags(pf)
+    pf.add_argument(
+        "--format",
+        choices=["json", "md", "text"],
+        default="json",
+        help="output format (default json)",
+    )
+    pf.add_argument(
+        "--fail-on",
+        choices=["never", "repair", "escalate"],
+        default="never",
+        help="exit non-zero (4) when the decision is at/above this severity (default never: always"
+        " exit 0 on success, so preflight never blocks the loop by itself)",
+    )
+
+    pr = lp_sub.add_parser(
+        "prompt",
+        help="render the decision as a compact next-iteration instruction for the coding agent",
+        description="Run preflight (or read a saved packet via --from-json) and render a compact,"
+        " agent-readable markdown instruction for the next loop iteration.",
+    )
+    _add_loop_steer_flags(pr)
+    pr.add_argument(
+        "--from-json",
+        help="render from a saved preflight packet (path, or '-' for stdin) instead of re-running",
+    )
+
+    ins = lp_sub.add_parser(
+        "install",
+        help="scaffold the Claude Code loop-guard skill (/dorian-loop-guard) into .claude/",
+        description="Scaffold a Claude Code skill at .claude/skills/dorian-loop-guard/"
+        " (invoked as /dorian-loop-guard) plus example LOOP.md / STATE.md / run-log and a GitHub"
+        " Actions snippet. Writes files only; never overwrites without --force; idempotent. Not a"
+        " sandbox — trusted repos.",
+    )
+    ins.add_argument(
+        "--force", action="store_true", help="overwrite existing scaffolded files (default: skip)"
+    )
+    ins.add_argument("--dry-run", action="store_true", help="print the plan; write nothing")
+    ins.add_argument(
+        "--with-state",
+        action="store_true",
+        help="also write LOOP.md, STATE.md, and loop-run-log.md to the repo root",
+    )
+    ins.add_argument(
+        "--with-action",
+        action="store_true",
+        help="also write a GitHub Actions example to .github/workflows/dorian-loop.yml",
+    )
+    ins.add_argument(
+        "--target", help="target repo/project root (default: --repo, i.e. current directory)"
+    )
+    ins.add_argument(
+        "--print-next-steps",
+        action="store_true",
+        help="print the post-install usage guide and trust boundary, then exit (no writes)",
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -1,0 +1,283 @@
+{
+  "spec_version": "0.1",
+  "warrant": {
+    "id": "sha256:2e95af9de14d111a15ea4d7ef511555b84bc0a8ceec0906e3ad099bde80d8935",
+    "artifact": {
+      "uri": "docs/changes/dorian-loop-guard.md",
+      "content_hash": "sha256:50b71a55fda6632861bbc650bb6426e4f3e67bb674bcb928e77d98f6c7cddb6e",
+      "git_ref": "4e47a3d3fd5b43fcd786ae6fae22a15036552653"
+    },
+    "produced_by": {
+      "runner": "manual",
+      "captured_at": "2026-06-28T10:46:37.462746+00:00",
+      "run_ref": "",
+      "model": "",
+      "prompt_hash": ""
+    },
+    "read_set": [
+      {
+        "id": "rs-0",
+        "uri": "src/dorian/loop.py",
+        "selector": null,
+        "hash": "sha256:6c21c93b9ce1bb2d0e211a543d4a886bf38b9dce6899908e9b10c60ed860d28b",
+        "version": "4e47a3d3fd5b43fcd786ae6fae22a15036552653",
+        "scope": "project"
+      },
+      {
+        "id": "rs-1",
+        "uri": "src/dorian/cli.py",
+        "selector": null,
+        "hash": "sha256:7a19412b41bafbbdcebe31eb44027b6e6715cd652ce519dc7bf132132c2784aa",
+        "version": "4e47a3d3fd5b43fcd786ae6fae22a15036552653",
+        "scope": "project"
+      },
+      {
+        "id": "rs-2",
+        "uri": "src/dorian/commands.py",
+        "selector": null,
+        "hash": "sha256:e6b5c102314ef45344bb6a63b9aef3362876938136f10497d73f8df6713c2993",
+        "version": "4e47a3d3fd5b43fcd786ae6fae22a15036552653",
+        "scope": "project"
+      },
+      {
+        "id": "rs-3",
+        "uri": "docs/DORIAN_LOOP_GUARD.md",
+        "selector": null,
+        "hash": "sha256:c26557f9f90cf13b7dfc97c78bbb54ffc07e2bb1088a8e2b26540e46ee0d268b",
+        "version": "4e47a3d3fd5b43fcd786ae6fae22a15036552653",
+        "scope": "project"
+      },
+      {
+        "id": "rs-4",
+        "uri": "docs/LOOP_ENGINEERING_ALIGNMENT.md",
+        "selector": null,
+        "hash": "sha256:d751fb10a061897b3c9ecceeafbd72077255fb1b2eb1ebd3ea197606f427e634",
+        "version": "4e47a3d3fd5b43fcd786ae6fae22a15036552653",
+        "scope": "project"
+      },
+      {
+        "id": "rs-5",
+        "uri": "src/dorian/templates/claude_code/dorian-loop-guard/SKILL.md",
+        "selector": null,
+        "hash": "sha256:b625aa971db3f1b29820853168c62822885afa271722d2933585423d1702020b",
+        "version": "4e47a3d3fd5b43fcd786ae6fae22a15036552653",
+        "scope": "project"
+      },
+      {
+        "id": "rs-6",
+        "uri": "pyproject.toml",
+        "selector": null,
+        "hash": "sha256:2c2ebbbf8a81a09caf84472633a4133c3b96d2cb4a77786f76a55830e2ee3a50",
+        "version": "4e47a3d3fd5b43fcd786ae6fae22a15036552653",
+        "scope": "project"
+      },
+      {
+        "id": "rs-7",
+        "uri": "README.md",
+        "selector": null,
+        "hash": "sha256:b5b1b4a18ce6ff941fbe4f1ff49e7b3e45528f4c04293ea2fa59a69a39a05bbd",
+        "version": "4e47a3d3fd5b43fcd786ae6fae22a15036552653",
+        "scope": "project"
+      }
+    ],
+    "claims": [
+      {
+        "id": "loop-engine",
+        "text": "The Loop Guard engine entry point preflight() lives in src/dorian/loop.py.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "symbol:src/dorian/loop.py::preflight",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/loop.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "loop-cli",
+        "text": "cli.py wires the nested `dorian loop` subcommand via _add_loop_parser.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "symbol:src/dorian/cli.py::_add_loop_parser",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/cli.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "loop-handler",
+        "text": "commands.py dispatches `dorian loop` via cmd_loop.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "symbol:src/dorian/commands.py::cmd_loop",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/commands.py"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "loop-guard-doc",
+        "text": "docs/DORIAN_LOOP_GUARD.md exists.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "path:docs/DORIAN_LOOP_GUARD.md",
+            "expect": "exit:0",
+            "watch": [
+              "docs/DORIAN_LOOP_GUARD.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "loop-alignment-doc",
+        "text": "docs/LOOP_ENGINEERING_ALIGNMENT.md exists.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "path:docs/LOOP_ENGINEERING_ALIGNMENT.md",
+            "expect": "exit:0",
+            "watch": [
+              "docs/LOOP_ENGINEERING_ALIGNMENT.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "loop-skill",
+        "text": "The /dorian-loop-guard skill template ships in package data.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "path:src/dorian/templates/claude_code/dorian-loop-guard/SKILL.md",
+            "expect": "exit:0",
+            "watch": [
+              "src/dorian/templates/claude_code/dorian-loop-guard/SKILL.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "zero-runtime-deps",
+        "text": "pyproject.toml's runtime dependencies list is empty (dependencies = []).",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": true,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:pyproject.toml::dependencies = \\[\\]",
+            "expect": "exit:0",
+            "watch": [
+              "pyproject.toml"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "readme-loops-section",
+        "text": "The README has a 'Using dorian inside AI coding loops' section.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": false,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:README.md::Using dorian inside AI coding loops",
+            "expect": "exit:0",
+            "watch": [
+              "README.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "docs-not-a-sandbox",
+        "text": "The Loop Guard doc states Dorian is not a sandbox.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": false,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:docs/DORIAN_LOOP_GUARD.md::not a sandbox",
+            "expect": "exit:0",
+            "watch": [
+              "docs/DORIAN_LOOP_GUARD.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      },
+      {
+        "id": "docs-does-not-stop-loop",
+        "text": "The Loop Guard doc states Dorian does not stop the loop by default.",
+        "kind": "reference",
+        "anchor": null,
+        "load_bearing": false,
+        "supports": [],
+        "checkers": [
+          {
+            "type": "C3",
+            "program": "regex:docs/DORIAN_LOOP_GUARD.md::does not stop the loop by default",
+            "expect": "exit:0",
+            "watch": [
+              "docs/DORIAN_LOOP_GUARD.md"
+            ],
+            "timeout_s": 30
+          }
+        ]
+      }
+    ],
+    "derives_from": [],
+    "fold_policy": {
+      "revoke_on": "load_bearing_broken",
+      "degrade_on": "any_stale_or_broken"
+    },
+    "sealed_at": "2026-06-28T10:46:37Z",
+    "supersedes": null
+  }
+}
