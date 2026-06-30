@@ -119,3 +119,31 @@ hardening** (see [`NEXT_ALGORITHMIC_BETS.md`](NEXT_ALGORITHMIC_BETS.md)); until
 then, treat `checker_trust: base` as a checker-spec trust root for *semi-trusted*
 contributors, and for genuinely untrusted forks rely on required review of the
 `.warrant` diff and branch protection (plus `deny_exec`), not on base mode alone.
+
+## Governance gate & veto: enforcement is in the host hook, not the core
+
+The v1.4 governance adapter adds a host-side enforcement layer. The boundary is deliberate:
+
+- **`dorian gate` and the core never veto.** `gate` emits a `continue`/`repair`/`escalate`
+  decision and exits only `0`/`4` (or `2` for malformed input). It never uses exit 2 as a veto,
+  never reads a clock, and never reads a nonce — the verdict path stays pure and portable.
+- **The exit-2 tool-block lives in the Claude Code `PreToolUse` host hook.** Under a **strict**
+  policy (`DORIAN_POLICY=unattended` or `DORIAN_EFFORT=godmode`) the veto **fails closed**: a
+  missing, stale (older than `FRESH_SECONDS = 900`), or identity-mismatched decision packet
+  (`repo_root`/`base_ref`/`nonce`) blocks the mutating tool, as does a standing `escalate`. Under
+  an **attended** policy it **fails open** — a human is present, so the agent is not trapped —
+  except a standing `escalate` on a *sensitive* path still blocks.
+- **Still not a sandbox.** The veto can refuse to *start* a mutating tool; it does not contain what
+  an allowed tool then does. `.dorian/local/last-decision.json` is ephemeral, gitignored runtime
+  state — never an authoritative ledger, and never read back into a verdict.
+
+## Formalization drift: claim/goal emission is the human-reviewed step
+
+The verdict path is model-free, but the *translation* of human intent into checker specs and a goal
+record happens at **emission** — drafted by an agent or a human, before any check runs. That
+translation can drift from intent: a checker can be well-formed yet too weak to falsify the claim's
+kind (a `behavior` claim backed only by a `symbol:` existence check). `--strength-gate` and the
+binding diagnostics catch *categories* of weak backing, but a checker that is adequate-by-grammar
+yet semantically off-target can still pass. Treat claim/goal emission as a reviewed step —
+[`VALIDATION_HONESTY.md`](VALIDATION_HONESTY.md) is the contract for what a passing checker does
+and does not prove.

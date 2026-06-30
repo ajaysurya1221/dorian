@@ -54,6 +54,17 @@ means a claim is false.
   is reproducibility on a handful of frozen SHAs — hermetic reproduction, not
   broad validation.
 
+## C4 verdict determinism is conditional on a deterministic test
+
+A `C4` (`pytest:`) verdict is deterministic *given a deterministic test*. If the bound test is
+**flaky** — passing on some runs, failing on others with the source unchanged — the warrant's
+trust state can flip between `TRUSTED` and `REVOKED` across `revalidate` runs. That is a
+**test-quality issue, not Dorian nondeterminism**: the C1/C3/C5-typed families are deterministic by
+construction, and the same flaky test would flip a CI run too. But it means a `C4` claim's truth is
+only as stable as the test backing it. An **N-run stability lever** (consensus across repeats) is a
+**deferred (v1.5) idea**; until then, read a flaky `C4` flip as a signal about the test, not the
+code, and prefer deterministic tests for load-bearing behavior claims.
+
 ## Hermetic reproduction ≠ broad validation
 
 Byte-identical reproduction on frozen inputs proves the *process* is

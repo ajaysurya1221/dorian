@@ -38,6 +38,45 @@ and security posture are unchanged; the core stays zero-dependency; `REVOKED` re
 verification path**. `claude_code.build_plan` gained an optional `manifest=` parameter (backward
 compatible) so the loop installer reuses the same scaffolding machinery.
 
+### Added — Governance Foundation (1.4.0)
+- **`dorian goal add` / `dorian goal show` / `dorian goal check`** (`src/dorian/goals.py`,
+  `cmd_goal` in `commands.py`) — a **human-authored goal record** (sidecar
+  `.dorian/goals/<goal_id>.goal.json`, `schema_version: 1`) plus a deterministic, **path-derived
+  goal↔claim coverage diff** (`goals.coverage_diff` → `{covered, uncovered}` over git-changed,
+  in-scope paths vs. warranted paths). `goal check --fail-on-uncovered` exits **4** when an
+  in-scope changed path has no warrant. The goal's `statement` is **human context only** — never
+  fed to a model, never used to decide a verdict or "completion".
+- **`dorian gate`** (`cmd_gate`) — a host-mappable **preflight body**: reads a tool-call JSON on
+  stdin, runs the *same pure loop preflight* as `dorian loop preflight`, and prints the
+  **`continue` / `repair` / `escalate`** decision packet. Emits **only** contract codes —
+  `0`/`4` via `--fail-on {never|repair|escalate}`, plus `2` for malformed stdin — and **never**
+  uses exit 2 as a veto, reads a clock, or reads a nonce.
+- **Claude Code governance adapter** via **`dorian governance install`** (`src/dorian/governance.py`,
+  scaffolded through the shared `claude_code.build_plan`/`apply` machinery) — one concrete adapter:
+  a `SubagentStop` hook that shells `dorian gate` and writes an ephemeral
+  `.dorian/local/last-decision.json` (the **only** place wall-clock/nonce are stamped), a
+  **fail-closed** `PreToolUse` veto (the exit-2 tool-block lives in the *host hook*; fails closed
+  under `unattended`/`godmode`, fails open when attended, freshness window `FRESH_SECONDS = 900`),
+  a settings example, and bundle docs. **No generic provider abstraction** is introduced.
+- **Safe sidecar writer** (`src/dorian/sidecars.py`) — atomic (temp + `os.replace`), deterministic
+  (sorted-key JSON, `\n`), path-safe (`ensure_within` rejects repo escapes) writer shared by every
+  `.dorian/` record.
+- **Deterministic core import firewall** (`tests/test_firewall_import_closure.py`) — a standing
+  guard (AST import-closure over the verdict modules) proving no model/network import sits on the
+  verification path.
+- **Docs**: [`docs/DORIAN_PANE.md`](docs/DORIAN_PANE.md) (the pane *vision* — deferred, not shipped),
+  [`docs/GOVERNANCE_DATA_MODEL.md`](docs/GOVERNANCE_DATA_MODEL.md), a C4-flakiness note in
+  [`docs/VALIDATION_HONESTY.md`](docs/VALIDATION_HONESTY.md), and a gate fail-closed /
+  formalization-drift note in [`docs/SECURITY_BOUNDARY.md`](docs/SECURITY_BOUNDARY.md);
+  `.dorian/local/` is gitignored.
+
+**Deferred / cut (not in v1.4):** claim **provenance** sidecars → **v1.5**; **effort presets** →
+**cut from core** (the binding-floor/breadth mapping lives in adapter docs); the **pane / TUI** →
+**deferred** (Claude Design owns the final design; v1.4 ships only the CLI + hook spine); a
+**generic provider abstraction** → **deferred** until a second concrete adapter exists. Purely
+additive — warrant schema, checker grammar, exit codes, fold policy, and security posture are
+unchanged; the core stays zero-dependency; **no model touches the verification path**.
+
 ## [1.3.0] — 2026-06-28
 
 The **Dorian Claim Warrants for Claude Code** integration: one command scaffolds a project-local Claude

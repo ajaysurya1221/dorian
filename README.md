@@ -50,6 +50,7 @@ now and is re-checked on every future change, so a confident summary doesn't qui
 - [Why not just watch files?](#why-not-just-watch-files)
 - [How it works](#how-it-works)
 - [Using dorian with Claude Code](#using-dorian-with-claude-code)
+- [Governance foundation (preview)](#governance-foundation-preview)
 - [What gets committed](#what-gets-committed)
 - [Getting started](#getting-started)
 - [Writing claims an agent can be held to](#writing-claims-an-agent-can-be-held-to)
@@ -364,6 +365,33 @@ them instead of re-deriving the facts. Loop Guard steers; it does **not** judge 
 success, replace tests/review, or sandbox execution — and `REVOKED` is a steering signal,
 not a halt. Full guide: [`docs/DORIAN_LOOP_GUARD.md`](docs/DORIAN_LOOP_GUARD.md); how it fits
 loop engineering: [`docs/LOOP_ENGINEERING_ALIGNMENT.md`](docs/LOOP_ENGINEERING_ALIGNMENT.md).
+
+## Governance foundation (preview)
+
+The deterministic spine of the *"give your goal and go to sleep"* direction — a goal record, a
+preflight gate, and a Claude Code adapter that can enforce the loop decision. **The pane/TUI is not
+shipped** (see [`docs/DORIAN_PANE.md`](docs/DORIAN_PANE.md)); this is the CLI + hook layer it will
+sit on.
+
+- **`dorian goal add --id <id> --title <t> [--statement … --scope <glob> …]`** — record a
+  **human-authored** goal (written to `.dorian/goals/<id>.goal.json`) with a path-scoped coverage
+  contract. The `statement` is context for humans; it never feeds a verdict. Read it back with
+  **`dorian goal show --id <id>`**.
+- **`dorian goal check --id <id> [--since <ref>] [--fail-on-uncovered]`** — a deterministic,
+  path-derived **coverage diff**: which changed, in-scope paths are not yet covered by a warrant
+  (exit **4** with `--fail-on-uncovered`). It does **not** judge whether the goal is "done".
+- **`dorian gate`** — reads a tool-call JSON on stdin and emits the same
+  **`continue`/`repair`/`escalate`** decision as Loop Guard; exits `0`/`4` on the decision (or `2`
+  only for malformed input) and never uses exit 2 as a veto.
+- **`dorian governance install`** — scaffold the **Claude Code** governance adapter: a
+  `SubagentStop` hook that runs `dorian gate`, plus a **fail-closed** `PreToolUse` veto (blocks a
+  mutating tool on a standing `escalate` under a strict policy — `unattended`, or
+  `DORIAN_EFFORT=godmode`; fails open when a human is attended). It is **steering plus a host-side
+  veto, not a sandbox**.
+
+Data model and trust boundary: [`docs/GOVERNANCE_DATA_MODEL.md`](docs/GOVERNANCE_DATA_MODEL.md),
+[`docs/SECURITY_BOUNDARY.md`](docs/SECURITY_BOUNDARY.md). Provenance is deferred to v1.5; effort
+presets are not in core.
 
 ## What gets committed
 

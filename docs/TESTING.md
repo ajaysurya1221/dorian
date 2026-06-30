@@ -76,3 +76,12 @@ make coverage    # coverage (term-missing + HTML under htmlcov/), measured over 
   Pinned by `tests/test_determinism.py::test_reseal_of_identical_content_is_idempotent`.
 - **CI is Ubuntu-only:** path / subprocess behavior on macOS and Windows is not yet
   gated in CI (the suite passes locally on macOS).
+- **Local subprocess tests can flake in sandboxed / worktree environments:** the
+  out-of-process tests (`python -m dorian` black-box, packaging, C4 real-`pytest`
+  spawns) need a working editable install on `PATH`; under endpoint-security scanning
+  or an unstable worktree editable install they can stall or `ModuleNotFoundError`
+  even when the code is correct. Confirm logic with the focused in-process tests
+  (`PYTHONPATH=src uv run --no-sync pytest <files>`), and treat **CI
+  (`uv sync --all-extras` on 3.11 / 3.12 / 3.13) as authoritative** for the full
+  suite. Do not work around the stall by changing the C4 PATH-interpreter contract,
+  and do not report a green run that did not happen.
