@@ -326,6 +326,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     _add_loop_parser(sub)
     _add_goal_parser(sub)
+    _add_gate_parser(sub)
     return p
 
 
@@ -512,6 +513,33 @@ def _add_goal_parser(sub: argparse._SubParsersAction) -> None:
         "--fail-on-uncovered",
         action="store_true",
         help="exit 4 (refusal, not a false claim) if any in-scope changed path is uncovered",
+    )
+
+
+def _add_gate_parser(sub: argparse._SubParsersAction) -> None:
+    """`dorian gate`: the deterministic body of a host veto hook (emits only 0/4).
+
+    Reads host/tool JSON on stdin and runs the same pure preflight as `loop preflight`. The
+    exit-2 tool-blocking veto and any host-specific hook output belong to a host hook script,
+    never to this command.
+    """
+    g = sub.add_parser(
+        "gate",
+        help="host-mappable preflight: reads tool JSON on stdin, emits a 0/4 decision",
+        description=(
+            "Read host/tool JSON on stdin, run the deterministic loop preflight, print the "
+            "LoopDecision packet as JSON, and exit with a Dorian contract code (0, or 4 "
+            "under --fail-on). A host hook maps the decision to a tool-blocking veto; this "
+            "command never does."
+        ),
+    )
+    _add_loop_steer_flags(g)
+    g.add_argument(
+        "--fail-on",
+        choices=["never", "repair", "escalate"],
+        default="never",
+        help="exit 4 when the decision is at/above this severity (default never: always exit 0)."
+        " The host hook — not this command — maps a decision to a tool-blocking veto.",
     )
 
 

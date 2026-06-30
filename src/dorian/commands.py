@@ -1178,6 +1178,27 @@ def cmd_goal(args: argparse.Namespace) -> int:
     return EXIT_USAGE
 
 
+def cmd_gate(args: argparse.Namespace) -> int:
+    """`dorian gate`: the deterministic body of a host veto hook.
+
+    Reads host/tool JSON on stdin (carried as context only — the host hook interprets it),
+    runs the same pure loop preflight as `dorian loop preflight`, prints the LoopDecision
+    packet as JSON, and returns ONLY Dorian contract codes: EXIT_OK, or EXIT_REVOKED under
+    --fail-on. It NEVER returns exit 2 as a REPAIR/ESCALATE veto (exit 2 is malformed-input /
+    usage only); the exit-2 tool-blocking veto belongs to a host hook, not this command.
+    """
+    try:
+        json.loads(sys.stdin.read() or "{}")  # validate tool JSON; not interpreted here
+    except ValueError:
+        print("dorian gate: invalid tool JSON on stdin", file=sys.stderr)
+        return EXIT_USAGE
+    packet, code = _run_loop_preflight(args)
+    if packet is None:
+        return code  # usage (2) or fail-closed sidecar (4) error, already reported on stderr
+    print(loop.render_json(packet), end="")
+    return _loop_exit_code(packet["decision"], args.fail_on)
+
+
 def cmd_loop(args: argparse.Namespace) -> int:
     """Dispatch `dorian loop <subcommand>` (preflight | prompt | install)."""
     if args.loop_command == "preflight":
