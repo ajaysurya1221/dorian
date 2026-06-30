@@ -14,9 +14,10 @@ model-evaluated goal satisfaction. Scope/policy are human-set, never model-set a
 
 from __future__ import annotations
 
+import fnmatch
 import json
 from dataclasses import asdict, dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from dorian import sidecars
 
@@ -93,3 +94,33 @@ def load(repo: Path, goal_id: str) -> Goal:
         )
     except KeyError as exc:
         raise ValueError(f"malformed goal record {goal_id!r}: missing field {exc}") from exc
+
+
+def _norm_path(path: str) -> str:
+    """Normalize a path to a stable repo-relative POSIX string (strips ``./``, unifies seps)."""
+    return PurePosixPath(path.strip().replace("\\", "/")).as_posix()
+
+
+def _in_scope(path: str, scope: tuple[str, ...]) -> bool:
+    """True if ``path`` is governed by ``scope``. Empty scope -> all paths (loop convention)."""
+    return True if not scope else any(fnmatch.fnmatch(path, glob) for glob in scope)
+
+
+def coverage_diff(goal: Goal, changed_paths, warranted_paths) -> dict:
+    """Pure, deterministic structural coverage check — no model, no I/O, no semantics.
+
+    Returns ``{"covered": [...], "uncovered": [...]}`` (sorted, de-duplicated). ``uncovered``
+    is the set of changed paths *inside the goal's scope* that no warrant artifact path covers;
+    ``must_cover`` is DERIVED only from ``changed_paths`` filtered by ``goal.scope`` (fnmatch) —
+    never from ``goal.statement``, ``coverage_contract`` prose, or any model.
+
+    ``uncovered`` is a coverage/refusal signal, NOT a false claim, a failed goal, or a lie.
+    """
+    warranted = {_norm_path(p) for p in warranted_paths}
+    in_scope = {
+        norm for norm in (_norm_path(c) for c in changed_paths) if _in_scope(norm, goal.scope)
+    }
+    return {
+        "covered": sorted(p for p in in_scope if p in warranted),
+        "uncovered": sorted(p for p in in_scope if p not in warranted),
+    }

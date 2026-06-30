@@ -503,6 +503,17 @@ def _add_goal_parser(sub: argparse._SubParsersAction) -> None:
     show = gp_sub.add_parser("show", help="print a goal record as JSON")
     show.add_argument("--id", required=True, help="goal id to print")
 
+    chk = gp_sub.add_parser(
+        "check", help="report changed paths in the goal's scope that no warrant covers"
+    )
+    chk.add_argument("--id", required=True, help="goal id to check")
+    chk.add_argument("--since", default="HEAD~1", help="ref to compute changed paths against")
+    chk.add_argument(
+        "--fail-on-uncovered",
+        action="store_true",
+        help="exit 4 (refusal, not a false claim) if any in-scope changed path is uncovered",
+    )
+
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)

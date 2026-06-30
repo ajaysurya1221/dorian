@@ -180,3 +180,171 @@ def test_goals_not_wired_into_verdict_path():
     for mod in ("loop.py", "revalidate.py", "fold.py", "seal.py", "policy.py"):
         text = (pkg / mod).read_text(encoding="utf-8")
         assert "goals" not in text.replace("# ", ""), f"{mod} must not reference goals"
+
+
+# --- Task 4: deterministic goal<->claim coverage diff (pure function) -----------------
+
+
+def test_coverage_uncovered_in_scope_without_warrant():
+    g = _make_goal(scope=("src/**",))
+    res = goals.coverage_diff(g, ["src/a.py"], [])
+    assert res == {"covered": [], "uncovered": ["src/a.py"]}
+
+
+def test_coverage_covered_exact_warrant():
+    g = _make_goal(scope=("src/**",))
+    res = goals.coverage_diff(g, ["src/a.py"], ["src/a.py"])
+    assert res == {"covered": ["src/a.py"], "uncovered": []}
+
+
+def test_coverage_out_of_scope_path_ignored():
+    g = _make_goal(scope=("src/**",))
+    res = goals.coverage_diff(g, ["docs/readme.md", "src/a.py"], [])
+    assert res == {"covered": [], "uncovered": ["src/a.py"]}  # docs/ neither covered nor uncovered
+
+
+def test_coverage_sorted_and_deduped():
+    g = _make_goal(scope=("src/**",))
+    res = goals.coverage_diff(g, ["src/b.py", "src/a.py", "src/a.py"], ["src/a.py"])
+    assert res["covered"] == ["src/a.py"]  # deduped
+    assert res["uncovered"] == ["src/b.py"]  # sorted, deduped
+
+
+def test_coverage_empty_scope_means_all_changed_paths_in_scope():
+    g = _make_goal(scope=())
+    res = goals.coverage_diff(g, ["anywhere/x.py"], [])
+    assert res["uncovered"] == ["anywhere/x.py"]
+
+
+def test_coverage_normalizes_paths():
+    g = _make_goal(scope=("src/**",))
+    # "./src/a.py" normalizes to "src/a.py" and matches the warrant "src/a.py"
+    res = goals.coverage_diff(g, ["./src/a.py"], ["src/a.py"])
+    assert res == {"covered": ["src/a.py"], "uncovered": []}
+
+
+def test_coverage_absolute_path_does_not_false_match_scope():
+    g = _make_goal(scope=("src/**",))
+    res = goals.coverage_diff(g, ["/etc/passwd"], [])
+    assert res == {"covered": [], "uncovered": []}  # absolute -> out of "src/**" scope -> ignored
+
+
+def test_coverage_ignores_statement_and_coverage_contract():
+    a = _make_goal(scope=("src/**",), statement="alpha", coverage_contract={})
+    b = _make_goal(
+        scope=("src/**",),
+        statement="totally different prose",
+        coverage_contract={"min_strength_load_bearing": "behavioral"},
+    )
+    changed, warranted = ["src/a.py"], []
+    assert goals.coverage_diff(a, changed, warranted) == goals.coverage_diff(b, changed, warranted)
+
+
+# --- Task 4: `dorian goal check` CLI (I/O boundaries stubbed for determinism) ----------
+
+
+def _seed_goal(tmp_path, scope="src/**"):
+    commands.cmd_goal(
+        _ns(
+            "--repo",
+            str(tmp_path),
+            "goal",
+            "add",
+            "--id",
+            "g-1",
+            "--title",
+            "T",
+            "--base-ref",
+            "HEAD",
+            "--scope",
+            scope,
+        )
+    )
+
+
+class _FakeConn:
+    def close(self):
+        pass
+
+
+def _stub_io(monkeypatch, *, changed, warranted):
+    monkeypatch.setattr(commands.gitio, "changed_paths", lambda repo, since: (list(changed), {}))
+    monkeypatch.setattr(commands.store, "connect", lambda repo: _FakeConn())
+    monkeypatch.setattr(commands.store, "sync", lambda repo, conn: None)
+    monkeypatch.setattr(
+        commands.store, "get_warrants", lambda conn: [{"artifact_uri": p} for p in warranted]
+    )
+
+
+def test_cli_goal_check_prints_json_and_exits_ok_without_flag(tmp_path, monkeypatch, capsys):
+    _seed_goal(tmp_path)
+    capsys.readouterr()
+    _stub_io(monkeypatch, changed=["src/a.py"], warranted=[])
+    rc = commands.cmd_goal(
+        _ns("--repo", str(tmp_path), "goal", "check", "--id", "g-1", "--since", "HEAD")
+    )
+    out = json.loads(capsys.readouterr().out)
+    assert out == {"covered": [], "uncovered": ["src/a.py"]}
+    assert rc == 0  # uncovered exists but no --fail-on-uncovered -> EXIT_OK
+
+
+def test_cli_goal_check_fail_on_uncovered_returns_4(tmp_path, monkeypatch, capsys):
+    _seed_goal(tmp_path)
+    capsys.readouterr()
+    _stub_io(monkeypatch, changed=["src/a.py"], warranted=[])
+    rc = commands.cmd_goal(
+        _ns(
+            "--repo",
+            str(tmp_path),
+            "goal",
+            "check",
+            "--id",
+            "g-1",
+            "--since",
+            "HEAD",
+            "--fail-on-uncovered",
+        )
+    )
+    assert rc == 4  # EXIT_REVOKED — a refusal, NOT a false claim
+
+
+def test_cli_goal_check_covered_passes_under_fail_flag(tmp_path, monkeypatch, capsys):
+    _seed_goal(tmp_path)
+    capsys.readouterr()
+    _stub_io(monkeypatch, changed=["src/a.py"], warranted=["src/a.py"])
+    rc = commands.cmd_goal(
+        _ns(
+            "--repo",
+            str(tmp_path),
+            "goal",
+            "check",
+            "--id",
+            "g-1",
+            "--since",
+            "HEAD",
+            "--fail-on-uncovered",
+        )
+    )
+    out = json.loads(capsys.readouterr().out)
+    assert out == {"covered": ["src/a.py"], "uncovered": []}
+    assert rc == 0
+
+
+def test_cli_goal_check_missing_goal_is_usage_error(tmp_path):
+    rc = commands.cmd_goal(
+        _ns("--repo", str(tmp_path), "goal", "check", "--id", "nope", "--since", "HEAD")
+    )
+    assert rc == 2  # EXIT_USAGE
+
+
+def test_cli_goal_check_bad_ref_is_usage_error(tmp_path, monkeypatch):
+    _seed_goal(tmp_path)
+
+    def _boom(repo, since):
+        raise commands.gitio.GitError("bad revision: " + since)
+
+    monkeypatch.setattr(commands.gitio, "changed_paths", _boom)
+    rc = commands.cmd_goal(
+        _ns("--repo", str(tmp_path), "goal", "check", "--id", "g-1", "--since", "nope")
+    )
+    assert rc == 2  # EXIT_USAGE — a bad ref is infra/usage, not a verdict

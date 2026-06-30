@@ -1148,6 +1148,32 @@ def cmd_goal(args: argparse.Namespace) -> int:
             return EXIT_USAGE
         print(json.dumps(goal.to_dict(), sort_keys=True))
         return EXIT_OK
+    if args.goal_command == "check":
+        try:
+            goal = goals.load(repo, args.id)
+        except (FileNotFoundError, ValueError, OSError) as exc:
+            print(f"dorian goal: {exc}", file=sys.stderr)
+            return EXIT_USAGE
+        try:
+            changed, _renames = gitio.changed_paths(repo, args.since)
+        except gitio.GitError as exc:
+            print(f"dorian goal: {exc}", file=sys.stderr)
+            return EXIT_USAGE
+        conn = store.connect(repo)
+        try:
+            try:
+                store.sync(repo, conn)
+            except _SIDECAR_ERRORS as exc:
+                print(f"dorian goal: corrupt warrant sidecar: {exc}", file=sys.stderr)
+                return EXIT_REVOKED
+            warranted = [w["artifact_uri"] for w in store.get_warrants(conn)]
+        finally:
+            conn.close()
+        result = goals.coverage_diff(goal, changed, warranted)
+        print(json.dumps(result, sort_keys=True))
+        if result["uncovered"] and args.fail_on_uncovered:
+            return EXIT_REVOKED  # refusal, NOT a false claim (NN6)
+        return EXIT_OK
     print(f"dorian goal: '{args.goal_command}' not implemented", file=sys.stderr)
     return EXIT_USAGE
 
