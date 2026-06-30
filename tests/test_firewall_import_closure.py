@@ -76,6 +76,11 @@ FORBIDDEN = {
     "prompt_toolkit",
 }
 
+# Deterministic-core utility modules that are NOT on the verdict path (so they do not belong
+# in VERDICT_SEEDS) but must still stay stdlib-only. Guarded so a core write/helper module
+# cannot silently introduce a model/network/UI dependency. Add new such helpers here.
+CORE_UTILITY_SEEDS = ["sidecars"]
+
 
 def _module_path(modname: str, src: pathlib.Path) -> pathlib.Path | None:
     """Resolve a dorian submodule name (``"loop"`` or ``"checkers.base"``) to a file.
@@ -262,3 +267,15 @@ def test_firewall_detects_planted_forbidden_imports():
         assert set(reachable) & FORBIDDEN == {"anthropic", "openai"}
         # stdlib imports are recorded but are NOT forbidden
         assert "json" in reachable and "json" not in FORBIDDEN
+
+
+def test_core_utility_modules_stay_stdlib_only():
+    """`dorian.sidecars` is a deterministic-core write helper — not on the verdict path
+    (so not in VERDICT_SEEDS), but it must also stay stdlib-only. Guard it explicitly so it
+    cannot silently introduce a model/network/UI dependency, and confirm it is actually
+    scanned (not an unguarded orphan)."""
+    reachable = external_imports(CORE_UTILITY_SEEDS)
+    scanned = {f for files in reachable.values() for f in files}
+    assert "sidecars.py" in scanned, "dorian.sidecars not scanned — orphan core module?"
+    offenders = sorted(set(reachable) & FORBIDDEN)
+    assert not offenders, f"forbidden import in core utility module(s): {offenders}"
