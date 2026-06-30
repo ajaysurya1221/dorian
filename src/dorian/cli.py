@@ -325,6 +325,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     _add_loop_parser(sub)
+    _add_goal_parser(sub)
     return p
 
 
@@ -465,6 +466,42 @@ def _add_loop_parser(sub: argparse._SubParsersAction) -> None:
         action="store_true",
         help="print the post-install usage guide and trust boundary, then exit (no writes)",
     )
+
+
+def _add_goal_parser(sub: argparse._SubParsersAction) -> None:
+    """`dorian goal`: author/read a human-set governance goal record (no completion logic)."""
+    gp = sub.add_parser(
+        "goal",
+        help="author or read a human-set governance goal record",
+        description=(
+            "Record a human-authored goal (objective + scope/deny-paths + base ref + coverage "
+            "contract). The goal is durable context only; Dorian never decides goal completion."
+        ),
+    )
+    gp_sub = gp.add_subparsers(dest="goal_command", required=True)
+
+    add = gp_sub.add_parser("add", help="write (or overwrite) a goal record")
+    add.add_argument("--id", required=True, help="goal id (used as the sidecar filename)")
+    add.add_argument("--title", required=True, help="short human title")
+    add.add_argument(
+        "--statement", default="", help="human objective; never used to judge completion"
+    )
+    add.add_argument(
+        "--base-ref", default="HEAD", help="ref that changed paths are computed against"
+    )
+    add.add_argument(
+        "--policy-ref", default="default-assist", help="policy name this goal runs under"
+    )
+    add.add_argument("--scope", action="append", help="human-set jurisdiction glob (repeatable)")
+    add.add_argument("--deny-path", action="append", help="extra denied glob (repeatable)")
+    add.add_argument(
+        "--min-strength",
+        default=None,
+        help="minimum checker strength for load-bearing claims (structural coverage contract)",
+    )
+
+    show = gp_sub.add_parser("show", help="print a goal record as JSON")
+    show.add_argument("--id", required=True, help="goal id to print")
 
 
 def main(argv: list[str] | None = None) -> int:

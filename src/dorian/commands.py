@@ -29,6 +29,7 @@ from dorian import (
     claude_code,
     datachecks,
     gitio,
+    goals,
     init,
     intoto,
     loop,
@@ -1108,6 +1109,47 @@ def _print_claim_warrants_next_steps(*, with_hook: bool) -> None:
             f"\n  {claude_code.SKILL_DIR}/README.md (it never blocks, never runs verify)."
         )
     print(f"\nTrust boundary: {claude_code.TRUST_BOUNDARY}")
+
+
+def cmd_goal(args: argparse.Namespace) -> int:
+    """`dorian goal add|show`: author or read a human-set governance goal record.
+
+    Durable human context only — this never decides whether the goal is complete and is not
+    wired into revalidate / loop preflight / the verdict path.
+    """
+    repo = _repo(args)
+    if _missing_repo(repo, "goal"):
+        return EXIT_USAGE
+    if args.goal_command == "add":
+        goal = goals.Goal(
+            goal_id=args.id,
+            title=args.title,
+            statement=args.statement or "",
+            policy_ref=args.policy_ref,
+            scope=tuple(args.scope or ()),
+            deny_paths=tuple(args.deny_path or ()),
+            base_ref=args.base_ref,
+            coverage_contract=(
+                {"min_strength_load_bearing": args.min_strength} if args.min_strength else {}
+            ),
+        )
+        try:
+            goals.save(repo, goal)
+        except (ValueError, OSError) as exc:
+            print(f"dorian goal: {exc}", file=sys.stderr)
+            return EXIT_USAGE
+        print(f"goal {goal.goal_id} written (scope={list(goal.scope)})")
+        return EXIT_OK
+    if args.goal_command == "show":
+        try:
+            goal = goals.load(repo, args.id)
+        except (FileNotFoundError, ValueError, OSError) as exc:
+            print(f"dorian goal: {exc}", file=sys.stderr)
+            return EXIT_USAGE
+        print(json.dumps(goal.to_dict(), sort_keys=True))
+        return EXIT_OK
+    print(f"dorian goal: '{args.goal_command}' not implemented", file=sys.stderr)
+    return EXIT_USAGE
 
 
 def cmd_loop(args: argparse.Namespace) -> int:
