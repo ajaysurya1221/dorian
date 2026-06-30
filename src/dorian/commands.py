@@ -30,6 +30,7 @@ from dorian import (
     datachecks,
     gitio,
     goals,
+    governance,
     init,
     intoto,
     loop,
@@ -1197,6 +1198,59 @@ def cmd_gate(args: argparse.Namespace) -> int:
         return code  # usage (2) or fail-closed sidecar (4) error, already reported on stderr
     print(loop.render_json(packet), end="")
     return _loop_exit_code(packet["decision"], args.fail_on)
+
+
+def cmd_governance(args: argparse.Namespace) -> int:
+    """Dispatch `dorian governance <subcommand>` (install)."""
+    if args.governance_command == "install":
+        return _cmd_governance_install(args)
+    print(f"dorian governance: '{args.governance_command}' not implemented", file=sys.stderr)
+    return EXIT_USAGE
+
+
+def _cmd_governance_install(args: argparse.Namespace) -> int:
+    """Scaffold the Claude Code governance adapter (two host hooks + settings example + docs)
+    into .claude/. Writes files only; never overwrites without --force; idempotent. Not a
+    sandbox. The hooks own the exit-2 veto and wall-clock; Dorian core stays pure."""
+    target = Path(args.target).resolve() if args.target else _repo(args)
+    if _missing_repo(target, "governance install"):
+        return EXIT_USAGE
+    try:
+        plan = claude_code.build_plan(
+            target, groups=governance.DEFAULT_GROUPS, manifest=governance.GOVERNANCE_MANIFEST
+        )
+        result = claude_code.apply(plan, force=args.force, dry_run=args.dry_run)
+    except (ValueError, OSError) as exc:
+        print(f"dorian governance install: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "repo": str(plan.repo_root),
+                    "is_git": plan.is_git,
+                    "dry_run": args.dry_run,
+                    "created": list(result.created),
+                    "overwritten": list(result.overwritten),
+                    "skipped": list(result.skipped),
+                    "warnings": list(result.warnings),
+                },
+                indent=2,
+            )
+        )
+    else:
+        verb = "would write" if args.dry_run else "wrote"
+        print(
+            f"dorian governance install: {verb} {len(result.created)} file(s)"
+            f" (skipped {len(result.skipped)}, overwrote {len(result.overwritten)})"
+            f" under {plan.repo_root}"
+        )
+        for created in result.created:
+            print(f"  + {created}")
+        for skipped in result.skipped:
+            print(f"  = {skipped} (exists; --force to overwrite)")
+        print("next: merge settings.dorian-governance.example.json into .claude/settings.json")
+    return EXIT_OK
 
 
 def cmd_loop(args: argparse.Namespace) -> int:

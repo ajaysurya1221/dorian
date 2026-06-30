@@ -79,7 +79,7 @@ FORBIDDEN = {
 # Deterministic-core utility modules that are NOT on the verdict path (so they do not belong
 # in VERDICT_SEEDS) but must still stay stdlib-only. Guarded so a core write/helper module
 # cannot silently introduce a model/network/UI dependency. Add new such helpers here.
-CORE_UTILITY_SEEDS = ["sidecars", "goals"]
+CORE_UTILITY_SEEDS = ["sidecars", "goals", "governance"]
 
 
 def _module_path(modname: str, src: pathlib.Path) -> pathlib.Path | None:

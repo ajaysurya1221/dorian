@@ -327,6 +327,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_loop_parser(sub)
     _add_goal_parser(sub)
     _add_gate_parser(sub)
+    _add_governance_parser(sub)
     return p
 
 
@@ -540,6 +541,29 @@ def _add_gate_parser(sub: argparse._SubParsersAction) -> None:
         default="never",
         help="exit 4 when the decision is at/above this severity (default never: always exit 0)."
         " The host hook — not this command — maps a decision to a tool-blocking veto.",
+    )
+
+
+def _add_governance_parser(sub: argparse._SubParsersAction) -> None:
+    """`dorian governance install`: scaffold the Claude Code governance adapter (host hooks)."""
+    gp = sub.add_parser(
+        "governance",
+        help="install the Claude Code governance adapter (hooks that enforce loop decisions)",
+    )
+    gp_sub = gp.add_subparsers(dest="governance_command", required=True)
+    ins = gp_sub.add_parser(
+        "install",
+        help="scaffold the governance hooks + settings example into .claude/",
+        description="Scaffold two Claude Code host hooks (a SubagentStop preflight writer and a"
+        " fail-closed PreToolUse veto), a settings example, and docs into .claude/. Writes files"
+        " only; never overwrites without --force; idempotent. Not a sandbox — trusted repos.",
+    )
+    ins.add_argument(
+        "--force", action="store_true", help="overwrite existing scaffolded files (default: skip)"
+    )
+    ins.add_argument("--dry-run", action="store_true", help="print the plan; write nothing")
+    ins.add_argument(
+        "--target", help="target repo/project root (default: --repo, i.e. current directory)"
     )
 
 
