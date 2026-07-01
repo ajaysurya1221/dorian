@@ -148,3 +148,31 @@ def test_installed_scaffolds_claim_warrants_skill(installed_dorian: Path, tmp_pa
     text = skill.read_text(encoding="utf-8")
     for phrase in ("DRAFT", "not a sandbox", "strength-gate=fail"):
         assert phrase in text
+
+
+def test_installed_scaffolds_loop_guard_skill(installed_dorian: Path, tmp_path: Path) -> None:
+    """The packaged binary scaffolds the loop-guard bundle from package data — proving the
+    skill, the state templates, AND the .yml Action example ship in the wheel."""
+    repo = tmp_path / "looprepo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True, capture_output=True)
+    r = subprocess.run(
+        [
+            str(installed_dorian),
+            "--repo",
+            str(repo),
+            "loop",
+            "install",
+            "--with-state",
+            "--with-action",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    assert (repo / ".claude/skills/dorian-loop-guard/SKILL.md").is_file()
+    assert (repo / "LOOP.md").is_file()
+    assert (repo / ".github/workflows/dorian-loop.yml").is_file()
+    text = (repo / ".claude/skills/dorian-loop-guard/SKILL.md").read_text(encoding="utf-8")
+    for phrase in ("/dorian-loop-guard", "not a sandbox", "token-free"):
+        assert phrase in text

@@ -21,6 +21,13 @@
 5. On every later PR, the GitHub Action runs `dorian revalidate --since <base>`; if a later edit broke a
    sealed claim, the warrant folds to **REVOKED** (exit 4) and the Action blocks — naming the claim.
 
+> **Claim warrants are not only post-change receipts — they are loop memory.** In an autonomous
+> coding loop, the warrants you seal here become the deterministic facts the *next* iteration
+> revalidates: `dorian loop preflight` re-checks them before each step and returns
+> **CONTINUE / REPAIR / ESCALATE** so a stale assumption surfaces as a steering signal instead of
+> rotting silently. Same mechanism, pointed forward. See
+> [`DORIAN_LOOP_GUARD.md`](DORIAN_LOOP_GUARD.md) and the `/dorian-loop-guard` skill.
+
 ## How the agent should write claims
 
 Pick the **checker whose strength matches the claim** (the truth axis). Each claim is

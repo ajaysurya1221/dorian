@@ -1,0 +1,86 @@
+{
+  "claims": [
+    {
+      "id": "loop-engine",
+      "text": "The Loop Guard engine entry point preflight() lives in src/dorian/loop.py.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "symbol:src/dorian/loop.py::preflight" }]
+    },
+    {
+      "id": "loop-cli",
+      "text": "cli.py wires the nested `dorian loop` subcommand via _add_loop_parser.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "symbol:src/dorian/cli.py::_add_loop_parser" }]
+    },
+    {
+      "id": "loop-handler",
+      "text": "commands.py dispatches `dorian loop` via cmd_loop.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "symbol:src/dorian/commands.py::cmd_loop" }]
+    },
+    {
+      "id": "loop-guard-doc",
+      "text": "docs/DORIAN_LOOP_GUARD.md exists.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "path:docs/DORIAN_LOOP_GUARD.md" }]
+    },
+    {
+      "id": "loop-alignment-doc",
+      "text": "docs/LOOP_ENGINEERING_ALIGNMENT.md exists.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "path:docs/LOOP_ENGINEERING_ALIGNMENT.md" }]
+    },
+    {
+      "id": "loop-skill",
+      "text": "The /dorian-loop-guard skill template ships in package data.",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [
+        {
+          "type": "C3",
+          "program": "path:src/dorian/templates/claude_code/dorian-loop-guard/SKILL.md"
+        }
+      ]
+    },
+    {
+      "id": "zero-runtime-deps",
+      "text": "pyproject.toml's runtime dependencies list is empty (dependencies = []).",
+      "kind": "reference",
+      "load_bearing": true,
+      "checkers": [{ "type": "C3", "program": "regex:pyproject.toml::dependencies = \\[\\]" }]
+    },
+    {
+      "id": "readme-loops-section",
+      "text": "The README has a 'Using dorian inside AI coding loops' section.",
+      "kind": "reference",
+      "load_bearing": false,
+      "checkers": [
+        { "type": "C3", "program": "regex:README.md::Using dorian inside AI coding loops" }
+      ]
+    },
+    {
+      "id": "docs-not-a-sandbox",
+      "text": "The Loop Guard doc states Dorian is not a sandbox.",
+      "kind": "reference",
+      "load_bearing": false,
+      "checkers": [{ "type": "C3", "program": "regex:docs/DORIAN_LOOP_GUARD.md::not a sandbox" }]
+    },
+    {
+      "id": "docs-does-not-stop-loop",
+      "text": "The Loop Guard doc states Dorian does not stop the loop by default.",
+      "kind": "reference",
+      "load_bearing": false,
+      "checkers": [
+        {
+          "type": "C3",
+          "program": "regex:docs/DORIAN_LOOP_GUARD.md::does not stop the loop by default"
+        }
+      ]
+    }
+  ]
+}

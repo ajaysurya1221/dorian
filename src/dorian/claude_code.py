@@ -190,13 +190,20 @@ def _atomic_write(path: Path, content: str) -> None:
     os.replace(tmp, path)
 
 
-def build_plan(repo: Path, *, groups: frozenset[str] = DEFAULT_GROUPS) -> ScaffoldPlan:
+def build_plan(
+    repo: Path,
+    *,
+    groups: frozenset[str] = DEFAULT_GROUPS,
+    manifest: tuple[_Template, ...] = MANIFEST,
+) -> ScaffoldPlan:
     """Compute (without writing) the files the install would scaffold for ``repo``.
 
     ``groups`` selects which manifest groups to install (subset of ``GROUPS``).
+    ``manifest`` defaults to the claim-warrants MANIFEST; a sibling installer (e.g.
+    ``dorian loop install``) passes its own manifest of the same ``_Template`` shape.
     ``repo`` should already be the repo root (see ``find_repo_root``)."""
     root, is_git = find_repo_root(repo)
-    selected = [t for t in MANIFEST if t.group in groups]
+    selected = [t for t in manifest if t.group in groups]
     files_ = tuple(
         ScaffoldFile(
             path=t.dest,

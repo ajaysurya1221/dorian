@@ -6,6 +6,38 @@ semantics have been stable since 1.0.0.
 
 ## [Unreleased]
 
+### Added — Dorian Loop Guard (vNext / 1.4.0)
+- **`dorian loop`** (`src/dorian/loop.py`, `cmd_loop` in `commands.py`) — a deterministic,
+  token-free **steering layer for AI coding loops**, built as a thin classifier on top of
+  `revalidate` (no new verification, **no model at check time**):
+  - **`dorian loop preflight`** re-checks the claim warrants a change touched and emits a
+    **CONTINUE / REPAIR / ESCALATE** decision packet (`--format json|md|text`). The decision is
+    a pure function of the revalidate result, the `--policy` (`cautious|assist|unattended`), the
+    repair-attempt cap (`--max-repairs`/`--repair-attempts`/`--state-file`), and the
+    `--scope`/`--deny-path` lane. Exits **0 on success by default** (Dorian does not stop the loop
+    by itself); `--fail-on repair|escalate` opts into a hard exit-4 gate. Honors
+    `--deny-exec`/`--deny-shell`/`--checker-source`.
+  - **`dorian loop prompt`** renders the packet as a compact next-iteration instruction
+    (or `--from-json` a saved packet).
+  - **`dorian loop install`** scaffolds a project-local Claude Code skill at
+    `.claude/skills/dorian-loop-guard/` (**`/dorian-loop-guard`**) plus example LOOP.md / STATE.md /
+    run-log (`--with-state`) and a GitHub Actions example (`--with-action`). Writes files only;
+    idempotent; never overwrites without `--force`.
+- **Packaged loop-guard templates** (`src/dorian/templates/claude_code/dorian-loop-guard/…`, shipped
+  as wheel package data): the skill, a bundle README, `reference/loop-decisions.md` +
+  `reference/safety-boundary.md`, and example `LOOP.md`/`STATE.md`/`loop-run-log.md`/`dorian-loop.yml`.
+- **Docs**: [`docs/DORIAN_LOOP_GUARD.md`](docs/DORIAN_LOOP_GUARD.md),
+  [`docs/LOOP_ENGINEERING_ALIGNMENT.md`](docs/LOOP_ENGINEERING_ALIGNMENT.md),
+  [`docs/POSITIONING_LOOP_GUARD_2026_06_28.md`](docs/POSITIONING_LOOP_GUARD_2026_06_28.md), a README
+  "Using dorian inside AI coding loops" section, and a loop-memory note in
+  [`docs/CLAUDE_CODE_DORIAN_WORKFLOW.md`](docs/CLAUDE_CODE_DORIAN_WORKFLOW.md).
+
+**No breaking changes** — purely additive: warrant schema, checker grammar, exit codes, fold policy,
+and security posture are unchanged; the core stays zero-dependency; `REVOKED` remains a steering signal
+(not a halt), `ERRORED` remains fail-closed evidence (not a false claim), and **no model touches the
+verification path**. `claude_code.build_plan` gained an optional `manifest=` parameter (backward
+compatible) so the loop installer reuses the same scaffolding machinery.
+
 ## [1.3.0] — 2026-06-28
 
 The **Dorian Claim Warrants for Claude Code** integration: one command scaffolds a project-local Claude

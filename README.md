@@ -341,6 +341,30 @@ you) can emit the claims — but the canonical setup is **Claude Code**:
 > is fail-closed, **not a sandbox**; see [SECURITY.md](SECURITY.md) and
 > [docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md).
 
+## Using dorian inside AI coding loops
+
+When you hand an agent a long-running or unattended task, **Dorian Loop Guard** is the
+deterministic verify step the loop runs *before each iteration*. `dorian loop preflight`
+re-checks the claim warrants the change touched (token-free, the same `revalidate` engine)
+and returns a steering signal — **Dorian does not stop the loop by default**:
+
+- **`continue`** — the warranted claims still hold; do the next planned step.
+- **`repair`** — a load-bearing claim is `REVOKED`; fix the smallest cause (or update the
+  claim if the change was intentional), re-check, and log the attempt.
+- **`escalate`** — a checker `ERRORED`, a sensitive/denylisted path is involved, the repair
+  cap was hit, or the break is out of scope; stop autonomous edits and hand off to a human.
+
+```bash
+dorian loop preflight --since <base> --policy assist --format json   # the decision packet
+dorian loop install                                                  # scaffold /dorian-loop-guard
+```
+
+Sealed warrants become the loop's **deterministic memory**: the next iteration revalidates
+them instead of re-deriving the facts. Loop Guard steers; it does **not** judge whole-loop
+success, replace tests/review, or sandbox execution — and `REVOKED` is a steering signal,
+not a halt. Full guide: [`docs/DORIAN_LOOP_GUARD.md`](docs/DORIAN_LOOP_GUARD.md); how it fits
+loop engineering: [`docs/LOOP_ENGINEERING_ALIGNMENT.md`](docs/LOOP_ENGINEERING_ALIGNMENT.md).
+
 ## What gets committed
 
 - the artifact (e.g. `docs/changes/login.md`),

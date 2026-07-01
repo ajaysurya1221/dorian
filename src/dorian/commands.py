@@ -31,6 +31,7 @@ from dorian import (
     gitio,
     init,
     intoto,
+    loop,
     store,
     strength,
     suggestclaims,
@@ -1107,6 +1108,206 @@ def _print_claim_warrants_next_steps(*, with_hook: bool) -> None:
             f"\n  {claude_code.SKILL_DIR}/README.md (it never blocks, never runs verify)."
         )
     print(f"\nTrust boundary: {claude_code.TRUST_BOUNDARY}")
+
+
+def cmd_loop(args: argparse.Namespace) -> int:
+    """Dispatch `dorian loop <subcommand>` (preflight | prompt | install)."""
+    if args.loop_command == "preflight":
+        return _cmd_loop_preflight(args)
+    if args.loop_command == "prompt":
+        return _cmd_loop_prompt(args)
+    if args.loop_command == "install":
+        return _cmd_loop_install(args)
+    print(f"dorian loop: '{args.loop_command}' not implemented", file=sys.stderr)
+    return EXIT_USAGE
+
+
+def _split_globs(values: list[str] | None) -> tuple[str, ...]:
+    """Flatten repeatable --scope/--deny-path values, also splitting comma lists."""
+    out: list[str] = []
+    for v in values or ():
+        out.extend(g.strip() for g in v.split(",") if g.strip())
+    return tuple(out)
+
+
+def _run_loop_preflight(args: argparse.Namespace) -> tuple[dict | None, int]:
+    """Validate inputs and run loop.preflight. Returns (packet_dict, EXIT_OK) on
+    success, or (None, exit_code) after printing the error. Shared by preflight and
+    prompt; mirrors cmd_revalidate's input validation and error→exit mapping."""
+    repo = _repo(args)
+    changed_file = Path(args.changed_paths) if args.changed_paths else None
+    if (args.since is None) == (changed_file is None):
+        print(
+            "dorian loop preflight: provide exactly one of --since <ref> or --changed-paths <file>",
+            file=sys.stderr,
+        )
+        return None, EXIT_USAGE
+    if _missing_repo(repo, "loop preflight"):
+        return None, EXIT_USAGE
+    checker_source = args.checker_source or os.environ.get("DORIAN_CHECKER_SOURCE", "head").strip()
+    if checker_source not in ("head", "base"):
+        print(
+            f"dorian loop preflight: --checker-source must be head|base (got {checker_source!r})",
+            file=sys.stderr,
+        )
+        return None, EXIT_USAGE
+    if checker_source == "base" and args.since is None:
+        print(
+            "dorian loop preflight: --checker-source base requires --since <base ref>",
+            file=sys.stderr,
+        )
+        return None, EXIT_USAGE
+    extra_notes: list[str] = []
+    repair_attempts = args.repair_attempts
+    if args.state_file and not args.repair_attempts:  # explicit flag wins over the state file
+        repair_attempts, note = loop.read_repair_attempts(Path(args.state_file))
+        if note:
+            extra_notes.append(note)
+    try:
+        packet = loop.preflight(
+            repo,
+            since=args.since,
+            changed_paths_file=changed_file,
+            policy=args.policy,
+            max_repairs=args.max_repairs,
+            repair_attempts=repair_attempts,
+            scope=_split_globs(args.scope),
+            deny_paths=_split_globs(args.deny_path),
+            exec_policy=ExecutionPolicy.from_flags_and_env(
+                deny_exec=args.deny_exec, deny_shell=args.deny_shell
+            ),
+            checker_source=checker_source,
+            enable_c2lite=args.enable_c2lite,
+            extra_notes=tuple(extra_notes),
+        )
+    except (gitio.GitError, ChangedPathsError) as exc:
+        print(f"dorian loop preflight: {exc}", file=sys.stderr)
+        return None, EXIT_USAGE
+    except _SIDECAR_ERRORS as exc:
+        print(f"dorian loop preflight: corrupt warrant sidecar: {exc}", file=sys.stderr)
+        return None, EXIT_REVOKED
+    d = packet.to_dict()
+    # close the promise/default gap: the infinite-fix cap can only fire if the loop
+    # threads repair state. On a repair decision with neither --repair-attempts nor
+    # --state-file supplied, the cap is silently inactive — say so, don't pretend.
+    if d["decision"] == "repair" and not args.state_file and not args.repair_attempts:
+        d["notes"].append(
+            "infinite-fix cap inactive: thread --repair-attempts (or --state-file) each iteration"
+            " so repeated repairs escalate instead of looping forever."
+        )
+    return d, EXIT_OK
+
+
+def _loop_exit_code(decision: str, fail_on: str) -> int:
+    """Map a decision to an exit code under --fail-on. Default (never) is always 0:
+    preflight succeeding never blocks the loop by itself. --fail-on reuses exit 4."""
+    if fail_on == "escalate":
+        return EXIT_REVOKED if decision == "escalate" else EXIT_OK
+    if fail_on == "repair":
+        return EXIT_REVOKED if decision in ("repair", "escalate") else EXIT_OK
+    return EXIT_OK
+
+
+def _cmd_loop_preflight(args: argparse.Namespace) -> int:
+    packet, code = _run_loop_preflight(args)
+    if packet is None:
+        return code
+    renderers = {"json": loop.render_json, "md": loop.render_md, "text": loop.render_text}
+    print(renderers[args.format](packet), end="")
+    return _loop_exit_code(packet["decision"], args.fail_on)
+
+
+def _cmd_loop_prompt(args: argparse.Namespace) -> int:
+    if args.from_json:  # render a saved packet instead of re-running preflight
+        try:
+            data = (
+                sys.stdin.read()
+                if args.from_json == "-"
+                else Path(args.from_json).read_text(encoding="utf-8")
+            )
+            packet = json.loads(data)
+        except (OSError, ValueError) as exc:
+            print(f"dorian loop prompt: cannot read --from-json: {exc}", file=sys.stderr)
+            return EXIT_USAGE
+        print(loop.render_prompt(packet), end="")
+        return EXIT_OK
+    packet, code = _run_loop_preflight(args)
+    if packet is None:
+        return code
+    print(loop.render_prompt(packet), end="")
+    return EXIT_OK
+
+
+def _cmd_loop_install(args: argparse.Namespace) -> int:
+    """Scaffold the Claude Code loop-guard skill (+ opt-in LOOP/STATE/run-log and Action
+    example). Writes files only; never overwrites without --force; idempotent."""
+    if args.print_next_steps:
+        _print_loop_next_steps()
+        return EXIT_OK
+    target = Path(args.target).resolve() if args.target else _repo(args)
+    if _missing_repo(target, "loop install"):
+        return EXIT_USAGE
+    groups = set(loop.DEFAULT_GROUPS)
+    if args.with_state:
+        groups.add("state")
+    if args.with_action:
+        groups.add("action")
+    try:
+        plan = claude_code.build_plan(target, groups=frozenset(groups), manifest=loop.LOOP_MANIFEST)
+        result = claude_code.apply(plan, force=args.force, dry_run=args.dry_run)
+    except (ValueError, OSError) as exc:
+        print(f"dorian loop install: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "repo": str(plan.repo_root),
+                    "is_git": plan.is_git,
+                    "dry_run": args.dry_run,
+                    "created": list(result.created),
+                    "overwritten": list(result.overwritten),
+                    "skipped": list(result.skipped),
+                    "warnings": list(result.warnings),
+                    "next_steps": list(loop.NEXT_STEPS_INSTALL),
+                    "trust_boundary": loop.TRUST_BOUNDARY,
+                },
+                indent=2,
+            )
+        )
+    else:
+        _print_loop_install_summary(plan, result, dry_run=args.dry_run)
+    return EXIT_OK
+
+
+def _print_loop_install_summary(plan, result, *, dry_run: bool) -> None:
+    blurbs = {f.path: f.blurb for f in plan.files}
+    header = (
+        "dorian loop install --dry-run (no files written)"
+        if dry_run
+        else "Dorian loop-guard skill installed."
+    )
+    print(header)
+    written = list(result.created) + list(result.overwritten)
+    if written:
+        print("\nWould create:" if dry_run else "\nWrote:")
+        width = max(len(p) for p in written)
+        for p in written:
+            print(f"  {p.ljust(width)}  {blurbs.get(p, '')}")
+    if result.skipped:
+        print("\nSkipped (already present — use --force to overwrite):")
+        for p in result.skipped:
+            print(f"  {p}")
+    for w in result.warnings:
+        print(f"\nwarning: {w}")
+    _print_loop_next_steps()
+
+
+def _print_loop_next_steps() -> None:
+    print("\nNext:")
+    for i, step in enumerate(loop.NEXT_STEPS_INSTALL, 1):
+        print(f"  {i}. {step}")
+    print(f"\nTrust boundary: {loop.TRUST_BOUNDARY}")
 
 
 def cmd_sync(args: argparse.Namespace) -> int:
