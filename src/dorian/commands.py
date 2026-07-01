@@ -29,6 +29,8 @@ from dorian import (
     claude_code,
     datachecks,
     gitio,
+    goals,
+    governance,
     init,
     intoto,
     loop,
@@ -1108,6 +1110,147 @@ def _print_claim_warrants_next_steps(*, with_hook: bool) -> None:
             f"\n  {claude_code.SKILL_DIR}/README.md (it never blocks, never runs verify)."
         )
     print(f"\nTrust boundary: {claude_code.TRUST_BOUNDARY}")
+
+
+def cmd_goal(args: argparse.Namespace) -> int:
+    """`dorian goal add|show`: author or read a human-set governance goal record.
+
+    Durable human context only — this never decides whether the goal is complete and is not
+    wired into revalidate / loop preflight / the verdict path.
+    """
+    repo = _repo(args)
+    if _missing_repo(repo, "goal"):
+        return EXIT_USAGE
+    if args.goal_command == "add":
+        goal = goals.Goal(
+            goal_id=args.id,
+            title=args.title,
+            statement=args.statement or "",
+            policy_ref=args.policy_ref,
+            scope=tuple(args.scope or ()),
+            deny_paths=tuple(args.deny_path or ()),
+            base_ref=args.base_ref,
+            coverage_contract=(
+                {"min_strength_load_bearing": args.min_strength} if args.min_strength else {}
+            ),
+        )
+        try:
+            goals.save(repo, goal)
+        except (ValueError, OSError) as exc:
+            print(f"dorian goal: {exc}", file=sys.stderr)
+            return EXIT_USAGE
+        print(f"goal {goal.goal_id} written (scope={list(goal.scope)})")
+        return EXIT_OK
+    if args.goal_command == "show":
+        try:
+            goal = goals.load(repo, args.id)
+        except (FileNotFoundError, ValueError, OSError) as exc:
+            print(f"dorian goal: {exc}", file=sys.stderr)
+            return EXIT_USAGE
+        print(json.dumps(goal.to_dict(), sort_keys=True))
+        return EXIT_OK
+    if args.goal_command == "check":
+        try:
+            goal = goals.load(repo, args.id)
+        except (FileNotFoundError, ValueError, OSError) as exc:
+            print(f"dorian goal: {exc}", file=sys.stderr)
+            return EXIT_USAGE
+        try:
+            changed, _renames = gitio.changed_paths(repo, args.since)
+        except gitio.GitError as exc:
+            print(f"dorian goal: {exc}", file=sys.stderr)
+            return EXIT_USAGE
+        conn = store.connect(repo)
+        try:
+            try:
+                store.sync(repo, conn)
+            except _SIDECAR_ERRORS as exc:
+                print(f"dorian goal: corrupt warrant sidecar: {exc}", file=sys.stderr)
+                return EXIT_REVOKED
+            warranted = [w["artifact_uri"] for w in store.get_warrants(conn)]
+        finally:
+            conn.close()
+        result = goals.coverage_diff(goal, changed, warranted)
+        print(json.dumps(result, sort_keys=True))
+        if result["uncovered"] and args.fail_on_uncovered:
+            return EXIT_REVOKED  # refusal, NOT a false claim (NN6)
+        return EXIT_OK
+    print(f"dorian goal: '{args.goal_command}' not implemented", file=sys.stderr)
+    return EXIT_USAGE
+
+
+def cmd_gate(args: argparse.Namespace) -> int:
+    """`dorian gate`: the deterministic body of a host veto hook.
+
+    Reads host/tool JSON on stdin (carried as context only — the host hook interprets it),
+    runs the same pure loop preflight as `dorian loop preflight`, prints the LoopDecision
+    packet as JSON, and returns ONLY Dorian contract codes: EXIT_OK, or EXIT_REVOKED under
+    --fail-on. It NEVER returns exit 2 as a REPAIR/ESCALATE veto (exit 2 is malformed-input /
+    usage only); the exit-2 tool-blocking veto belongs to a host hook, not this command.
+    """
+    try:
+        json.loads(sys.stdin.read() or "{}")  # validate tool JSON; not interpreted here
+    except ValueError:
+        print("dorian gate: invalid tool JSON on stdin", file=sys.stderr)
+        return EXIT_USAGE
+    packet, code = _run_loop_preflight(args)
+    if packet is None:
+        return code  # usage (2) or fail-closed sidecar (4) error, already reported on stderr
+    print(loop.render_json(packet), end="")
+    return _loop_exit_code(packet["decision"], args.fail_on)
+
+
+def cmd_governance(args: argparse.Namespace) -> int:
+    """Dispatch `dorian governance <subcommand>` (install)."""
+    if args.governance_command == "install":
+        return _cmd_governance_install(args)
+    print(f"dorian governance: '{args.governance_command}' not implemented", file=sys.stderr)
+    return EXIT_USAGE
+
+
+def _cmd_governance_install(args: argparse.Namespace) -> int:
+    """Scaffold the Claude Code governance adapter (two host hooks + settings example + docs)
+    into .claude/. Writes files only; never overwrites without --force; idempotent. Not a
+    sandbox. The hooks own the exit-2 veto and wall-clock; Dorian core stays pure."""
+    target = Path(args.target).resolve() if args.target else _repo(args)
+    if _missing_repo(target, "governance install"):
+        return EXIT_USAGE
+    try:
+        plan = claude_code.build_plan(
+            target, groups=governance.DEFAULT_GROUPS, manifest=governance.GOVERNANCE_MANIFEST
+        )
+        result = claude_code.apply(plan, force=args.force, dry_run=args.dry_run)
+    except (ValueError, OSError) as exc:
+        print(f"dorian governance install: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "repo": str(plan.repo_root),
+                    "is_git": plan.is_git,
+                    "dry_run": args.dry_run,
+                    "created": list(result.created),
+                    "overwritten": list(result.overwritten),
+                    "skipped": list(result.skipped),
+                    "warnings": list(result.warnings),
+                },
+                indent=2,
+            )
+        )
+    else:
+        verb = "would write" if args.dry_run else "wrote"
+        print(
+            f"dorian governance install: {verb} {len(result.created)} file(s)"
+            f" (skipped {len(result.skipped)}, overwrote {len(result.overwritten)})"
+            f" under {plan.repo_root}"
+        )
+        for created in result.created:
+            print(f"  + {created}")
+        for skipped in result.skipped:
+            print(f"  = {skipped} (exists; --force to overwrite)")
+        print("next: merge settings.dorian-governance.example.json into .claude/settings.json")
+    return EXIT_OK
 
 
 def cmd_loop(args: argparse.Namespace) -> int:

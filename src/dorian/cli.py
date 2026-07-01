@@ -325,6 +325,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     _add_loop_parser(sub)
+    _add_goal_parser(sub)
+    _add_gate_parser(sub)
+    _add_governance_parser(sub)
     return p
 
 
@@ -464,6 +467,103 @@ def _add_loop_parser(sub: argparse._SubParsersAction) -> None:
         "--print-next-steps",
         action="store_true",
         help="print the post-install usage guide and trust boundary, then exit (no writes)",
+    )
+
+
+def _add_goal_parser(sub: argparse._SubParsersAction) -> None:
+    """`dorian goal`: author/read a human-set governance goal record (no completion logic)."""
+    gp = sub.add_parser(
+        "goal",
+        help="author or read a human-set governance goal record",
+        description=(
+            "Record a human-authored goal (objective + scope/deny-paths + base ref + coverage "
+            "contract). The goal is durable context only; Dorian never decides goal completion."
+        ),
+    )
+    gp_sub = gp.add_subparsers(dest="goal_command", required=True)
+
+    add = gp_sub.add_parser("add", help="write (or overwrite) a goal record")
+    add.add_argument("--id", required=True, help="goal id (used as the sidecar filename)")
+    add.add_argument("--title", required=True, help="short human title")
+    add.add_argument(
+        "--statement", default="", help="human objective; never used to judge completion"
+    )
+    add.add_argument(
+        "--base-ref", default="HEAD", help="ref that changed paths are computed against"
+    )
+    add.add_argument(
+        "--policy-ref", default="default-assist", help="policy name this goal runs under"
+    )
+    add.add_argument("--scope", action="append", help="human-set jurisdiction glob (repeatable)")
+    add.add_argument("--deny-path", action="append", help="extra denied glob (repeatable)")
+    add.add_argument(
+        "--min-strength",
+        default=None,
+        help="minimum checker strength for load-bearing claims (structural coverage contract)",
+    )
+
+    show = gp_sub.add_parser("show", help="print a goal record as JSON")
+    show.add_argument("--id", required=True, help="goal id to print")
+
+    chk = gp_sub.add_parser(
+        "check", help="report changed paths in the goal's scope that no warrant covers"
+    )
+    chk.add_argument("--id", required=True, help="goal id to check")
+    chk.add_argument("--since", default="HEAD~1", help="ref to compute changed paths against")
+    chk.add_argument(
+        "--fail-on-uncovered",
+        action="store_true",
+        help="exit 4 (refusal, not a false claim) if any in-scope changed path is uncovered",
+    )
+
+
+def _add_gate_parser(sub: argparse._SubParsersAction) -> None:
+    """`dorian gate`: the deterministic body of a host veto hook (emits only 0/4).
+
+    Reads host/tool JSON on stdin and runs the same pure preflight as `loop preflight`. The
+    exit-2 tool-blocking veto and any host-specific hook output belong to a host hook script,
+    never to this command.
+    """
+    g = sub.add_parser(
+        "gate",
+        help="host-mappable preflight: reads tool JSON on stdin, emits a 0/4 decision",
+        description=(
+            "Read host/tool JSON on stdin, run the deterministic loop preflight, print the "
+            "LoopDecision packet as JSON, and exit with a Dorian contract code (0, or 4 "
+            "under --fail-on). A host hook maps the decision to a tool-blocking veto; this "
+            "command never does."
+        ),
+    )
+    _add_loop_steer_flags(g)
+    g.add_argument(
+        "--fail-on",
+        choices=["never", "repair", "escalate"],
+        default="never",
+        help="exit 4 when the decision is at/above this severity (default never: always exit 0)."
+        " The host hook — not this command — maps a decision to a tool-blocking veto.",
+    )
+
+
+def _add_governance_parser(sub: argparse._SubParsersAction) -> None:
+    """`dorian governance install`: scaffold the Claude Code governance adapter (host hooks)."""
+    gp = sub.add_parser(
+        "governance",
+        help="install the Claude Code governance adapter (hooks that enforce loop decisions)",
+    )
+    gp_sub = gp.add_subparsers(dest="governance_command", required=True)
+    ins = gp_sub.add_parser(
+        "install",
+        help="scaffold the governance hooks + settings example into .claude/",
+        description="Scaffold two Claude Code host hooks (a SubagentStop preflight writer and a"
+        " fail-closed PreToolUse veto), a settings example, and docs into .claude/. Writes files"
+        " only; never overwrites without --force; idempotent. Not a sandbox — trusted repos.",
+    )
+    ins.add_argument(
+        "--force", action="store_true", help="overwrite existing scaffolded files (default: skip)"
+    )
+    ins.add_argument("--dry-run", action="store_true", help="print the plan; write nothing")
+    ins.add_argument(
+        "--target", help="target repo/project root (default: --repo, i.e. current directory)"
     )
 
 

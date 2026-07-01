@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|Bash",
+        "hooks": [
+          { "type": "command", "command": "python3 .claude/hooks/dorian_preflight_veto.py" }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "python3 .claude/hooks/dorian_loop_preflight.py" }
+        ]
+      }
+    ]
+  }
+}
