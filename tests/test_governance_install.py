@@ -172,3 +172,63 @@ def test_veto_escalate_on_sensitive_path_blocks_even_when_attended(tmp_path):
     pkt = _fresh_packet(tmp_path, decision="escalate", sensitive=True)
     rc = _run_veto(tmp_path, packet=pkt, env={"DORIAN_POLICY": "assist", "DORIAN_BASE": "HEAD"})
     assert rc == 2
+
+
+# --- Slice 0 release-hardening: pin the fail-closed veto contract at its boundaries -------
+
+
+def test_veto_strict_identity_mismatch_blocks(tmp_path):
+    # strict + fresh CONTINUE, but the packet's base_ref != DORIAN_BASE -> identity mismatch blocks
+    pkt = _fresh_packet(tmp_path, decision="continue", base="HEAD")
+    rc = _run_veto(
+        tmp_path, packet=pkt, env={"DORIAN_POLICY": "unattended", "DORIAN_BASE": "other-ref"}
+    )
+    assert rc == 2
+
+
+def test_veto_godmode_escalate_blocks(tmp_path):
+    # DORIAN_EFFORT=godmode forces strict even under the default (attended) policy
+    pkt = _fresh_packet(tmp_path, decision="escalate")
+    rc = _run_veto(tmp_path, packet=pkt, env={"DORIAN_EFFORT": "godmode", "DORIAN_BASE": "HEAD"})
+    assert rc == 2
+
+
+def test_veto_strict_fresh_at_899s_allowed(tmp_path):
+    # freshness boundary: 899s < FRESH_SECONDS(900) is still fresh. Use float, not int() — int()
+    # floors away the sub-second fraction and would eat the ~1s margin for subprocess spawn.
+    pkt = _fresh_packet(tmp_path, decision="continue")
+    pkt["created_at_epoch"] = time.time() - 899
+    rc = _run_veto(tmp_path, packet=pkt, env={"DORIAN_POLICY": "unattended", "DORIAN_BASE": "HEAD"})
+    assert rc == 0
+
+
+def test_veto_strict_stale_at_901s_blocks(tmp_path):
+    # freshness boundary: 901s > FRESH_SECONDS(900) is stale -> fails closed under strict
+    pkt = _fresh_packet(tmp_path, decision="continue")
+    pkt["created_at_epoch"] = time.time() - 901
+    rc = _run_veto(tmp_path, packet=pkt, env={"DORIAN_POLICY": "unattended", "DORIAN_BASE": "HEAD"})
+    assert rc == 2
+
+
+def test_veto_attended_escalate_empty_path_blocks(tmp_path):
+    # a standing escalate on a tool with no file_path is unreviewable -> blocks even when attended
+    pkt = _fresh_packet(tmp_path, decision="escalate", sensitive=False)
+    rc = _run_veto(
+        tmp_path,
+        tool='{"tool_input": {}}',
+        packet=pkt,
+        env={"DORIAN_POLICY": "assist", "DORIAN_BASE": "HEAD"},
+    )
+    assert rc == 2
+
+
+def test_veto_attended_malformed_stdin_allows(tmp_path):
+    # malformed tool JSON under an attended policy fails OPEN (a human is present)
+    rc = _run_veto(tmp_path, tool="{ not json", packet=None, env={"DORIAN_POLICY": "assist"})
+    assert rc == 0
+
+
+def test_veto_strict_malformed_stdin_blocks(tmp_path):
+    # malformed tool JSON under a strict policy fails CLOSED (exit 2)
+    rc = _run_veto(tmp_path, tool="{ not json", packet=None, env={"DORIAN_POLICY": "unattended"})
+    assert rc == 2

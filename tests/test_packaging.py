@@ -176,3 +176,32 @@ def test_installed_scaffolds_loop_guard_skill(installed_dorian: Path, tmp_path: 
     text = (repo / ".claude/skills/dorian-loop-guard/SKILL.md").read_text(encoding="utf-8")
     for phrase in ("/dorian-loop-guard", "not a sandbox", "token-free"):
         assert phrase in text
+
+
+def test_installed_scaffolds_governance_adapter(installed_dorian: Path, tmp_path: Path) -> None:
+    """The packaged binary scaffolds the Claude Code governance adapter from package data —
+    proving the two host hooks + settings + docs ship in the wheel, and that the installed
+    PreToolUse veto carries its exit-2 fail-closed path for a real `pip install dorian-vwp` user."""
+    repo = tmp_path / "govrepo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True, capture_output=True)
+    r = subprocess.run(
+        [str(installed_dorian), "--repo", str(repo), "governance", "install"],
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    veto = repo / ".claude/hooks/dorian_preflight_veto.py"
+    stop = repo / ".claude/hooks/dorian_loop_preflight.py"
+    for f in (
+        veto,
+        stop,
+        repo / ".claude/settings.dorian-governance.example.json",
+        repo / ".claude/dorian-governance/README.md",
+        repo / ".claude/dorian-governance/reference/enforcement-modes.md",
+    ):
+        assert f.is_file(), f
+    veto_text = veto.read_text(encoding="utf-8")
+    assert "return 2" in veto_text  # the exit-2 tool-block veto ships in the installed hook
+    assert "FAIL CLOSED" in veto_text.upper()
+    assert "hookSpecificOutput" in stop.read_text(encoding="utf-8")
