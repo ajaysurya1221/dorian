@@ -6,7 +6,9 @@ semantics have been stable since 1.0.0.
 
 ## [Unreleased]
 
-### Added — Dorian Loop Guard (vNext / 1.4.0)
+## [1.4.0] — 2026-07-02
+
+### Added — Dorian Loop Guard (1.4.0)
 - **`dorian loop`** (`src/dorian/loop.py`, `cmd_loop` in `commands.py`) — a deterministic,
   token-free **steering layer for AI coding loops**, built as a thin classifier on top of
   `revalidate` (no new verification, **no model at check time**):

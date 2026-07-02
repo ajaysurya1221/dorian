@@ -458,7 +458,7 @@ jobs:
         with:
           fetch-depth: 0             # revalidate diffs against the PR base sha
           persist-credentials: false # the Action only reads the diff + posts via GITHUB_TOKEN
-      - uses: ajaysurya1221/dorian/action@v1.3.0
+      - uses: ajaysurya1221/dorian/action@v1.4.0
         with:
           fail_on: revoked
           # install defaults to the published PyPI package (dorian-vwp); pin a
@@ -625,7 +625,7 @@ work perishable, so you find out when it expired.
   **reproducible on those frozen SHAs only** — not a real-world performance claim; the trigger and
   truth layers are reported separately.
 - **PyPI trusted publishing** — `dorian-vwp` is published to PyPI via a Trusted Publisher
-  (latest: **`v1.3.0`**); `pip install dorian-vwp` installs the released package.
+  (latest: **`v1.4.0`**); `pip install dorian-vwp` installs the released package.
 
 Non-goals stay non-goals: no servers, no dashboards, no hosted control plane, no model at check time.
 Local-first is the design center.

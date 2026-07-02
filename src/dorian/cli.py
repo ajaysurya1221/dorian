@@ -499,7 +499,8 @@ def _add_goal_parser(sub: argparse._SubParsersAction) -> None:
     add.add_argument(
         "--min-strength",
         default=None,
-        help="minimum checker strength for load-bearing claims (structural coverage contract)",
+        help="minimum checker strength for load-bearing claims — recorded in the goal "
+        "record only; not yet enforced (planned v1.5)",
     )
 
     show = gp_sub.add_parser("show", help="print a goal record as JSON")

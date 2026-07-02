@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0   # the action needs full history to revalidate --since base
-      - uses: ajaysurya1221/dorian/action@v1.3.0
+      - uses: ajaysurya1221/dorian/action@v1.4.0
         with:
           checker_trust: base   # resolve checker SPECs from the trusted base ref
           deny_exec: "true"     # C4 pytest / C5 shell ERROR instead of executing
@@ -113,7 +113,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: ajaysurya1221/dorian/action@v1.3.0
+      - uses: ajaysurya1221/dorian/action@v1.4.0
         # checker_trust defaults to head, deny_exec defaults to false:
         # executing checkers run, because contributors are trusted.
         with:
