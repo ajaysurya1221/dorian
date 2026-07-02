@@ -458,7 +458,7 @@ jobs:
         with:
           fetch-depth: 0             # revalidate diffs against the PR base sha
           persist-credentials: false # the Action only reads the diff + posts via GITHUB_TOKEN
-      - uses: ajaysurya1221/dorian/action@v1.3.0
+      - uses: ajaysurya1221/dorian/action@v1.4.0
         with:
           fail_on: revoked
           # install defaults to the published PyPI package (dorian-vwp); pin a

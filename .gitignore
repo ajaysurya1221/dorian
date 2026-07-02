@@ -19,7 +19,8 @@ bench/real/
 # tool working dirs (not release content)
 .claude/
 .gitnexus/
-.dorian/local/   # ephemeral host-hook runtime packet (last-decision.json); never tracked
+# ephemeral host-hook runtime packet (last-decision.json); never tracked
+.dorian/local/
 
 # internal program/audit working docs — provenance only, never shipped in the release
 /docs/design/C4_IMPORT_BINDING_REPORT.md

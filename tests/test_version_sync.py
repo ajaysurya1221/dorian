@@ -118,6 +118,31 @@ def test_no_dorian_action_at_main_in_public_snippets() -> None:
     )
 
 
+# Live copy-paste pins must also track the released version: an immutable but STALE pin
+# (e.g. @v1.3.0 shipped in the v1.4.0 README) hands users an action missing the release's
+# commands. Asserted against the package version, not the tag (the tag exists only after
+# release — the brief merged-but-untagged window is accepted). docs/releases/ and CHANGELOG
+# are historical provenance and deliberately not scanned.
+_ACTION_PIN_SURFACES = (
+    "README.md",
+    "action/README.md",
+    "docs/CLAUDE_CODE_DORIAN_WORKFLOW.md",
+    "docs/SECURITY_AND_SAFE_RUNNERS.md",
+)
+
+
+def test_dorian_action_pins_match_package_version() -> None:
+    version = _pyproject_version()
+    offenders: list[str] = []
+    for rel in _ACTION_PIN_SURFACES:
+        text = (REPO_ROOT / rel).read_text(encoding="utf-8")
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            for pin in re.findall(r"dorian/action@v(\d+\.\d+\.\d+)", line):
+                if pin != version:
+                    offenders.append(f"{rel}:{lineno}: @v{pin} != package v{version}")
+    assert not offenders, "stale dorian/action version pins:\n" + "\n".join(offenders)
+
+
 # The attestation-interop example must not pin a fixed dorianVersion (Codex FINDING-07): a
 # hardcoded "1.0.x" silently drifts every release. It is kept version-neutral instead.
 def test_attestation_interop_dorian_version_is_version_neutral() -> None:

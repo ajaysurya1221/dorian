@@ -76,7 +76,7 @@ dorian status                              # trust state of every warranted arti
 ## GitHub Action
 
 ```yaml
-- uses: ajaysurya1221/dorian/action@v1.3.0
+- uses: ajaysurya1221/dorian/action@v1.4.0
   with:
     fail_on: revoked        # block the PR when a sealed claim breaks
     # for semi-trusted contributors, also: checker_source: base  + deny_exec: true
