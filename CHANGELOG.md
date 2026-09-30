@@ -74,7 +74,7 @@ compatible) so the loop installer reuses the same scaffolding machinery.
 
 **Deferred / cut (not in v1.4):** claim **provenance** sidecars → **v1.5**; **effort presets** →
 **cut from core** (the binding-floor/breadth mapping lives in adapter docs); the **pane / TUI** →
-**deferred** (Claude Design owns the final design; v1.4 ships only the CLI + hook spine); a
+**deferred** (v1.4 ships only the CLI + hook spine; the visual design is a separate, later effort); a
 **generic provider abstraction** → **deferred** until a second concrete adapter exists. Purely
 additive — warrant schema, checker grammar, exit codes, fold policy, and security posture are
 unchanged; the core stays zero-dependency; **no model touches the verification path**.
