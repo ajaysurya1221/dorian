@@ -35,8 +35,10 @@ exists to catch).
   benchmark for symbol binding, with its [protocol](BENCHMARK_BINDING_LIFECYCLE_PROTOCOL.md).
 - [`REALWORLD_USECASES.md`](REALWORLD_USECASES.md) — offline reproductions of public problem classes,
   with its [protocol](REALWORLD_USECASES_PROTOCOL.md).
-- [`PUBLIC_BENCHMARK_PROTOCOL.md`](PUBLIC_BENCHMARK_PROTOCOL.md) — the pre-registered protocol for the
-  next rung: real public repos at frozen SHAs (no results yet — protocol only).
+- [`PUBLIC_BENCHMARK_PROTOCOL.md`](PUBLIC_BENCHMARK_PROTOCOL.md) — the pre-registered protocol for
+  real public repos at frozen SHAs. Its results (two subjects, byte-identical across two runs) are in
+  [`BENCHMARK_PUBLIC_REAL_REPOS.md`](BENCHMARK_PUBLIC_REAL_REPOS.md), with the raw output under
+  [`bench/public/results/`](../bench/public/results/); reproduce with `dorian bench public-repos`.
 
 ## I'm running it in CI
 

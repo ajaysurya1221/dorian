@@ -90,14 +90,15 @@ fields per (repo, artifact):
 > (`bench/public_repos.py`) and was executed against the [§9](#9-amendment-shipped) repo set; the
 > exact reproduce commands are in [`BENCHMARK_PUBLIC_REAL_REPOS.md`](BENCHMARK_PUBLIC_REAL_REPOS.md).
 > The paragraph below is the **original pre-registration text** (written when the harness was still a
-> scaffold) and is kept for the audit trail.
+> scaffold), kept for the audit trail and restated in the past tense so it cannot be misread as the
+> current status.
 
-A `dorian bench public-repos` subcommand is **not yet implemented** — see
-[`bench/public/README.md`](../bench/public/README.md) for the scaffold and
-[`bench/public/repos.public.json`](../bench/public/repos.public.json) for the committed public
-manifest. Until the harness lands, this document is the pre-registered design. If `bench/real/` is
-used locally, it is local-only and gitignored: clones and worktrees there are never committed, never
-linted, and never public evidence.
+At pre-registration time the `dorian bench public-repos` subcommand did not yet exist:
+[`bench/public/README.md`](../bench/public/README.md) held the scaffold and
+[`bench/public/repos.public.json`](../bench/public/repos.public.json) the committed public
+manifest, and until the harness landed this document was the pre-registered design. The harness has
+since shipped (see the note above). If `bench/real/` is used locally, it is local-only and gitignored:
+clones and worktrees there are never committed, never linted, and never public evidence.
 
 ## 8. Wording (results docs)
 
