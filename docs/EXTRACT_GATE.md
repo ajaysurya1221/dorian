@@ -117,7 +117,7 @@ and what was not (real-history warrant value; claim importance).
 - calibration fails twice.
 
 Outcome: the anchor/consensus architecture is recorded as failed in
-`NEXT_ALGORITHMIC_BETS.md`; `--extract` is demoted from "experimental" to
+`archive/docs/NEXT_ALGORITHMIC_BETS.md`; `--extract` is demoted from "experimental" to
 "not recommended; manual claims only."
 
 **Insufficient-evidence gate** (otherwise):

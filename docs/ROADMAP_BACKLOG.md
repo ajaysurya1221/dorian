@@ -56,7 +56,7 @@ before marketing, deterministic verification before AI automation.*
   title: Validation-honesty doc, real-catch log, shadow-pilot, benchmark reproducibility
   status: DONE
   problem: Launch credibility needs honest framing and reusable evidence templates, not marketing.
-  evidence: docs/VALIDATION_HONESTY.md, REAL_CATCH_LOG.md, SHADOW_PILOT_TEMPLATE.md, BENCHMARK_REPRODUCIBILITY.md.
+  evidence: docs/VALIDATION_HONESTY.md, REAL_CATCH_LOG.md, archive/docs/SHADOW_PILOT_TEMPLATE.md, BENCHMARK_REPRODUCIBILITY.md.
   acceptance_criteria: trigger vs truth separated; synthetic labeled; nothing fabricated.
   human_review_required: no
   confidence: high

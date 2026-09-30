@@ -245,7 +245,7 @@ loop engineering: [`docs/LOOP_ENGINEERING_ALIGNMENT.md`](LOOP_ENGINEERING_ALIGNM
 
 The deterministic spine of the *"give your goal and go to sleep"* direction — a goal record, a
 preflight gate, and a Claude Code adapter that can enforce the loop decision. **The pane/TUI is not
-shipped** (see [`docs/DORIAN_PANE.md`](DORIAN_PANE.md)); this is the CLI + hook layer it will
+shipped** (see the archived vision note [`archive/docs/DORIAN_PANE.md`](../archive/docs/DORIAN_PANE.md)); this is the CLI + hook layer it will
 sit on.
 
 - **`dorian goal add --id <id> --title <t> [--statement … --scope <glob> …]`** — record a
@@ -367,7 +367,7 @@ work perishable, so you find out when it expired.
   symbol (`dorian bench c4-import-binding`). What remains is the honest ceiling: a trigger fires the
   re-check, but only the behavior checker proves a behavior change (the gutted-body case), and
   ambiguous or non-Python imports are still left for explicit binding
-  ([`docs/NEXT_ALGORITHMIC_BETS.md`](NEXT_ALGORITHMIC_BETS.md)).
+  (archived planning note: [`archive/docs/NEXT_ALGORITHMIC_BETS.md`](../archive/docs/NEXT_ALGORITHMIC_BETS.md)).
 - **A public benchmark on real repositories** — the `dorian bench public-repos` harness now runs
   **machine-derived** structural claims (operands extracted from source; known-truth observed by
   running the checker on the mutated copy) against frozen public-repo SHAs. Two subjects

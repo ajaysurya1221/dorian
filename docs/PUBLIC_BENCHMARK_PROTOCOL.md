@@ -10,7 +10,7 @@
 > proves; the two-layer split) carried through to the shipped run unchanged.
 
 **Status: protocol only — no results are published in this document.** This is the next rung of
-[`SOLO_VALIDATION_LADDER.md`](SOLO_VALIDATION_LADDER.md): moving from invented synthetic fixtures
+[`SOLO_VALIDATION_LADDER.md`](../archive/docs/SOLO_VALIDATION_LADDER.md): moving from invented synthetic fixtures
 (the [v0.7.0 controlled-mutation benchmark](BENCHMARK_v0.7.0.md) and the
 [binding-lifecycle benchmark](BENCHMARK_BINDING_LIFECYCLE.md)) and offline reproductions of public
 problem *classes* ([`REALWORLD_USECASES.md`](REALWORLD_USECASES.md)) to a small, fully reproducible

@@ -30,7 +30,7 @@ semantics have been stable since 1.0.0.
   `reference/safety-boundary.md`, and example `LOOP.md`/`STATE.md`/`loop-run-log.md`/`dorian-loop.yml`.
 - **Docs**: [`docs/DORIAN_LOOP_GUARD.md`](docs/DORIAN_LOOP_GUARD.md),
   [`docs/LOOP_ENGINEERING_ALIGNMENT.md`](docs/LOOP_ENGINEERING_ALIGNMENT.md),
-  [`docs/POSITIONING_LOOP_GUARD_2026_06_28.md`](docs/POSITIONING_LOOP_GUARD_2026_06_28.md), a README
+  [`docs/POSITIONING_LOOP_GUARD_2026_06_28.md`](archive/docs/POSITIONING_LOOP_GUARD_2026_06_28.md), a README
   "Using dorian inside AI coding loops" section, and a loop-memory note in
   [`docs/CLAUDE_CODE_DORIAN_WORKFLOW.md`](docs/CLAUDE_CODE_DORIAN_WORKFLOW.md).
 
@@ -66,7 +66,7 @@ compatible) so the loop installer reuses the same scaffolding machinery.
 - **Deterministic core import firewall** (`tests/test_firewall_import_closure.py`) — a standing
   guard (AST import-closure over the verdict modules) proving no model/network import sits on the
   verification path.
-- **Docs**: [`docs/DORIAN_PANE.md`](docs/DORIAN_PANE.md) (the pane *vision* — deferred, not shipped),
+- **Docs**: [`docs/DORIAN_PANE.md`](archive/docs/DORIAN_PANE.md) (the pane *vision* — deferred, not shipped),
   [`docs/GOVERNANCE_DATA_MODEL.md`](docs/GOVERNANCE_DATA_MODEL.md), a C4-flakiness note in
   [`docs/VALIDATION_HONESTY.md`](docs/VALIDATION_HONESTY.md), and a gate fail-closed /
   formalization-drift note in [`docs/SECURITY_BOUNDARY.md`](docs/SECURITY_BOUNDARY.md);
@@ -138,9 +138,9 @@ security posture are unchanged; default behavior is identical).
   100% of direct-import ones, with zero false `BROKEN` from a behavior-preserving edit.
 - **`dorian bind-suggest`** now reports a third provenance, `bind_test_deps` / `bind (test-dep)`, for
   the implementation files a claim's C4 test imports (content-free; paths only).
-- **Production-readiness & outside-world docs** — [`docs/PRODUCTION_READINESS_AUDIT.md`](docs/PRODUCTION_READINESS_AUDIT.md),
-  [`docs/DORIAN_USEFULNESS.md`](docs/DORIAN_USEFULNESS.md), [`docs/READY_FOR_OUTSIDE_WORLD.md`](docs/READY_FOR_OUTSIDE_WORLD.md),
-  and [`docs/OUTSIDE_WORLD_VALIDATION.md`](docs/OUTSIDE_WORLD_VALIDATION.md): an evidence-backed
+- **Production-readiness & outside-world docs** — [`docs/PRODUCTION_READINESS_AUDIT.md`](archive/docs/PRODUCTION_READINESS_AUDIT.md),
+  [`docs/DORIAN_USEFULNESS.md`](archive/docs/DORIAN_USEFULNESS.md), [`docs/READY_FOR_OUTSIDE_WORLD.md`](archive/docs/READY_FOR_OUTSIDE_WORLD.md),
+  and [`docs/OUTSIDE_WORLD_VALIDATION.md`](archive/docs/OUTSIDE_WORLD_VALIDATION.md): an evidence-backed
   readiness review, the why-it-matters framing, the release-readiness verdict, and real external-repo
   validation trials (install-from-wheel on public projects, with drift/revocation).
 

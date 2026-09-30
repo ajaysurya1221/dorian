@@ -48,7 +48,11 @@ exists to catch).
 
 ## I want the why and the roadmap
 
-- [`NEXT_ALGORITHMIC_BETS.md`](NEXT_ALGORITHMIC_BETS.md) — open correctness bets (binding is the main one).
-- [`SOLO_VALIDATION_LADDER.md`](SOLO_VALIDATION_LADDER.md) — the rungs from synthetic to real-repo evidence.
+- [`OVERVIEW.md#roadmap`](OVERVIEW.md#roadmap) — the headline roadmap and the non-goals.
+- [`ROADMAP_BACKLOG.md`](ROADMAP_BACKLOG.md) — the structured backlog (status, evidence, acceptance criteria).
+- [`archive/docs/`](../archive/docs/) — dated planning and positioning notes kept for history, e.g.
+  [`NEXT_ALGORITHMIC_BETS.md`](../archive/docs/NEXT_ALGORITHMIC_BETS.md) (the correctness bets that
+  led to symbol binding) and [`SOLO_VALIDATION_LADDER.md`](../archive/docs/SOLO_VALIDATION_LADDER.md)
+  (the rungs from synthetic to real-repo evidence).
 - [`NAMING_AND_PRIOR_ART.md`](NAMING_AND_PRIOR_ART.md) — the name, and how dorian relates to prior art.
 - [`TESTING.md`](TESTING.md) — how the test suite and coverage gates are organized.
