@@ -6,8 +6,12 @@ exists to catch).
 
 ## I'm new — what is this?
 
-- [`README.md`](../README.md) — what dorian is, the 60-second aha, install, and the command surface.
-- [What dorian is **not**](../README.md#what-dorian-is-not) — read this before assuming a category.
+- [`README.md`](../README.md) — what dorian does, the 30-second runnable demo, install, and the evidence.
+- [`OVERVIEW.md`](OVERVIEW.md) — the long-form tour: the 60-second aha, how it works, Claude Code and
+  loop-guard integrations, the governance preview, and the roadmap.
+- [What dorian is **not**](OVERVIEW.md#what-dorian-is-not) — read this before assuming a category.
+- [`COMMANDS.md`](COMMANDS.md) — the command reference and exit codes.
+- [`BINDING.md`](BINDING.md) — binding semantics: a re-check trigger, not a behavior proof.
 
 ## I use Claude Code (or another coding agent)
 
