@@ -40,8 +40,7 @@ hooks, with **zero runtime dependencies**.
 ## Try it in 30 seconds
 
 A self-contained run on a throwaway repo — copy-paste it; it leaves nothing behind but a
-temp directory. (This exact sequence is pinned by a black-box test, so it is executable and
-kept working, not just illustrative.)
+temp directory. (A black-box test pins this exact sequence, so it stays runnable.)
 
 ```bash
 tmp=$(mktemp -d) && cd "$tmp" && git init -q
@@ -82,8 +81,9 @@ The honest limits:
 
 - **Binding is a re-check trigger, not a behavior proof.** When a claim names a symbol, dorian also
   watches the file that defines it, so an edit there re-checks the claim — but the checker still
-  decides truth. A watched file changing never makes a claim BROKEN by itself.
-  Details: [`docs/BINDING.md`](docs/BINDING.md).
+  decides truth. A watched file changing never makes a claim BROKEN by itself: binding is trigger
+  coverage, **not** behavior proof. Ambiguity is skipped, not guessed — a symbol defined in more than
+  one file is left unwatched. Details: [`docs/BINDING.md`](docs/BINDING.md).
 - **The gutted-body ceiling.** If a function keeps its name but its behavior changes, an existence
   check (`symbol:`) fires the re-check and passes. Only a behavior checker (a `pytest:` test) on the
   same edit catches it. `--strength-gate` flags load-bearing claims backed only by existence checks.
@@ -94,9 +94,9 @@ The honest limits:
 ## Security: claims are executable input
 
 `dorian verify` *runs* every checker. C1, C3, and typed C5 only read files, but **C4 (`pytest:`) and
-C5 `shell:` execute code** — so a `claims.json` or a `.warrant` is executable input. Review an
-agent-emitted `claims.json` exactly as you review agent-emitted code, and never run `verify` on claims
-from an untrusted source. dorian is built for **trusted, internal repositories** — not public CI
+C5 `shell:` execute code** — so a `claims.json` or a `.warrant` is executable input. Treat an
+agent-emitted `claims.json` like agent-emitted code: review it, and never run `verify` on claims from
+an untrusted source. dorian is built for **trusted, internal repositories** — not public CI
 taking forked pull requests by default. When you cannot trust the claims, `--deny-exec` (env
 `DORIAN_DENY_EXEC=1`) makes the executable families ERROR instead of running (fail-closed, never a
 silent pass), and `checker_trust: base` runs only base-approved checker specs on fork PRs. Neither is
@@ -104,8 +104,8 @@ a sandbox. See [SECURITY.md](SECURITY.md) and [`docs/SECURITY_BOUNDARY.md`](docs
 
 ## Install
 
-The distribution is `dorian-vwp`; the import and CLI are `dorian`. Python 3.11+, zero runtime
-dependencies, published to PyPI via trusted publishing (latest: **`v1.4.0`**).
+The PyPI distribution is `dorian-vwp`; the import and CLI are `dorian`. Python 3.11+, zero runtime
+dependencies, trusted publishing (latest: **`v1.4.0`**).
 
 ```bash
 pip install dorian-vwp             # core
@@ -113,8 +113,8 @@ pip install 'dorian-vwp[data]'     # + duckdb for parquet data claims
 pip install 'dorian-vwp[extract]'  # + anthropic for LLM claim drafting (frozen/experimental)
 ```
 
-`dorian init` scaffolds a born-verifiable starter `claims.json`, the change note it backs, and a
-workflow file, so the very first `dorian verify` seals green:
+`dorian init` scaffolds a born-verifiable starter `claims.json`, its change note, and a workflow
+file, so the first `dorian verify` seals green:
 
 ```bash
 cd your-repo
@@ -126,8 +126,7 @@ dorian verify dorian-change-note.md --claims claims.json   # seals the warrant �
 
 The composite [Action](action/README.md) revalidates the claims a pull request touches and posts a
 sticky PR comment; with `fail_on: revoked`, a broken load-bearing claim blocks the PR. Read its
-[security notes](action/README.md#security-checker-execution-and-untrusted-pull-requests) first —
-it is recommended for trusted/internal repositories, not for public repos taking forked PRs.
+[security notes](action/README.md#security-checker-execution-and-untrusted-pull-requests) first.
 
 ```yaml
 name: dorian
@@ -157,10 +156,10 @@ jobs:
 One command scaffolds a project-local skill: `dorian claude-code install-claim-warrants`. After a
 change, `/dorian-claim-warrants` drafts the change note + `claims.json` for the checkable facts the
 agent claimed and prints the verify command — **the model only drafts; `dorian verify` proves**.
-`dorian revalidate --since <base>` on every later PR REVOKEs whatever the code drifted away from.
-Add `--with-hook` for an opt-in, reminder-only Stop hook. The paste-ready prompt, a runnable example
-pack, and a `settings.json` permissions sample: [`docs/USE_WITH_CLAUDE_CODE.md`](docs/USE_WITH_CLAUDE_CODE.md)
-and [`examples/claude-code/`](examples/claude-code/).
+`dorian revalidate --since <base>` on later PRs REVOKEs whatever the code drifted away from. Add
+`--with-hook` for an opt-in, reminder-only Stop hook. Paste-ready prompt, runnable example pack, and
+`settings.json` sample: [`docs/USE_WITH_CLAUDE_CODE.md`](docs/USE_WITH_CLAUDE_CODE.md) and
+[`examples/claude-code/`](examples/claude-code/).
 
 Using dorian inside AI coding loops: `dorian loop preflight --since <base>` re-checks the warrants a
 change touched before each iteration and returns `continue` / `repair` / `escalate` — a steering
@@ -168,34 +167,55 @@ signal, not a halt ([`docs/DORIAN_LOOP_GUARD.md`](docs/DORIAN_LOOP_GUARD.md)). `
 install` adds a `SubagentStop` gate and a fail-closed `PreToolUse` veto for unattended runs
 ([`docs/GOVERNANCE_DATA_MODEL.md`](docs/GOVERNANCE_DATA_MODEL.md)).
 
+## Commands at a glance
+
+- `dorian verify <artifact> --claims claims.json` — run every checker and seal the `.warrant`
+  (born-verifiable). `--supersede <old-id>` re-seals over an earlier warrant, `--no-quotes` writes a
+  content-free sidecar, `--allow-restricted` overrides the `[tool.dorian.scopes]` seal-time lint.
+- `dorian revalidate --since <ref> --format md` — re-check only the claims whose watched files
+  changed; `md` is the PR-comment body the Action posts.
+- `dorian status <artifact>` · `dorian blast <artifact>` — trust state; downstream warrants, which
+  are flagged `recalled` when a claim they build on breaks.
+- `dorian bindings <artifact>` · `dorian bind-suggest --claims claims.json` · `dorian rebind` —
+  binding diagnostics, a preview of the files `verify` would auto-bind, re-derived watches.
+- `dorian suggest-claims <file.py>` · `dorian suggest-data-checks <data-file>` — born-verifiable
+  claim and C5 checker suggestions to paste into `claims.json`.
+- `dorian report --audit` — the event log as byte-identical JSONL.
+- `dorian bench mutation` · `bench large-mutation` · `bench binding-lifecycle` · `bench public-repos`
+  — the reproducible benchmark suites.
+
+Exit codes: `0` ok/TRUSTED · `2` usage/infra · `3` DEGRADED · `4` REVOKED/integrity · `5`
+ERRORED-only (checkers could not run; never conflated with broken) · `6` scope violation.
+Full reference: [`docs/COMMANDS.md`](docs/COMMANDS.md).
+
 ## Evidence
 
 - **Synthetic benchmark.** Over 240 (artifact, mutation) pairs across six invented fixture domains
   with known-truth labels, claim-level revalidation flagged broken claims at precision **0.93** /
-  recall **0.93**, versus file-change watchers at precision 0.34–0.59 (recall 1.00 by construction) —
-  **11.6x fewer false alarms** than a path-scoped watcher (58 → 5). These numbers describe a synthetic
-  suite, not your repository. They were measured at v0.7.0 and are **historical**; the suites were
-  last re-run, unchanged, at v1.2.0 — see [`docs/BENCHMARK_CURRENT.md`](docs/BENCHMARK_CURRENT.md)
-  and [`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md). Reproduce with `dorian bench large-mutation`.
+  recall **0.93**, versus file-change watchers at recall 1.00 but precision **0.34** (naive),
+  **0.56** (path-scope), and **0.59** (line-aware) — **11.6x** fewer false alarms than the path-scope
+  watcher (58 → 5) and **10.4x** fewer than the line-aware one (52 → 5). Synthetic, not your
+  repository; measured at v0.7.0 and **historical** — last re-run, unchanged, at v1.2.0
+  ([`docs/BENCHMARK_CURRENT.md`](docs/BENCHMARK_CURRENT.md),
+  [`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md)). Reproduce: `dorian bench large-mutation`.
 - **One real catch.** A load-bearing claim sealed against [`encode/httpx`](https://github.com/encode/httpx)
   — `requires-python` is `">=3.8"` — was flipped WARRANTED → REVOKED (exit 4) by a later upstream PR
   ([#3592](https://github.com/encode/httpx/pull/3592), "Drop Python 3.8 support") while httpx's own
   test suite stayed green. Full output and a from-scratch reproduction:
-  [`docs/REAL_CATCH_LOG.md`](docs/REAL_CATCH_LOG.md). One documented catch, not a validation claim.
+  [`docs/REAL_CATCH_LOG.md`](docs/REAL_CATCH_LOG.md). One documented catch — evidence, not universal
+  validation.
 
 ## Docs
 
-- [`docs/START_HERE.md`](docs/START_HERE.md) — a map of the docs by what you are trying to do.
-- [`docs/OVERVIEW.md`](docs/OVERVIEW.md) — the long-form tour: the 60-second aha, how it works,
-  what dorian is not, and the roadmap.
-- [`docs/COMMANDS.md`](docs/COMMANDS.md) — command reference and exit codes.
+- [`docs/START_HERE.md`](docs/START_HERE.md) — the docs map, by what you are trying to do.
+- [`docs/OVERVIEW.md`](docs/OVERVIEW.md) — the long-form tour, incl. what dorian is not and the roadmap.
+- [`docs/COMMANDS.md`](docs/COMMANDS.md) — the full command reference.
 - [`docs/BINDING.md`](docs/BINDING.md) — binding semantics: trigger vs. truth.
 - [`docs/AGENT_CLAIMS.md`](docs/AGENT_CLAIMS.md) and [`spec/checkers.md`](spec/checkers.md) —
   writing claims; the checker grammar.
-- [`docs/BENCHMARK_CURRENT.md`](docs/BENCHMARK_CURRENT.md) — benchmarks, re-run on the current version.
+- [`docs/BENCHMARK_CURRENT.md`](docs/BENCHMARK_CURRENT.md) — current-version benchmark reruns.
 - [`SECURITY.md`](SECURITY.md) and [`docs/SECURITY_BOUNDARY.md`](docs/SECURITY_BOUNDARY.md) — security.
-- [`docs/OVERVIEW.md#roadmap`](docs/OVERVIEW.md#roadmap) and
-  [`docs/ROADMAP_BACKLOG.md`](docs/ROADMAP_BACKLOG.md) — roadmap and structured backlog.
+- [`docs/ROADMAP_BACKLOG.md`](docs/ROADMAP_BACKLOG.md) — the structured roadmap backlog.
 
 ## Contributing
 
