@@ -43,5 +43,12 @@ bench-mutation:
 bench-large-mutation:
 	uv run python -m bench.large_mutation --md-out docs/BENCHMARK_v0.7.0.md
 
+# offline, self-contained demo: seal a warrant for examples/claude-code in a throwaway repo,
+# then break a claim and revalidate (exit 4 = REVOKED is the expected ending)
 demo:
-	@echo "the example repo is on the roadmap; see the Roadmap section in README.md"
+	@tmp=$$(mktemp -d) && cp $(CURDIR)/examples/claude-code/app.py $(CURDIR)/examples/claude-code/change-note.md $(CURDIR)/examples/claude-code/claims.json "$$tmp" \
+	  && cd "$$tmp" && git init -q && git add -A \
+	  && git -c user.name=demo -c user.email=demo@example.com commit -q -m "login handler + note" \
+	  && uv run --project $(CURDIR) dorian verify change-note.md --claims claims.json \
+	  && printf 'LOGIN_TIMEOUT = 10\n\n\ndef signin(request):\n    return {"ok": True}\n' > app.py \
+	  && { uv run --project $(CURDIR) dorian revalidate --since HEAD; echo "revalidate exit $$? (4 = REVOKED, as expected)"; }
