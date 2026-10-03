@@ -9,7 +9,7 @@
 > A point-in-time, evidence-backed readiness review. Every claim below was checked live against
 > the repo, the test suite, the built package, and GitHub. Where a check could not be run, that is
 > stated explicitly. This document follows the honesty contract in
-> [`VALIDATION_HONESTY.md`](VALIDATION_HONESTY.md): no result is cited as proof of something it did
+> [`VALIDATION_HONESTY.md`](../../docs/VALIDATION_HONESTY.md): no result is cited as proof of something it did
 > not test.
 
 ## 1. Snapshot
@@ -130,7 +130,7 @@ on disk.
 ## 7. Security posture
 
 A full file:line security map was produced this session; headline findings (all consistent with
-[`SECURITY_BOUNDARY.md`](SECURITY_BOUNDARY.md)):
+[`SECURITY_BOUNDARY.md`](../../docs/SECURITY_BOUNDARY.md)):
 
 - **Single execution gate.** `policy.py`'s `ExecutionPolicy` is the one place C4/C5 execution is
   gated. Blocked execution **fails closed**: it returns `Verdict.ERROR`, and the protocol already
@@ -181,7 +181,7 @@ integrity plus the content-address check — confirm no integration path skips `
   and advisory; it never marks a claim false.
 - **Claim extraction is frozen/experimental.** `--extract` (LLM claim *drafting*) failed its
   metamorphic calibration gate twice and is not a recommended path. Agents should emit `claims.json`
-  directly (see [`AGENT_CLAIMS.md`](AGENT_CLAIMS.md)); `suggest-claims`/`suggest-data-checks` produce
+  directly (see [`AGENT_CLAIMS.md`](../../docs/AGENT_CLAIMS.md)); `suggest-claims`/`suggest-data-checks` produce
   deterministic scaffolds. None of this touches the verification path.
 - **`export --in-toto` is experimental** interop, explicitly labeled.
 - **sdist size** ~3.4 MB (docs/tests/fixtures shipped) — cosmetic, low priority.
