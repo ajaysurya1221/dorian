@@ -27,7 +27,7 @@ is how teams end up routing around a noisy check.
 
 ## What to record (per PR)
 
-Use the [REAL_CATCH_LOG.md](REAL_CATCH_LOG.md) entry block for anything dorian
+Use the [REAL_CATCH_LOG.md](../../docs/REAL_CATCH_LOG.md) entry block for anything dorian
 flags. Additionally, per PR, track:
 
 | Field | Value |

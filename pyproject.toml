@@ -34,6 +34,10 @@ packages = ["src/dorian"]
 # even from a dirty working tree (they are also git-ignored, so never tracked)
 exclude = ["**/* 2.py"]
 
+[tool.hatch.build.targets.sdist]
+# keep the sdist lean: no hero images, benchmark data, archived notes, tests, or lockfile
+exclude = ["/docs/assets/*.png", "/bench/", "/archive/", "/tests/", "/uv.lock"]
+
 [tool.ruff]
 line-length = 100
 src = ["src", "tests", "bench"]
