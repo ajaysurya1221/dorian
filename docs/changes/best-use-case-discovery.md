@@ -1,11 +1,11 @@
 # Change note — best-use-case discovery (2026-06-27)
 
 Adds the evidence-backed use-case package:
-[`BEST_USE_CASE_2026_06_27.md`](../BEST_USE_CASE_2026_06_27.md),
-[`USE_CASE_DECISION_MATRIX_2026_06_27.md`](../USE_CASE_DECISION_MATRIX_2026_06_27.md),
-[`DEMO_SCRIPT_BEST_USE_CASE.md`](../DEMO_SCRIPT_BEST_USE_CASE.md),
+[`BEST_USE_CASE_2026_06_27.md`](../../archive/docs/BEST_USE_CASE_2026_06_27.md),
+[`USE_CASE_DECISION_MATRIX_2026_06_27.md`](../../archive/docs/USE_CASE_DECISION_MATRIX_2026_06_27.md),
+[`DEMO_SCRIPT_BEST_USE_CASE.md`](../../archive/docs/DEMO_SCRIPT_BEST_USE_CASE.md),
 [`CLAUDE_CODE_DORIAN_WORKFLOW.md`](../CLAUDE_CODE_DORIAN_WORKFLOW.md), and
-[`POSITIONING_2026_06_27.md`](../POSITIONING_2026_06_27.md). The chosen wedge: **receipts for the
+[`POSITIONING_2026_06_27.md`](../../archive/docs/POSITIONING_2026_06_27.md). The chosen wedge: **receipts for the
 checkable claims an AI coding agent makes — especially the no-failing-test facts (config, signatures,
 constants, references) — that REVOKE on drift**. No code, grammar, or security-posture change.
 

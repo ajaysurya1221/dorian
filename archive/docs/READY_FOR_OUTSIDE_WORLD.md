@@ -1,7 +1,7 @@
 # Dorian — Ready for the Outside World? (v1.2.0)
 
 > The release-readiness verdict for v1.2.0, with evidence. Follows the honesty contract in
-> [`VALIDATION_HONESTY.md`](VALIDATION_HONESTY.md). Supersedes the v1.1.1-era
+> [`VALIDATION_HONESTY.md`](../../docs/VALIDATION_HONESTY.md). Supersedes the v1.1.1-era
 > [`PRODUCTION_READINESS_AUDIT.md`](PRODUCTION_READINESS_AUDIT.md) for release purposes.
 
 ## Verdict
@@ -68,7 +68,7 @@ produced WARRANTED → **REVOKED** (exit 4). Full detail and honest limits in
   shell too); paths are repo-contained; sidecar writes are atomic (now per-process).
 - **Honest residual:** `--checker-source base` substitutes only the checker *spec*; claim selection and
   read-set still come from the PR-head sidecar, so a *hostile fork* can suppress a re-check or forge a
-  C1/`snapshot:` read-set. Disclosed in [`SECURITY_BOUNDARY.md`](SECURITY_BOUNDARY.md); base-ref
+  C1/`snapshot:` read-set. Disclosed in [`SECURITY_BOUNDARY.md`](../../docs/SECURITY_BOUNDARY.md); base-ref
   selection is tracked hardening in [`NEXT_ALGORITHMIC_BETS.md`](NEXT_ALGORITHMIC_BETS.md). Moot for the
   trusted-repo product; for untrusted forks the doc requires `.warrant`-diff review + branch protection.
 

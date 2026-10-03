@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-dorian is a solo, pre-1.0 project. To report a security issue, open a
+dorian is a solo-maintained 1.x project. To report a security issue, open a
 [GitHub security advisory](https://github.com/ajaysurya1221/dorian/security/advisories/new)
 (preferred) or a regular issue **without** exploit details and ask for a private
 channel. Please do not post working exploits in public issues. There is no SLA;
