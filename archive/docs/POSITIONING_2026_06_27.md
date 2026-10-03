@@ -2,7 +2,7 @@
 
 > Sharp, honest positioning for Dorian's best use case (see
 > [`BEST_USE_CASE_2026_06_27.md`](BEST_USE_CASE_2026_06_27.md)). Every line is constrained by
-> [`VALIDATION_HONESTY.md`](VALIDATION_HONESTY.md): no sandbox, no LLM judging, no semantic proof, no
+> [`VALIDATION_HONESTY.md`](../../docs/VALIDATION_HONESTY.md): no sandbox, no LLM judging, no semantic proof, no
 > broad compliance, not a replacement for tests/review.
 
 ## Naming update (v1.3.0)
@@ -12,13 +12,13 @@
 > shipped product name is **Dorian claim warrants**, not "agent receipts." "Receipt" stays only as an
 > explanatory metaphor: a Dorian claim warrant is a *receipt for a checkable engineering claim, not a
 > receipt for an agent action.* The two are complementary, not substitutes — see
-> [`CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md`](CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md). Updated tagline:
+> [`CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md`](../../docs/CLAIM_WARRANTS_VS_AGENT_RECEIPTS.md). Updated tagline:
 >
 > **Claim warrants for what your coding agent said changed.**
 >
 > Shipped in v1.3.0 as a one-command Claude Code skill: `dorian claude-code install-claim-warrants` →
 > `/dorian-claim-warrants` (the model drafts; Dorian proves). See
-> [`DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md`](DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md).
+> [`DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md`](../../docs/DORIAN_CLAIM_WARRANTS_CLAUDE_CODE_SKILL.md).
 
 ## Primary tagline
 

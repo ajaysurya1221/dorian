@@ -83,18 +83,18 @@ restate baseline with the same 7-run protocol: exact churn 0.187 → 0.029
 (gate 3/7 → 7/7 PASS; identical claim-text sets in 4/7 invocations, 15/21 run
 pairs vs 3/21). The gate criterion is met; unconditional run-identity is not yet
 (residual single-span selection jitter). See
-[`CHURN_BENCHMARK_v0.4.0.md`](../archive/CHURN_BENCHMARK_v0.4.0.md). A four-document
-battery ([`CHURN_BENCHMARK_v0.5.0.md`](../archive/CHURN_BENCHMARK_v0.5.0.md)) confirms a
+[`CHURN_BENCHMARK_v0.4.0.md`](../CHURN_BENCHMARK_v0.4.0.md). A four-document
+battery ([`CHURN_BENCHMARK_v0.5.0.md`](../CHURN_BENCHMARK_v0.5.0.md)) confirms a
 2–8× advantage on every document but shows the gate is length-bound: anchor
 passes only at ≤60 lines. Boundary snapping and consensus-of-k voting shipped
 in v0.6.0 (`--extract-consensus`), but the planted-truth gate built to judge
 them failed instrument calibration twice and was rejected by its own
-pre-registered rule ([`EXTRACT_GATE_RESULTS.md`](../archive/EXTRACT_GATE_RESULTS.md)) —
+pre-registered rule ([`EXTRACT_GATE_RESULTS.md`](../EXTRACT_GATE_RESULTS.md)) —
 synthetic documents flatter extraction and cannot carry a promotion decision.
 The honest next instrument is metamorphic relations on REAL documents
 (invariance under filler/reorder; anchor-targeted deletion), pre-registered
 before any run. That instrument is now built and pre-registered
-([`REAL_DOC_METAMORPHIC_GATE.md`](REAL_DOC_METAMORPHIC_GATE.md)), and the
+([`REAL_DOC_METAMORPHIC_GATE.md`](../../docs/REAL_DOC_METAMORPHIC_GATE.md)), and the
 candidate-first prefilter this bet originally named — segment first, classify
 only — ships as its pre-registered challenger (`--extract-mode candidate`).
 The "not yet" list stands.*
@@ -106,7 +106,7 @@ The "not yet" list stands.*
   the read-set hashes a non-executing `C1`/`snapshot:` checker compares against are
   still read from the PR-head sidecar. A hostile fork that rewrites its own
   committed `.warrant` can therefore suppress a re-check or forge a read-set hash
-  (disclosed in [`SECURITY_BOUNDARY.md`](SECURITY_BOUNDARY.md)). The hardening:
+  (disclosed in [`SECURITY_BOUNDARY.md`](../../docs/SECURITY_BOUNDARY.md)). The hardening:
   in base mode, derive the candidate set, `watch`, `supports`, and read-set entries
   from the base-ref sidecar (fail closed if absent), reading current content but
   trusting only base metadata. **Acceptance test:** a PR that removes a watch or

@@ -99,4 +99,4 @@ to re-check** — it is a `git show` + an `ast` parse.
   (missing test deps → `ERRORED_AT_SEAL`, fail-closed — never a false pass). Structural C3 claims
   (`py-signature`/`config-value`/`symbol`) need no deps and are the low-friction default.
 - Dorian verifies **specific, checkable** claims in **trusted** repos. It is not a sandbox, not an LLM
-  judge, and not a replacement for tests/review. See [`SECURITY_BOUNDARY.md`](SECURITY_BOUNDARY.md).
+  judge, and not a replacement for tests/review. See [`SECURITY_BOUNDARY.md`](../../docs/SECURITY_BOUNDARY.md).

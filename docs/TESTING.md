@@ -64,10 +64,14 @@ make coverage    # coverage (term-missing + HTML under htmlcov/), measured over 
 
 ## Known residual risks
 
-- **ReDoS:** C3 regex runs in-process with a 500-char pattern cap but no runtime
-  timeout; catastrophic backtracking *within* the cap is a documented residual risk.
-  `docs/AGENT_CLAIMS.md` steers authors toward literal-anchored patterns; review
-  agent-emitted regex claims.
+- **ReDoS (bounded, not eliminated):** a C3 `regex:` pattern is capped at 500 chars and
+  compile-guarded, and the match itself runs in a spawned worker process under a hard
+  wall-clock timeout (the checker's `timeout_s`, default 30s; SIGTERM, then SIGKILL after a
+  short grace). A catastrophic pattern is reported as `ERROR('regex_timeout')` — never a
+  stall and never a PASS/FAIL (`src/dorian/checkers/c3_ref.py`, pinned by
+  `tests/test_c3_regex_timeout.py`). The residual cost is latency, roughly 50–150 ms per
+  `regex:` check for the spawn. `docs/AGENT_CLAIMS.md` still steers authors toward
+  literal-anchored patterns, and agent-emitted regex claims deserve review.
 - **Re-seal idempotency (resolved):** re-running `verify`/`seal` on a *materially
   identical* artifact keeps the committed sidecar byte-for-byte — the two per-run
   wall-clock stamps (`sealed_at`, `produced_by.captured_at`) are masked when comparing
