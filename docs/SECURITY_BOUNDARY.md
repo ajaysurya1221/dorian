@@ -115,7 +115,7 @@ is *internally* consistent, which a fork can recompute. Base mode therefore hard
 the **executable-checker** path (a PR's malicious `pytest:`/`shell:` spec never
 runs), but is **not** a complete defense against a hostile fork's sidecar metadata.
 Deriving selection and the read-set from the base ref as well is **tracked
-hardening** (see [`NEXT_ALGORITHMIC_BETS.md`](NEXT_ALGORITHMIC_BETS.md)); until
+hardening** (see [`NEXT_ALGORITHMIC_BETS.md`](../archive/docs/NEXT_ALGORITHMIC_BETS.md)); until
 then, treat `checker_trust: base` as a checker-spec trust root for *semi-trusted*
 contributors, and for genuinely untrusted forks rely on required review of the
 `.warrant` diff and branch protection (plus `deny_exec`), not on base mode alone.

@@ -17,6 +17,11 @@ What's here:
   agent emitting `claims.json` directly; see [`../docs/AGENT_CLAIMS.md`](../docs/AGENT_CLAIMS.md)).
 - **`KILL_REPORT_TEMPLATE.md`**, **`KILL_REPORT_v0.0.md`**, **`RELEASE_VALIDATION_REPORT_v0.2.0.md`** —
   the early validation-discipline reports and template.
+- **`docs/`** — dated planning, positioning, readiness-audit, and release-gate notes from the
+  June 2026 re-aim and the 1.0–1.4 line (`POSITIONING_*`, `BEST_USE_CASE_*`,
+  `READY_FOR_OUTSIDE_WORLD.md`, `PRODUCTION_READINESS_AUDIT.md`, `RELEASE_GATE_1_0.md`,
+  `DORIAN_PANE.md`, …). Kept for history; they are not maintained and may describe the code as it
+  was on their date, not as it is now. The live docs are in [`../docs/`](../docs/).
 
 The extraction-gate *specifications* that present (frozen) bench code still treats as normative —
 `EXTRACT_GATE.md` and `REAL_DOC_METAMORPHIC_GATE.md` — remain in [`../docs/`](../docs/) alongside

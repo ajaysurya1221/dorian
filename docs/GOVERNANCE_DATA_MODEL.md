@@ -171,6 +171,6 @@ warrant schema and the existing exit-code/fold contracts stay untouched.
 ## See also
 
 - `docs/SECURITY_BOUNDARY.md` — the core-vs-host-hook trust boundary and gate fail-closed behavior.
-- `docs/DORIAN_PANE.md` — the future surface these records are designed to feed.
+- `archive/docs/DORIAN_PANE.md` — the (archived) pane vision, the future surface these records are designed to feed.
 - `docs/DORIAN_LOOP_GUARD.md` — the loop preflight decision (`continue`/`repair`/`escalate`) the gate reuses.
 - `docs/VALIDATION_HONESTY.md` — the trigger-vs-truth axes and the C4 determinism caveat.

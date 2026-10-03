@@ -66,5 +66,5 @@ path.
 mutation), nor that results transfer to any specific codebase, nor anything about C5 `shell:` (not
 exercised), nor broad/market validation. Trials 2–3 use validator-authored scratch repos (needed for a
 safe C4 test and a clean `init` target); Trials 1 and 4 are real external repos at pinned SHAs. Per
-[`VALIDATION_HONESTY.md`](VALIDATION_HONESTY.md), this is **mechanism evidence on real install +
+[`VALIDATION_HONESTY.md`](../../docs/VALIDATION_HONESTY.md), this is **mechanism evidence on real install +
 real repos**, not a claim that dorian is "validated in production."

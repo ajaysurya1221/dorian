@@ -3,7 +3,7 @@
 > An evidence-backed answer to "what is the single highest-leverage thing to use Dorian for today?"
 > Built from a multi-agent web-research pass (37 cited sources), real-repo trials on the published
 > `dorian-vwp` 1.2.0, a competitive analysis, adversarial critique, and an independent judge. Follows
-> the honesty contract in [`VALIDATION_HONESTY.md`](VALIDATION_HONESTY.md).
+> the honesty contract in [`VALIDATION_HONESTY.md`](../../docs/VALIDATION_HONESTY.md).
 
 ## Executive answer
 
@@ -138,7 +138,7 @@ seal → drift → `REVOKED`, no LLM calls at check time. (It is trial #1 above,
 ## Adoption path (the wedge distribution channel)
 
 **A Claude Code final-message convention + the `dorian` GitHub Action.** The agent ends a turn with a
-small `claims.json` (template in [`CLAUDE_CODE_DORIAN_WORKFLOW.md`](CLAUDE_CODE_DORIAN_WORKFLOW.md));
+small `claims.json` (template in [`CLAUDE_CODE_DORIAN_WORKFLOW.md`](../../docs/CLAUDE_CODE_DORIAN_WORKFLOW.md));
 `dorian verify` seals; the Action (`fail_on: revoked`) re-checks on every later PR and posts a
 deterministic comment. Lowest-friction beachhead: the solo power user who already runs Claude Code.
 Second hop: a template repo + the "agent must emit `claims.json`" convention for OSS/teams.
