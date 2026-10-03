@@ -1,7 +1,7 @@
 # Change note — production-readiness audit + usefulness doc
 
-Adds two durable docs — [`PRODUCTION_READINESS_AUDIT.md`](../PRODUCTION_READINESS_AUDIT.md) (an
-evidence-backed readiness review) and [`DORIAN_USEFULNESS.md`](../DORIAN_USEFULNESS.md) (why Dorian
+Adds two durable docs — [`PRODUCTION_READINESS_AUDIT.md`](../../archive/docs/PRODUCTION_READINESS_AUDIT.md) (an
+evidence-backed readiness review) and [`DORIAN_USEFULNESS.md`](../../archive/docs/DORIAN_USEFULNESS.md) (why Dorian
 matters, strength-labeled) — and corrects the README's flagship demo, which mis-kinded an existence
 claim as `behavior` (now `reference`, so the headline demo is clean under the project's own
 `--strength-gate`). No code behavior, warrant schema, checker grammar, exit codes, or security

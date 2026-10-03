@@ -50,7 +50,7 @@ independently against the same thresholds.
   segmentation, so boundary jitter is zero by construction, and selection
   becomes a per-candidate vote. This is the "deterministic checkability
   prefilter" named in v0.5.0 finding 5 and
-  [`NEXT_ALGORITHMIC_BETS.md`](NEXT_ALGORITHMIC_BETS.md) bet 5, now
+  [`NEXT_ALGORITHMIC_BETS.md`](../archive/docs/NEXT_ALGORITHMIC_BETS.md) bet 5, now
   implemented as a small, reversible extraction mode. It is included because
   it directly attacks the measured failure mode: long-document selection
   jitter plus boundary jitter.
@@ -269,7 +269,7 @@ numbers.
   uninterpretable).
 
 Outcome if **both** SUTs reject: the extraction track is recorded as closed
-for solo-dev validation in `NEXT_ALGORITHMIC_BETS.md`; `--extract` is
+for solo-dev validation in `archive/docs/NEXT_ALGORITHMIC_BETS.md`; `--extract` is
 demoted from "experimental" to "not recommended; manual claims only."
 
 **Insufficient-evidence gate** (otherwise), including explicitly:

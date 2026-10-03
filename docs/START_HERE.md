@@ -6,8 +6,12 @@ exists to catch).
 
 ## I'm new — what is this?
 
-- [`README.md`](../README.md) — what dorian is, the 60-second aha, install, and the command surface.
-- [What dorian is **not**](../README.md#what-dorian-is-not) — read this before assuming a category.
+- [`README.md`](../README.md) — what dorian does, the 30-second runnable demo, install, and the evidence.
+- [`OVERVIEW.md`](OVERVIEW.md) — the long-form tour: the 60-second aha, how it works, Claude Code and
+  loop-guard integrations, the governance preview, and the roadmap.
+- [What dorian is **not**](OVERVIEW.md#what-dorian-is-not) — read this before assuming a category.
+- [`COMMANDS.md`](COMMANDS.md) — the command reference and exit codes.
+- [`BINDING.md`](BINDING.md) — binding semantics: a re-check trigger, not a behavior proof.
 
 ## I use Claude Code (or another coding agent)
 
@@ -31,8 +35,10 @@ exists to catch).
   benchmark for symbol binding, with its [protocol](BENCHMARK_BINDING_LIFECYCLE_PROTOCOL.md).
 - [`REALWORLD_USECASES.md`](REALWORLD_USECASES.md) — offline reproductions of public problem classes,
   with its [protocol](REALWORLD_USECASES_PROTOCOL.md).
-- [`PUBLIC_BENCHMARK_PROTOCOL.md`](PUBLIC_BENCHMARK_PROTOCOL.md) — the pre-registered protocol for the
-  next rung: real public repos at frozen SHAs (no results yet — protocol only).
+- [`PUBLIC_BENCHMARK_PROTOCOL.md`](PUBLIC_BENCHMARK_PROTOCOL.md) — the pre-registered protocol for
+  real public repos at frozen SHAs. Its results (two subjects, byte-identical across two runs) are in
+  [`BENCHMARK_PUBLIC_REAL_REPOS.md`](BENCHMARK_PUBLIC_REAL_REPOS.md), with the raw output under
+  [`bench/public/results/`](../bench/public/results/); reproduce with `dorian bench public-repos`.
 
 ## I'm running it in CI
 
@@ -44,7 +50,11 @@ exists to catch).
 
 ## I want the why and the roadmap
 
-- [`NEXT_ALGORITHMIC_BETS.md`](NEXT_ALGORITHMIC_BETS.md) — open correctness bets (binding is the main one).
-- [`SOLO_VALIDATION_LADDER.md`](SOLO_VALIDATION_LADDER.md) — the rungs from synthetic to real-repo evidence.
+- [`OVERVIEW.md#roadmap`](OVERVIEW.md#roadmap) — the headline roadmap and the non-goals.
+- [`ROADMAP_BACKLOG.md`](ROADMAP_BACKLOG.md) — the structured backlog (status, evidence, acceptance criteria).
+- [`archive/docs/`](../archive/docs/) — dated planning and positioning notes kept for history, e.g.
+  [`NEXT_ALGORITHMIC_BETS.md`](../archive/docs/NEXT_ALGORITHMIC_BETS.md) (the correctness bets that
+  led to symbol binding) and [`SOLO_VALIDATION_LADDER.md`](../archive/docs/SOLO_VALIDATION_LADDER.md)
+  (the rungs from synthetic to real-repo evidence).
 - [`NAMING_AND_PRIOR_ART.md`](NAMING_AND_PRIOR_ART.md) — the name, and how dorian relates to prior art.
 - [`TESTING.md`](TESTING.md) — how the test suite and coverage gates are organized.

@@ -3,7 +3,7 @@
 > Why this project matters, written for engineers, maintainers, AI-agent users, and skeptical
 > reviewers. Every evidence claim here is labeled by strength and traceable to a file in this repo.
 > Nothing is cited as proof of something it did not test — the rule from
-> [`VALIDATION_HONESTY.md`](VALIDATION_HONESTY.md).
+> [`VALIDATION_HONESTY.md`](../../docs/VALIDATION_HONESTY.md).
 
 ## One-sentence thesis
 
@@ -56,7 +56,7 @@ assertion into a **standing, self-rechecking invariant**.
 
 - **AI-agent claims after coding work.** An agent emits `claims.json` alongside its change; `dorian
   verify` refuses to seal if any claim is already false (born-verifiable). The claim survives as a
-  warrant, not as unverified prose. See [`AGENT_CLAIMS.md`](AGENT_CLAIMS.md).
+  warrant, not as unverified prose. See [`AGENT_CLAIMS.md`](../../docs/AGENT_CLAIMS.md).
 - **PR review support.** `dorian revalidate --since <base>` re-checks only the claims whose watched
   files intersect the PR's diff, and emits a customer-readable comment with a `Blocked/Passed/Errored`
   verdict and the exact claim that changed. Reviewers spend attention where a promise actually moved.
@@ -79,7 +79,7 @@ assertion into a **standing, self-rechecking invariant**.
   phones home; the warrant lives next to the file it backs.
 - **Not a sandbox.** C4 `pytest:` and C5 `shell:` checkers execute code. Dorian is for **trusted,
   internal repositories**. `--deny-exec`/`--deny-shell`/`checker_trust: base` fail closed but are
-  trust controls, not isolation. See [`SECURITY_BOUNDARY.md`](SECURITY_BOUNDARY.md).
+  trust controls, not isolation. See [`SECURITY_BOUNDARY.md`](../../docs/SECURITY_BOUNDARY.md).
 - **Not a universal proof system.** It proves what its checkers can deterministically check on
   Python-centric repos and tabular/structured data — not arbitrary semantic correctness.
 - **Not a replacement** for tests, SAST, code review, or human judgment. It is the layer that keeps
@@ -105,7 +105,7 @@ Strength-labeled, with paths. Read these as "what specific false statement does 
 the project's own honesty rule.
 
 **Real-world catch (strongest).**
-[`REAL_CATCH_LOG.md`](REAL_CATCH_LOG.md) documents a real cross-PR catch on the public `encode/httpx`
+[`REAL_CATCH_LOG.md`](../../docs/REAL_CATCH_LOG.md) documents a real cross-PR catch on the public `encode/httpx`
 repo: a `config-value:pyproject.toml:project.requires-python:">=3.8"` claim, against upstream PR #3592
 ("drop Python 3.8 support"), folded `WARRANTED → REVOKED` (exit 4). This is the highest-conviction
 evidence — real code, a real change, independently reproduced on a frozen SHA, and a change with **no
@@ -116,14 +116,14 @@ validation.
 **Synthetic mechanism benchmarks (medium-high).**
 - Large controlled-mutation suite (240 known-truth pairs): precision 0.93 / recall 0.93, an **11.6×
   reduction in false alarms** vs a naive path-scope watcher (58 → 5). Synthetic fixtures, known
-  labels. ([`BENCHMARK_CURRENT.md`](BENCHMARK_CURRENT.md), protocol pre-registered.)
+  labels. ([`BENCHMARK_CURRENT.md`](../../docs/BENCHMARK_CURRENT.md), protocol pre-registered.)
 - Binding-lifecycle suite (808 pairs): trigger recall **0.54 → 1.00** once the symbol-index binding
   is enabled, with alarm precision **1.00** (zero false `BROKEN`). The gutted-body ceiling is shown,
   not hidden — an existence checker re-triggers but cannot see a behavior change; only a C4 test can.
-  ([`BENCHMARK_BINDING_LIFECYCLE.md`](BENCHMARK_BINDING_LIFECYCLE.md).)
+  ([`BENCHMARK_BINDING_LIFECYCLE.md`](../../docs/BENCHMARK_BINDING_LIFECYCLE.md).)
 
 **Public-repo reproducibility (scoped).**
-[`BENCHMARK_PUBLIC_REAL_REPOS.md`](BENCHMARK_PUBLIC_REAL_REPOS.md) shows byte-identical results on
+[`BENCHMARK_PUBLIC_REAL_REPOS.md`](../../docs/BENCHMARK_PUBLIC_REAL_REPOS.md) shows byte-identical results on
 frozen SHAs of public repos (e.g. `humanize`, `python-dotenv`) — evidence the mechanism reproduces on
 real code, **not** a claim of broad real-world coverage.
 
