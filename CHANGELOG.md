@@ -6,6 +6,23 @@ semantics have been stable since 1.0.0.
 
 ## [Unreleased]
 
+### Changed — documentation
+- **README onboarding and claim wording.** "Try it in 30 seconds" is now "Try it": the recipe starts
+  in a fresh virtual environment (`python -m pip install dorian-vwp==1.4.0`) and commits with a
+  command-local Git identity, so it needs no prior install and no global Git configuration; the
+  documented exits stay `0` (verify) and `4` (revalidate). The opening states what dorian checks
+  and what its strength depends on; "read-only" now describes only C1, C3, and typed C5; the
+  benchmark entry is labelled a historical synthetic result, reproducible from a source checkout;
+  the httpx entry is described as a retrospective, scoped reproduction.
+  `tests/test_readme_example.py` now mirrors the recipe's commit, runs without inherited Git
+  identity or global Git config, and pins the recipe's install line to the package version.
+- **`docs/BENCHMARK_CURRENT.md`** is retitled "Archived benchmark results and compatibility notes";
+  the figures are unchanged.
+- **`docs/releases/v1.4.0.md`** matches the published release body: a narrower summary, the pane/TUI
+  deferral stated plainly, and documentation links pinned to the `v1.4.0` tag.
+- **`CONTRIBUTING.md`** added: setup, `make lint` / `make test`, the README-example test, the
+  zero-runtime-dependency rule, security reporting, and commit conventions.
+
 ## [1.4.0] — 2026-07-02
 
 ### Added — Dorian Loop Guard (1.4.0)

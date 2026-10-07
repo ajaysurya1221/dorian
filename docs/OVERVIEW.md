@@ -1,6 +1,6 @@
 # dorian — the long-form tour
 
-The [README](../README.md) is the 30-second version. This page keeps the full narrative it used to
+The [README](../README.md) is the short version. This page keeps the full narrative it used to
 carry: the illustrative walkthrough, the story behind the name, the Claude Code and loop-guard
 integrations, the governance preview, the complete getting-started path, and the roadmap. The
 command reference is in [`COMMANDS.md`](COMMANDS.md); binding semantics (trigger vs. truth) are in
@@ -22,7 +22,7 @@ now and is re-checked on every future change, so a confident summary doesn't qui
 ## The 60-second aha
 
 *(Illustrative — these files are not in your checkout; run the copy-paste demo in the
-[README](../README.md#try-it-in-30-seconds) to try it yourself.)*
+[README](../README.md#try-it) to try it yourself.)*
 An agent finishes a change and emits the claims it just made — a `claims.json` next to
 the work, each claim bound to a read-only deterministic checker:
 
@@ -322,7 +322,7 @@ The workflow snippet, pinned to the released Action tag, lives in the
 those two copies are the ones the release tests keep in sync with the package version.
 
 Now that `dorian` is installed, the copy-paste runnable demo at the top —
-[Try it in 30 seconds](../README.md#try-it-in-30-seconds) — runs end to end against a throwaway repo.
+[Try it](../README.md#try-it) — runs end to end against a throwaway repo.
 
 ## Writing claims an agent can be held to
 
