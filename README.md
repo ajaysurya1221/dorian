@@ -10,11 +10,9 @@
 
 **Hold AI agents to what they said they did.**
 
-*The summary still reads perfectly. Its portrait doesn't.*
-
 <p>
   <a href="#install"><img src="https://img.shields.io/badge/Quickstart-2ea44f?style=for-the-badge" alt="Quickstart"></a>
-  <a href="#try-it-in-30-seconds"><img src="https://img.shields.io/badge/Demo-1f6feb?style=for-the-badge" alt="Demo"></a>
+  <a href="#try-it"><img src="https://img.shields.io/badge/Demo-1f6feb?style=for-the-badge" alt="Demo"></a>
   <a href="action/README.md"><img src="https://img.shields.io/badge/GitHub_Action-6e40c9?style=for-the-badge" alt="GitHub Action"></a>
 </p>
 
@@ -27,26 +25,40 @@
 
 </div>
 
-`dorian` holds an AI coding agent to what it *said* it did. The agent (or you) writes a `claims.json`
-of checkable claims about a change — "`handler()` lives in `app.py`", "the login timeout is 30
-seconds", "`test_login_ratelimit` passes". `dorian verify` turns each claim into a deterministic
-check, runs it against the real code, and seals the result beside the code in a git-committed
-`.warrant` sidecar. On every later commit, `dorian revalidate` re-runs only the checks whose watched
-files changed and flips the warrant to **REVOKED** the moment a claim stops being true — naming the
-claim. No model is called at verification time (**zero model tokens at check time**), so the checker
-cannot be talked past by the code it verifies. It ships as a CLI, a GitHub Action, and Claude Code
-hooks, with **zero runtime dependencies**.
+`dorian` turns explicit claims about a code change into executable checks and stores their results
+in a `.warrant` beside the code. Later revalidation reruns affected checks and revokes warrants when
+those checks fail. Verification makes no model calls (**zero model tokens at check time**); its
+strength depends on the claims, checkers and trusted execution environment. Its question is:
+**"Does the code still satisfy this recorded claim?"**
 
-## Try it in 30 seconds
+The agent (or you) writes a `claims.json` of checkable claims about a change — "`handler()` lives in
+`app.py`", "the login timeout is 30 seconds", "`test_login_ratelimit` passes". `dorian verify` runs
+each claim's checker against the code and seals the results in a git-committed `.warrant` sidecar. On
+each later commit, `dorian revalidate` re-runs only the checks whose watched files changed and flips
+the warrant to **REVOKED** when a load-bearing claim's check fails, naming the claim. It ships as a
+CLI, a GitHub Action, and Claude Code hooks, with **zero runtime dependencies**.
 
-A self-contained run on a throwaway repo — copy-paste it; it leaves nothing behind but a
-temp directory. (A black-box test pins this exact sequence, so it stays runnable.)
+
+## Try it
+
+A self-contained run in a throwaway directory, with its own virtual environment and a command-local
+Git identity, so it needs no prior install and no global Git configuration. It leaves nothing behind
+but the temp directory. (A black-box test pins the commands and their exit codes.)
 
 ```bash
-tmp=$(mktemp -d) && cd "$tmp" && git init -q
+tmp=$(mktemp -d)
+cd "$tmp"
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install dorian-vwp==1.4.0
+git init -q
+printf '.venv/\n' > .gitignore
+
 printf 'def handler():\n    return 200\n' > app.py
 printf '# change note\n\n`handler()` lives in app.py.\n' > note.md
-git add -A && git commit -q -m "app + note"
+git add app.py note.md .gitignore
+git -c user.name=Demo -c user.email=demo@example.invalid \
+  -c commit.gpgsign=false commit -q -m "app + note"
 
 cat > claims.json <<'JSON'
 {"claims": [
@@ -63,19 +75,20 @@ printf 'def renamed():\n    return 200\n' > app.py
 dorian revalidate --since HEAD                 # -> handler-exists BROKEN; WARRANTED -> REVOKED  (exit 4)
 ```
 
-`note.md` never changed and `git`/CI stay quiet — but the warrant flips to REVOKED, naming
-the exact claim that stopped being true. (Don't have `dorian` yet? See
-[Install](#install).)
+`note.md` never changed, but the warrant flips to REVOKED and names the claim whose check failed.
+`python3` must be 3.11 or newer. For other ways to install, see [Install](#install).
 
 ## What it checks and what it does not
 
-A claim is bound to one of four read-only checker families: **C1** (a quoted span of the artifact
-itself), **C3** (a path, symbol, string, or regex in a file, plus the structural `py-signature:` /
+A claim is bound to one of four checker families: **C1** (a quoted span of the artifact itself),
+**C3** (a path, symbol, string, or regex in a file, plus the structural `py-signature:` /
 `py-const:` / `code:` / `config-value:` forms), **C4** (a `pytest:` node id), or **C5** (typed data
-checks on CSV/parquet files, or a `shell:` command). `verify` is *born-verifiable*: it seals only if
-every claim holds right now (exit 0) and writes nothing otherwise (exit 4). A warrant is born
-**WARRANTED** and folds on each `revalidate` to **TRUSTED**, **DEGRADED**, **REVOKED**, or **UNKNOWN**
-(a checker could not run — never counted as broken, never silently green).
+checks on CSV/parquet files, or a `shell:` command). C1, C3, and typed C5 only read files; C4 and C5
+`shell:` execute code (see [Security](#security-claims-are-executable-input)). `verify` is
+*born-verifiable*: it seals only if every claim holds right now (exit 0) and writes nothing
+otherwise (exit 4). A warrant is born **WARRANTED** and folds on each `revalidate` to **TRUSTED**,
+**DEGRADED**, **REVOKED**, or **UNKNOWN** (a checker could not run — never counted as broken, never
+silently green).
 
 The honest limits:
 
@@ -155,10 +168,13 @@ jobs:
 
 One command scaffolds a project-local skill: `dorian claude-code install-claim-warrants`. After a
 change, `/dorian-claim-warrants` drafts the change note + `claims.json` for the checkable facts the
-agent claimed and prints the verify command — **the model only drafts; `dorian verify` proves**.
-`dorian revalidate --since <base>` on later PRs REVOKEs whatever the code drifted away from. Add
-`--with-hook` for an opt-in, reminder-only Stop hook. Paste-ready prompt, runnable example pack, and
-`settings.json` sample: [`docs/USE_WITH_CLAUDE_CODE.md`](docs/USE_WITH_CLAUDE_CODE.md) and
+agent claimed and prints the verify command. **The model drafts; deterministic checkers evaluate the
+specified claims.** Review the drafted `claims.json` before running `verify`: C4 and C5 `shell:`
+checkers execute code ([Security](#security-claims-are-executable-input)). On later PRs,
+`dorian revalidate --since <base>` re-runs the affected checks and revokes a warrant when a
+load-bearing check fails. Add `--with-hook` for an opt-in, reminder-only Stop hook. Paste-ready
+prompt, runnable example pack, and `settings.json` sample:
+[`docs/USE_WITH_CLAUDE_CODE.md`](docs/USE_WITH_CLAUDE_CODE.md) and
 [`examples/claude-code/`](examples/claude-code/).
 
 Using dorian inside AI coding loops: `dorian loop preflight --since <base>` re-checks the warrants a
@@ -182,7 +198,8 @@ install` adds a `SubagentStop` gate and a fail-closed `PreToolUse` veto for unat
   claim and C5 checker suggestions to paste into `claims.json`.
 - `dorian report --audit` — the event log as byte-identical JSONL.
 - `dorian bench mutation` · `bench large-mutation` · `bench binding-lifecycle` · `bench public-repos`
-  — the reproducible benchmark suites.
+  — the benchmark suites; they need a source checkout with development dependencies (the wheel does
+  not ship `bench/`).
 
 Exit codes: `0` ok/TRUSTED · `2` usage/infra · `3` DEGRADED · `4` REVOKED/integrity · `5`
 ERRORED-only (checkers could not run; never conflated with broken) · `6` scope violation.
@@ -195,15 +212,17 @@ Full reference: [`docs/COMMANDS.md`](docs/COMMANDS.md).
   recall **0.93**, versus file-change watchers at recall 1.00 but precision **0.34** (naive),
   **0.56** (path-scope), and **0.59** (line-aware) — **11.6x** fewer false alarms than the path-scope
   watcher (58 → 5) and **10.4x** fewer than the line-aware one (52 → 5). Synthetic, not your
-  repository; measured at v0.7.0 and **historical** — last re-run, unchanged, at v1.2.0
-  ([`docs/BENCHMARK_CURRENT.md`](docs/BENCHMARK_CURRENT.md),
-  [`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md)). Reproduce: `dorian bench large-mutation`.
-- **One real catch.** A load-bearing claim sealed against [`encode/httpx`](https://github.com/encode/httpx)
-  — `requires-python` is `">=3.8"` — was flipped WARRANTED → REVOKED (exit 4) by a later upstream PR
-  ([#3592](https://github.com/encode/httpx/pull/3592), "Drop Python 3.8 support") while httpx's own
-  test suite stayed green. Full output and a from-scratch reproduction:
-  [`docs/REAL_CATCH_LOG.md`](docs/REAL_CATCH_LOG.md). One documented catch — evidence, not universal
-  validation.
+  repository; measured at v0.7.0 ([`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md);
+  compatibility notes in [`docs/BENCHMARK_CURRENT.md`](docs/BENCHMARK_CURRENT.md)). Historical
+  synthetic result, last rerun at v1.2.0. To reproduce from a source checkout with development
+  dependencies installed, run `uv run dorian bench large-mutation`.
+- **Retrospective public-repository check.** Revalidating a warrant across two pinned httpx commits
+  detected the documented Python-support change. This is a scoped reproduction, not evidence of
+  deployment adoption or a prevented production defect. The load-bearing claim was that
+  [`encode/httpx`](https://github.com/encode/httpx) declares `requires-python = ">=3.8"`; the upstream
+  commit for [#3592](https://github.com/encode/httpx/pull/3592) ("Drop Python 3.8 support") flipped the
+  warrant WARRANTED → REVOKED (exit 4). Full output and a from-scratch reproduction:
+  [`docs/REAL_CATCH_LOG.md`](docs/REAL_CATCH_LOG.md). One documented case, not universal validation.
 
 ## Docs
 
@@ -213,7 +232,8 @@ Full reference: [`docs/COMMANDS.md`](docs/COMMANDS.md).
 - [`docs/BINDING.md`](docs/BINDING.md) — binding semantics: trigger vs. truth.
 - [`docs/AGENT_CLAIMS.md`](docs/AGENT_CLAIMS.md) and [`spec/checkers.md`](spec/checkers.md) —
   writing claims; the checker grammar.
-- [`docs/BENCHMARK_CURRENT.md`](docs/BENCHMARK_CURRENT.md) — current-version benchmark reruns.
+- [`docs/BENCHMARK_CURRENT.md`](docs/BENCHMARK_CURRENT.md) — archived benchmark results and
+  compatibility notes.
 - [`SECURITY.md`](SECURITY.md) and [`docs/SECURITY_BOUNDARY.md`](docs/SECURITY_BOUNDARY.md) — security.
 - [`docs/ROADMAP_BACKLOG.md`](docs/ROADMAP_BACKLOG.md) — the structured roadmap backlog.
 
@@ -225,6 +245,7 @@ make install && make lint && make test
 ```
 
 Small, focused PRs with tests are welcome. Benchmark contributions carry aggregate numbers only.
+Development setup, checks, and conventions: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## License
 

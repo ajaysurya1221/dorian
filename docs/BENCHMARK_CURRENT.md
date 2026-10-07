@@ -1,10 +1,13 @@
-# Current-version benchmark results
+# Archived benchmark results and compatibility notes
 
-Version-stamped reruns of dorian's reproducible benchmark suites on the **current** code,
-so the published numbers track the implementation rather than lagging behind it. The older
+The benchmark figures dorian publishes, with a note per release on whether that release could
+move them. The suites were last re-run at v1.2.0; the version stamp below records the current
+package version after a review of what each later release changed, not a new run. The older
 result docs ([`BENCHMARK_v0.7.0.md`](BENCHMARK_v0.7.0.md) = v0.7.0,
 [`BENCHMARK_BINDING_LIFECYCLE.md`](BENCHMARK_BINDING_LIFECYCLE.md) = 0.9.0) are **historical**
-and are kept as-is for provenance.
+and are kept as-is for provenance. The suites are synthetic, and reproducing them needs a source
+checkout with development dependencies installed (`uv run dorian bench …`); the published wheel
+does not ship `bench/`.
 
 ## Measurement environment
 
