@@ -42,8 +42,7 @@ CLI, a GitHub Action, and Claude Code hooks, with **zero runtime dependencies**.
 ## Try it
 
 A self-contained run in a throwaway directory, with its own virtual environment and a command-local
-Git identity, so it needs no prior install and no global Git configuration. It leaves nothing behind
-but the temp directory. (A black-box test pins the commands and their exit codes.)
+Git identity, so it needs no prior install and no global Git configuration. The demo repository and virtual environment stay in the temporary directory. (A black-box test pins the commands and their exit codes.)
 
 ```bash
 tmp=$(mktemp -d)
