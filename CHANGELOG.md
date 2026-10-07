@@ -7,6 +7,17 @@ semantics have been stable since 1.0.0.
 ## [Unreleased]
 
 ### Changed — documentation
+- **README opens with the result.** The opening now states the problem, the recorded httpx
+  catch (a retrospective reproduction), links to the engineering evidence with the benchmark
+  labelled historical (last rerun at v1.2.0), and the checker boundary, before the runnable
+  "Try it" recipe, which is unchanged. The raster portrait (`docs/assets/dorian-hero*.png`) is
+  retired for a generated evidence-card hero, `docs/assets/hero-{light,dark}.svg`, produced by the
+  standard-library script `docs/assets/src/make_figures.py`; `tests/test_figures.py` runs its
+  `--check`, which also confirms the card's strings still appear in the recipe and its test. The
+  Evidence section adds the benchmark's misses next to its false-alarm count and describes the
+  Loop Guard dogfood test; "Commands at a glance" is condensed around the command reference; the
+  repeated tagline is gone. The demo-link guard in `tests/test_readme_example.py` now accepts the
+  opening's Markdown link as well as a badge.
 - **README onboarding and claim wording.** "Try it in 30 seconds" is now "Try it": the recipe starts
   in a fresh virtual environment (`python -m pip install dorian-vwp==1.4.0`) and commits with a
   command-local Git identity, so it needs no prior install and no global Git configuration; the

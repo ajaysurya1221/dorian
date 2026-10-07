@@ -1,48 +1,33 @@
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/dorian-hero.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/dorian-hero-light.png">
-  <img src="docs/assets/dorian-hero-light.png" alt="dorian — hold AI agents to what they said they did" width="720">
-</picture>
-
 # dorian
 
-**Hold AI agents to what they said they did.**
+**Keep code claims checkable after the next refactor.**
 
-<p>
-  <a href="#install"><img src="https://img.shields.io/badge/Quickstart-2ea44f?style=for-the-badge" alt="Quickstart"></a>
-  <a href="#try-it"><img src="https://img.shields.io/badge/Demo-1f6feb?style=for-the-badge" alt="Demo"></a>
-  <a href="action/README.md"><img src="https://img.shields.io/badge/GitHub_Action-6e40c9?style=for-the-badge" alt="GitHub Action"></a>
-</p>
+Turn explicit claims into checks sealed beside your code.
+Re-run affected checks when their sources change; revoke the warrant when a load-bearing check fails.
 
-<p>
-  <a href="https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml"><img src="https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+">
-  <img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="Apache-2.0">
-  <a href="https://github.com/ajaysurya1221/dorian/releases/latest"><img src="https://img.shields.io/github/v/release/ajaysurya1221/dorian?label=release&color=blue" alt="Latest release"></a>
-</p>
+**Recorded example:** httpx raised its Python requirement from `>=3.8` to `>=3.9`.
+A previously sealed claim became **REVOKED (exit 4)**.
+[Captured output + pinned commits](docs/REAL_CATCH_LOG.md) — retrospective reproduction, not deployment evidence.
 
-</div>
+**Engineering:** [Executable README demo](tests/test_readme_example.py) · [Own-repo warrants](docs/changes/dorian-loop-guard.md.warrant)
+[240-pair synthetic benchmark](docs/BENCHMARK_v0.7.0.md) · [Release history](CHANGELOG.md)
+Benchmark results are historical; the last recorded rerun was at v1.2.0.
 
-`dorian` turns explicit claims about a code change into executable checks and stores their results
-in a `.warrant` beside the code. Later revalidation reruns affected checks and revokes warrants when
-those checks fail. Verification makes no model calls (**zero model tokens at check time**); its
-strength depends on the claims, checkers and trusted execution environment. Its question is:
-**"Does the code still satisfy this recorded claim?"**
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.svg">
+  <img src="docs/assets/hero-light.svg" alt="dorian evidence card from the Try it recipe: the claim 'handler() lives in app.py'; dorian verify reports verified 1/1 claim(s), WARRANTED (exit 0); a refactor renames handler() and the note never changes; dorian revalidate reports handler-exists BROKEN, REVOKED (exit 4)." width="100%">
+</picture>
 
-The agent (or you) writes a `claims.json` of checkable claims about a change — "`handler()` lives in
-`app.py`", "the login timeout is 30 seconds", "`test_login_ratelimit` passes". `dorian verify` runs
-each claim's checker against the code and seals the results in a git-committed `.warrant` sidecar. On
-each later commit, `dorian revalidate` re-runs only the checks whose watched files changed and flips
-the warrant to **REVOKED** when a load-bearing claim's check fails, naming the claim. It ships as a
-CLI, a GitHub Action, and Claude Code hooks, with **zero runtime dependencies**.
+**Boundary:** a claim is only as strong as its checker.
+A symbol-existence check can miss changed behavior. Test and shell checkers execute code.
+[Trust and execution limits](docs/SECURITY_BOUNDARY.md)
 
+[Try the runnable demo](#try-it) · [Install](#install) · [GitHub Action](action/README.md)
 
 ## Try it
 
-A self-contained run in a throwaway directory, with its own virtual environment and a command-local
-Git identity, so it needs no prior install and no global Git configuration. The demo repository and virtual environment stay in the temporary directory. (A black-box test pins the commands and their exit codes.)
+The example below seals a claim, renames its function and reports REVOKED.
+It uses a throwaway repository and an isolated environment; Python 3.11+ is required.
 
 ```bash
 tmp=$(mktemp -d)
@@ -75,9 +60,14 @@ dorian revalidate --since HEAD                 # -> handler-exists BROKEN; WARRA
 ```
 
 `note.md` never changed, but the warrant flips to REVOKED and names the claim whose check failed.
-`python3` must be 3.11 or newer. For other ways to install, see [Install](#install).
+[`tests/test_readme_example.py`](tests/test_readme_example.py) runs the same steps, with the recipe's
+command-local Git identity, against this checkout and pins the commands, exit codes and install
+version; it does not install from PyPI. For other ways to install, see [Install](#install).
 
 ## What it checks and what it does not
+
+Verification makes no model calls (**zero model tokens at check time**); its strength depends on
+the claims, checkers and trusted execution environment.
 
 A claim is bound to one of four checker families: **C1** (a quoted span of the artifact itself),
 **C3** (a path, symbol, string, or regex in a file, plus the structural `py-signature:` /
@@ -115,6 +105,9 @@ silent pass), and `checker_trust: base` runs only base-approved checker specs on
 a sandbox. See [SECURITY.md](SECURITY.md) and [`docs/SECURITY_BOUNDARY.md`](docs/SECURITY_BOUNDARY.md).
 
 ## Install
+
+[![CI](https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml/badge.svg)](https://github.com/ajaysurya1221/dorian/actions/workflows/ci.yml) [![Latest release](https://img.shields.io/github/v/release/ajaysurya1221/dorian?label=release&color=blue)](https://github.com/ajaysurya1221/dorian/releases/latest)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue) ![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green)
 
 The PyPI distribution is `dorian-vwp`; the import and CLI are `dorian`. Python 3.11+, zero runtime
 dependencies, trusted publishing (latest: **`v1.4.0`**).
@@ -184,27 +177,21 @@ install` adds a `SubagentStop` gate and a fail-closed `PreToolUse` veto for unat
 
 ## Commands at a glance
 
-- `dorian verify <artifact> --claims claims.json` — run every checker and seal the `.warrant`
-  (born-verifiable). `--supersede <old-id>` re-seals over an earlier warrant, `--no-quotes` writes a
-  content-free sidecar, `--allow-restricted` overrides the `[tool.dorian.scopes]` seal-time lint.
-- `dorian revalidate --since <ref> --format md` — re-check only the claims whose watched files
-  changed; `md` is the PR-comment body the Action posts.
-- `dorian status <artifact>` · `dorian blast <artifact>` — trust state; downstream warrants, which
-  are flagged `recalled` when a claim they build on breaks.
-- `dorian bindings <artifact>` · `dorian bind-suggest --claims claims.json` · `dorian rebind` —
-  binding diagnostics, a preview of the files `verify` would auto-bind, re-derived watches.
-- `dorian suggest-claims <file.py>` · `dorian suggest-data-checks <data-file>` — born-verifiable
-  claim and C5 checker suggestions to paste into `claims.json`.
-- `dorian report --audit` — the event log as byte-identical JSONL.
-- `dorian bench mutation` · `bench large-mutation` · `bench binding-lifecycle` · `bench public-repos`
-  — the benchmark suites; they need a source checkout with development dependencies (the wheel does
-  not ship `bench/`).
+`dorian verify <artifact> --claims claims.json` seals a warrant (`--supersede <old-id>` re-seals over
+an earlier one, `--no-quotes` writes a content-free sidecar, `--allow-restricted` overrides the
+`[tool.dorian.scopes]` seal-time lint). `dorian revalidate --since <ref> --format md` re-checks the
+affected claims; `md` is the PR-comment body the Action posts. Also: `dorian status`,
+`dorian blast` (downstream warrants are flagged `recalled`), `dorian bindings`,
+`dorian suggest-claims` / `suggest-data-checks`, `dorian report --audit`, and the
+`dorian bench mutation` / `bench large-mutation` suites (source checkout only). Full reference:
+[`docs/COMMANDS.md`](docs/COMMANDS.md).
 
 Exit codes: `0` ok/TRUSTED · `2` usage/infra · `3` DEGRADED · `4` REVOKED/integrity · `5`
 ERRORED-only (checkers could not run; never conflated with broken) · `6` scope violation.
-Full reference: [`docs/COMMANDS.md`](docs/COMMANDS.md).
 
 ## Evidence
+
+On the historical 240-pair synthetic suite, Dorian produced 5 false alarms versus the path-scope watcher's 58, while missing 5 stale pairs that the watcher detected. These results are specific to the authored fixtures.
 
 - **Synthetic benchmark.** Over 240 (artifact, mutation) pairs across six invented fixture domains
   with known-truth labels, claim-level revalidation flagged broken claims at precision **0.93** /
@@ -222,6 +209,12 @@ Full reference: [`docs/COMMANDS.md`](docs/COMMANDS.md).
   commit for [#3592](https://github.com/encode/httpx/pull/3592) ("Drop Python 3.8 support") flipped the
   warrant WARRANTED → REVOKED (exit 4). Full output and a from-scratch reproduction:
   [`docs/REAL_CATCH_LOG.md`](docs/REAL_CATCH_LOG.md). One documented case, not universal validation.
+
+**Keep a change note checkable across later edits**
+
+Dorian commits warrants for its own change notes. [The Loop Guard warrant](docs/changes/dorian-loop-guard.md.warrant) includes checks against implementation symbols and selected README text. [Its dogfood test](tests/test_loop_guard_dogfood.py) copies those real files into a temporary repository, seals the claims, then renames a referenced function and checks that the loop decision changes from continue to repair.
+
+This exercises specific authored claims. It does not certify the entire README or establish a current TRUSTED result for every warrant.
 
 ## Docs
 
@@ -245,6 +238,9 @@ make install && make lint && make test
 
 Small, focused PRs with tests are welcome. Benchmark contributions carry aggregate numbers only.
 Development setup, checks, and conventions: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+Maintained by Ajay Surya Senthilrajan, with AI pair-programming recorded in commit trailers.
+See the tests, design records and release evidence linked here.
 
 ## License
 

@@ -135,19 +135,20 @@ def _github_slug(heading_text: str) -> str:
     return slug
 
 
-def test_readme_demo_badge_points_at_the_runnable_demo() -> None:
-    """The top "Demo" badge must anchor to a REAL, runnable heading — not the illustrative one.
+def test_readme_demo_link_points_at_the_runnable_demo() -> None:
+    """The opening's demo link must anchor to a REAL, runnable heading — not an illustrative one.
 
-    A new reader who clicks "Demo" lands on the first hands-on section; if that section is the
-    copy-paste-fails "60-second aha" the demo path is broken. We resolve the badge's `#anchor`
-    to an actual heading via GitHub-style slugs and assert it is the runnable "Try it" section.
+    A new reader who clicks the demo link lands on the first hands-on section; if that section
+    is the copy-paste-fails "60-second aha" the demo path is broken. Every demo link — the
+    opening's Markdown link ("[Try the runnable demo](#try-it)") or a "Demo" badge
+    (<a href="#anchor"><img alt="Demo">) — is resolved to an actual heading via GitHub-style
+    slugs and must be the runnable "Try it" section.
     """
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
-    # the badge link wraps the "Demo" shields.io image: <a href="#anchor">...alt="Demo"...</a>
-    m = re.search(r'<a href="#([^"]+)">\s*<img[^>]*alt="Demo"', readme)
-    assert m is not None, "could not find the Demo badge link in README.md"
-    badge_anchor = m.group(1)
+    anchors = re.findall(r"\[[^\]\n]*\bdemo\b[^\]\n]*\]\(#([^)\s]+)\)", readme, flags=re.IGNORECASE)
+    anchors += re.findall(r'<a href="#([^"]+)">\s*<img[^>]*alt="Demo"', readme)
+    assert anchors, "could not find a demo link (Markdown link or Demo badge) in README.md"
 
     # GitHub-style slug of every ## / ### heading
     heading_slugs = {
@@ -155,18 +156,18 @@ def test_readme_demo_badge_points_at_the_runnable_demo() -> None:
         for text in re.findall(r"^#{2,3}\s+(.+?)\s*$", readme, flags=re.MULTILINE)
     }
 
-    # the anchor must resolve to a heading that actually exists
-    assert badge_anchor in heading_slugs, (
-        f"Demo badge anchor #{badge_anchor} does not match any README heading; "
-        f"headings are: {sorted(heading_slugs)}"
-    )
-
-    target_heading = heading_slugs[badge_anchor]
-    # ...and it must be the runnable demo, not the illustrative "60-second aha"
-    assert "60-second aha" not in target_heading.lower(), (
-        f"Demo badge points at the illustrative section ({target_heading!r}); "
-        "it must point at the runnable copy-paste demo."
-    )
-    assert "try it" in target_heading.lower(), (
-        f"Demo badge should point at the runnable 'Try it' demo, got {target_heading!r}"
-    )
+    for anchor in anchors:
+        # the anchor must resolve to a heading that actually exists
+        assert anchor in heading_slugs, (
+            f"demo link anchor #{anchor} does not match any README heading; "
+            f"headings are: {sorted(heading_slugs)}"
+        )
+        target_heading = heading_slugs[anchor]
+        # ...and it must be the runnable demo, not the illustrative "60-second aha"
+        assert "60-second aha" not in target_heading.lower(), (
+            f"demo link points at the illustrative section ({target_heading!r}); "
+            "it must point at the runnable copy-paste demo."
+        )
+        assert "try it" in target_heading.lower(), (
+            f"demo link should point at the runnable 'Try it' demo, got {target_heading!r}"
+        )

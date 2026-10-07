@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-labelledby="title desc">
+<title id="title">Does the code still satisfy what the agent claimed it did?</title>
+<desc id="desc">dorian: claim warrants for code changes. Does the code still satisfy what the agent claimed it did? Claims become executable checks sealed beside the code and re-run on every commit. No model is called at check time. Evidence card, from the README Try it recipe: claim handler-exists, 'handler() lives in app.py'. dorian verify: verified 1/1 claim(s), WARRANTED (exit 0). A refactor renames handler(); the note never changes. dorian revalidate: handler-exists BROKEN, REVOKED (exit 4). A black-box test pins this recipe.</desc>
+<rect x="0" y="0" width="1600" height="520" fill="#0F1512"/>
+<text x="72" y="90" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="22" fill="#9A978E" letter-spacing="0.44"><tspan fill="#E06A6A" font-weight="600">dorian</tspan><tspan x="170">·</tspan><tspan x="198">claim warrants for code changes</tspan></text>
+<text x="72" y="173" font-family="Georgia, 'Times New Roman', serif" font-size="60" fill="#F0ECE2" font-weight="600">Does the code still</text>
+<text x="72" y="239" font-family="Georgia, 'Times New Roman', serif" font-size="60" fill="#F0ECE2" font-weight="600">satisfy what the agent</text>
+<text x="72" y="305" font-family="Georgia, 'Times New Roman', serif" font-size="60" fill="#F0ECE2" font-weight="600">claimed it did?</text>
+<text x="72" y="367" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="27" fill="#CFCBC1">Claims become executable checks sealed beside</text>
+<text x="72" y="405" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="27" fill="#CFCBC1">the code and re-run on every commit.</text>
+<text x="72" y="443" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="27" fill="#CFCBC1">No model is called at check time.</text>
+<rect x="868" y="56" width="660" height="408" rx="16" fill="#F4F1EA"/>
+<text x="902" y="123" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="17" fill="#6B6A65" letter-spacing="1.36">CLAIM · "handler() lives in app.py"</text>
+<text x="902" y="172" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="22" fill="#16211D">dorian verify → verified 1/1 claim(s)</text>
+<text x="929" y="206" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="22" fill="#16211D">→ <tspan fill="#1F7A4D" font-weight="600">WARRANTED (exit 0)</tspan></text>
+<text x="902" y="254" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="19" fill="#6B6A65">a refactor renames handler();</text>
+<text x="902" y="282" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="19" fill="#6B6A65">the note never changes</text>
+<text x="902" y="332" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="22" fill="#16211D">dorian revalidate → handler-exists BROKEN</text>
+<text x="929" y="366" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="22" fill="#16211D">→ <tspan fill="#8C2F2F" font-weight="600">REVOKED (exit 4)</tspan></text>
+<text x="902" y="410" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="16" fill="#6B6A65">README "Try it" · a black-box test pins this recipe</text>
+</svg>
