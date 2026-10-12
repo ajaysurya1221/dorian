@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 0   # REQUIRED: revalidate diffs against the PR base
                            # sha, which a shallow clone does not contain
           persist-credentials: false  # the Action reads the diff + posts via GITHUB_TOKEN
-      - uses: ajaysurya1221/dorian/action@v1.4.0
+      - uses: ajaysurya1221/dorian/action@v1.4.1
         with:
           fail_on: revoked
           # install defaults to the published PyPI package (dorian-vwp);
@@ -78,7 +78,7 @@ self-attested-verdict problem for *non-executable* checkers — that is what
 
 ```yaml
 # untrusted / public-fork posture
-- uses: ajaysurya1221/dorian/action@v1.4.0
+- uses: ajaysurya1221/dorian/action@v1.4.1
   with:
     deny_exec: "true"   # C4/C5 ERROR instead of executing
 ```
@@ -89,12 +89,12 @@ claim's checker SPEC from the **base ref** and runs it against the PR-head sourc
 a PR-added or PR-modified executable checker is never executed and a rewritten checker
 cannot self-attest a verdict — the base-approved spec wins, and the change is surfaced
 in the PR comment. A missing or tampered base sidecar **fails closed** (ERRORED, never
-executed). Implemented and proven by the
+executed). Covered by the scoped regression cases in the
 [trusted-base test matrix](../docs/TRUSTED_BASE_ACTION_DESIGN.md).
 
 ```yaml
 # public / forked-PR posture: trusted checker specs + no code execution
-- uses: ajaysurya1221/dorian/action@v1.4.0
+- uses: ajaysurya1221/dorian/action@v1.4.1
   with:
     checker_trust: base   # run only base-approved checker specs
     deny_exec: "true"     # and refuse to execute even those (belt and braces)

@@ -4,9 +4,8 @@ A running, honest record of times dorian caught (or missed) something on **real
 work** — the evidence that matters more than any synthetic benchmark. One real
 claim-break caught on a real change outweighs P=0.93 on invented fixtures.
 
-This file is a template + ledger. No entries are fabricated; an empty ledger is
-the correct state until a real catch happens. Each entry is one row of facts a
-skeptic could check.
+A ledger of recorded checks on real repositories, including retrospective
+replays. Each entry identifies its inputs, observed verdict and limitations.
 
 ## How to log a catch
 
@@ -15,8 +14,9 @@ does not apply, write `n/a` — do not delete it. "Outcome" must be one of:
 **true-catch** (a real break dorian flipped to BROKEN/REVOKED that you would have
 shipped), **false-alarm** (dorian said broken; the claim was actually fine),
 **miss** (a real break dorian did not catch), **partial** (triggered but the
-checker could not confirm — trigger-vs-truth gap), or **weak-binding-warning**
-(a binding diagnostic, not a verdict).
+checker could not confirm — trigger-vs-truth gap), **weak-binding-warning**
+(a binding diagnostic, not a verdict), or **retrospective** (replay after the
+upstream change had merged).
 
 ```md
 ### <date> — <one-line summary>
@@ -26,7 +26,7 @@ checker could not confirm — trigger-vs-truth gap), or **weak-binding-warning**
 - **Repo / project:** <name> (public-safe? yes/no)
 - **Source commit that sealed it:** <sha>
 - **Change that triggered revalidation:** <sha or description>
-- **Outcome:** <true-catch | false-alarm | miss | partial | weak-binding-warning>
+- **Outcome:** <true-catch | false-alarm | miss | partial | weak-binding-warning | retrospective>
 - **Verdict dorian gave:** <PASS | BROKEN | ERRORED | recalled | n/a>
 - **Would you have shipped the break otherwise?** <yes/no — be honest>
 - **User time spent (setup + review):** <minutes>
@@ -52,11 +52,11 @@ checker could not confirm — trigger-vs-truth gap), or **weak-binding-warning**
 - **Repo / project:** [`encode/httpx`](https://github.com/encode/httpx) (public-safe? **yes** — BSD-3-Clause, frozen public SHAs)
 - **Source commit that sealed it:** `336204f0121a9aefdebac5cacd81f912bafe8057` (commit A)
 - **Change that triggered revalidation:** `4fb9528c2f5ac000441c3634d297e77da23067cd` — real upstream **"Drop Python 3.8 support (#3592)"** by Alex Grönholm
-- **Outcome:** **true-catch**
+- **Outcome:** **retrospective**
 - **Verdict dorian gave:** **BROKEN** (`WARRANTED → REVOKED`, exit 4)
-- **Would you have shipped the break otherwise?** **yes** — `requires-python` is packaging metadata covered by no test (`grep -rn requires-python tests/` is empty; B's diff touches 8 files, none under `tests/`), so httpx's CI is green at B; and a per-PR review bot is stateless — it has no memory of commit A's claim and PR #3592's own diff is self-consistent, so nothing re-opens the old note.
+- **Would you have shipped the break otherwise?** n/a — retrospective replay after upstream merge.
 - **User time spent (setup + review):** ~10 minutes
-- **Reviewer notes:** dogfood on a real public repo at frozen SHAs; **independently reproduced** end-to-end. The other three sealed claims (`Client` defined in `_client.py`, `Client` exported, version `0.28.1`) stayed VERIFIED — dorian narrowed revalidation to the **1 candidate** whose source (`pyproject.toml`) actually changed. Full captured output and reproduction below.
+- **Reviewer notes:** dogfood on a real public repo at frozen SHAs; recorded end-to-end; captured output below. The other three sealed claims (`Client` defined in `_client.py`, `Client` exported, version `0.28.1`) stayed VERIFIED — dorian narrowed revalidation to the **1 candidate** whose source (`pyproject.toml`) actually changed. Full captured output and reproduction below.
 
 #### Captured output
 

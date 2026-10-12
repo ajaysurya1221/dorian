@@ -26,7 +26,7 @@ coverage:
 dependency-report:
 	@uv run python -c "import tomllib,pathlib; d=tomllib.loads(pathlib.Path('pyproject.toml').read_text()); p=d['project']; \
 print('package :', p['name'], p['version']); \
-print('license :', p['license']['text']); \
+print('license :', p['license']); \
 print('python  :', p['requires-python']); \
 print('core runtime deps :', p['dependencies'] or '(none — stdlib only)'); \
 [print(f'extra [{k}] :', v) for k,v in d.get('project',{}).get('optional-dependencies',{}).items()]; \

@@ -1,16 +1,22 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27", "hatch-fancy-pypi-readme==25.1.0"]
 build-backend = "hatchling.build"
 
 [project]
 name = "dorian-vwp"
-version = "1.4.0"
-description = "Hold AI agents to what they said they did: deterministic, token-free verification of claims about a change."
-readme = "README.md"
+version = "1.4.1"
+description = "Turn claims about code into executable checks and revocable warrants, re-checked as code changes with no model calls during verification."
+dynamic = ["readme"]
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [{ name = "Ajay Surya Senthilrajan" }]
 keywords = ["provenance", "validity", "claims", "ai-artifacts", "staleness"]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
 dependencies = []
 
 [project.optional-dependencies]
@@ -37,6 +43,46 @@ exclude = ["**/* 2.py"]
 [tool.hatch.build.targets.sdist]
 # keep the sdist lean: no hero images, benchmark data, archived notes, tests, or lockfile
 exclude = ["/docs/assets/*.png", "/bench/", "/archive/", "/tests/", "/uv.lock"]
+
+# PyPI long description: README.md with every repository-relative link and image rewritten to
+# version-pinned GitHub URLs, so the PyPI page resolves them. README.md itself keeps relative
+# paths for GitHub. Pure anchors (#...), absolute URLs and fenced code blocks are left alone
+# (each pattern ends in a lookahead that matches only outside ``` fences that open a line).
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+# the <picture> hero becomes one <img> (the light SVG); PyPI drops <source srcset>
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '<picture>\s*<source [^>]*>\s*(<img [^>]*>)\s*</picture>(?=(?:(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*(?m:^)[ ]{0,3}```(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*(?m:^)[ ]{0,3}```)*(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*\Z)'
+replacement = '\1'
+
+# raw HTML image sources -> version-pinned raw files
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '(src|srcset)="(?![A-Za-z][A-Za-z0-9+.-]*:|//|#)(?:\./)?([^"]+)"(?=(?:(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*(?m:^)[ ]{0,3}```(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*(?m:^)[ ]{0,3}```)*(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*\Z)'
+replacement = '\1="https://raw.githubusercontent.com/ajaysurya1221/dorian/v$HFPR_VERSION/\2"'
+
+# raw HTML links -> version-pinned GitHub pages
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = 'href="(?![A-Za-z][A-Za-z0-9+.-]*:|//|#)(?:\./)?([^"]+)"(?=(?:(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*(?m:^)[ ]{0,3}```(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*(?m:^)[ ]{0,3}```)*(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*\Z)'
+replacement = 'href="https://github.com/ajaysurya1221/dorian/blob/v$HFPR_VERSION/\1"'
+
+# Markdown images -> version-pinned raw files
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '!\[([^\]]*)\]\((?![A-Za-z][A-Za-z0-9+.-]*:|//|#)(?:\./)?([^)\s]+)\)(?=(?:(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*(?m:^)[ ]{0,3}```(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*(?m:^)[ ]{0,3}```)*(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*\Z)'
+replacement = '![\1](https://raw.githubusercontent.com/ajaysurya1221/dorian/v$HFPR_VERSION/\2)'
+
+# Markdown links to directories -> version-pinned tree pages
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\((?![A-Za-z][A-Za-z0-9+.-]*:|//|#)(?:\./)?([^)\s]*/)\)(?=(?:(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*(?m:^)[ ]{0,3}```(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*(?m:^)[ ]{0,3}```)*(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*\Z)'
+replacement = '](https://github.com/ajaysurya1221/dorian/tree/v$HFPR_VERSION/\1)'
+
+# Markdown links to files (anchors kept) -> version-pinned blob pages
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\((?![A-Za-z][A-Za-z0-9+.-]*:|//|#)(?:\./)?([^)\s]+)\)(?=(?:(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*(?m:^)[ ]{0,3}```(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*(?m:^)[ ]{0,3}```)*(?:(?!(?m:^)[ ]{0,3}```)[\s\S])*\Z)'
+replacement = '](https://github.com/ajaysurya1221/dorian/blob/v$HFPR_VERSION/\1)'
 
 [tool.ruff]
 line-length = 100

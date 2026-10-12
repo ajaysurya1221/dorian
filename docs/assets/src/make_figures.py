@@ -220,7 +220,7 @@ EYEBROW = ("dorian", DOT, "claim warrants for code changes")
 THESIS = ("Does the code still", "satisfy what the agent", "claimed it did?")
 SUBLINE = (
     "Claims become executable checks sealed beside",
-    "the code and re-run on every commit.",
+    "the code; revalidate re-runs affected checks.",
     "No model is called at check time.",
 )
 CARD_CLAIM = f'CLAIM {DOT} "handler() lives in app.py"'

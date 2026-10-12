@@ -6,7 +6,10 @@ semantics have been stable since 1.0.0.
 
 ## [Unreleased]
 
+## [1.4.1] — 2026-10-12
+
 ### Changed — documentation
+- Release checklist: the forbidden-claims scan no longer masks a search error, and every match needs a recorded disposition; scoped wording replaces "proven" in the Action README and two design notes.
 - **README opens with the result.** The opening now states the problem, the recorded httpx
   catch (a retrospective reproduction), links to the engineering evidence with the benchmark
   labelled historical (last rerun at v1.2.0), and the checker boundary, before the runnable
@@ -33,6 +36,20 @@ semantics have been stable since 1.0.0.
   deferral stated plainly, and documentation links pinned to the `v1.4.0` tag.
 - **`CONTRIBUTING.md`** added: setup, `make lint` / `make test`, the README-example test, the
   zero-runtime-dependency rule, security reporting, and commit conventions.
+- Release notes for 1.0.2 and 1.2.0 credit AI-assisted review without naming a model.
+- `docs/releases/v1.4.0.md` lists the `loop preflight --format` values the CLI accepts: `json|md|text`.
+- `docs/releases/v1.4.0.md` uses the published "Deferred interface" heading and cross-reference.
+- `docs/REAL_CATCH_LOG.md` adds a `retrospective` outcome and labels the httpx entry with it.
+- The README's synthetic benchmark numbers cite `docs/BENCHMARK_v0.7.0.md` in the same sentence.
+- The README writes the project name in lowercase throughout.
+- The hero subline says revalidate re-runs affected checks, not "re-run on every commit".
+- The README recipe installs `dorian-vwp==1.4.1`; Action snippets pin `dorian/action@v1.4.1`.
+
+### Changed — packaging
+- The PyPI description rewrites README links and images to URLs pinned to the release tag.
+- The package summary matches the README and the GitHub About text.
+- Licence metadata is an SPDX expression with `license-files`; classifiers list Python 3.11–3.13.
+- `make dependency-report` reads the SPDX licence field.
 
 ## [1.4.0] — 2026-07-02
 

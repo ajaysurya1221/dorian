@@ -45,7 +45,7 @@
 | ftl-beliefs | Claims with source hashes, depends-on edges, retraction propagation through dependents | Manually curated AI-session memory; existence/recency checks only; no warrant, no CI loop | Low |
 | Evergreen (arXiv 2604.26180) | NL data claims compiled to executable verification queries with provenance explanations | Post-hoc, static data, semantic ops not zero-token, no lifecycle | Low |
 | VeriTrail (MSR) | Claim extraction + provenance tracing through multi-step derivation graphs | LLM-judged, once at generation, no checkers, no revalidation | Low |
-| Fragments (in-toto/witness; dbt/GX/elementary; DVC) | Each leg proven individually: hashed read-set attestation; the exact typed data-check grammar; hash-DAG incremental recompute | None touches claims in AI prose or a trust lifecycle — explicitly non-kills; delimits commodity legs | None |
+| Fragments (in-toto/witness; dbt/GX/elementary; DVC) | Related mechanisms: hashed read-set attestation; typed data checks; hash-DAG incremental recomputation | None touches claims in AI prose or a trust lifecycle — explicitly non-kills; delimits commodity legs | None |
 
 ## CASCADE boundary
 
