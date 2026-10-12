@@ -2,9 +2,9 @@
 
 > **STATUS: IMPLEMENTED (V1).** `dorian revalidate --checker-source {head,base}` and the Action
 > `checker_trust: head|base` input now implement this design. Default is `head` (today's behavior,
-> unchanged). The §6 test matrix is implemented in `tests/test_trusted_base.py` (PR-added/modified
-> executable checkers never execute — proven with a sentinel side effect; missing/tampered base
-> sidecar fails closed; a rewritten checker is surfaced as a trust-root change; deny-exec composes).
+> unchanged). The §6 matrix is implemented in `tests/test_trusted_base.py`. In those fixtures, PR-added or
+> PR-modified executable checker specs do not run (checked using sentinel side effects); missing
+> or tampered base sidecars fail closed; checker changes are reported; deny-exec composes.
 > The non-sandbox caveat in §2/§7 still holds and is stated in user docs: a base-approved
 > `pytest:`/`shell:` checker can still execute PR-head code, so `base` mode is a *checker-source trust
 > root*, not a sandbox.
@@ -47,7 +47,7 @@ A new Action input `checker_trust: base | head` (or a `dorian revalidate --check
   unchanged for trusted/internal repos. Documented as unsafe for untrusted forked PRs.
 - `base` — trusted-base mode above. The only mode a public repo accepting forked PRs should use.
 
-Default `head` guarantees **zero behavior change** for every existing user unless they opt in.
+Default `head` keeps the existing checker-source behavior; `base` is opt-in.
 
 ## 4. Hard constraints (must not be weakened)
 

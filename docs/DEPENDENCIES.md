@@ -39,7 +39,7 @@ by `verify`/`seal`/`revalidate` and adds no check-time dependency.
 
 | Group | Packages | Purpose |
 |---|---|---|
-| build-system | `hatchling` | wheel/sdist build backend |
+| build-system | `hatchling>=1.27`, `hatch-fancy-pypi-readme==25.1.0` | wheel/sdist build backend; the plugin builds the PyPI long description from `README.md` with version-pinned absolute links |
 | dev | `pytest>=8`, `pytest-cov>=5`, `ruff>=0.8`, `pyyaml>=6` | tests, coverage, lint, YAML for config tests |
 
 ## License

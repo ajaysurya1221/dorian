@@ -38,8 +38,19 @@ remember looking".
 - [ ] deny-exec still gates C4 + C5 shell — `tests/test_deny_exec_policy.py`
 - [ ] C3 regex timeout still bounds catastrophic patterns — `tests/test_c3_regex_timeout.py`
 - [ ] Action security posture intact — `tests/test_action_security_defaults.py`
-- [ ] `rg -niE "safe for public fork|safe for public pr|production-ready|semantic proof|\bproven\b|validated broadly|catches ai lies|guarantee"
-      README.md docs action` returns only forbidden-word *lists*, never live claims
+- [ ] Forbidden-claims scan — a search error is a failed check:
+      ```bash
+      claims_status=0
+      rg -ni -- 'safe for public fork|safe for public pr|production-ready|semantic proof|\bproven\b|validated broadly|catches ai lies|guarantee' README.md docs action || claims_status=$?
+      case "$claims_status" in
+        0) printf '%s\n' 'Review every match and record its disposition.' ;;
+        1) printf '%s\n' 'No matches.' ;;
+        *) exit "$claims_status" ;;
+      esac
+      ```
+      Review every match. Unsupported affirmative claims block release; vocabulary lists, explicit
+      limitations, question headings and scoped implementation contracts require a recorded
+      disposition. A search error is a failed check
       (see [VALIDATION_HONESTY.md](VALIDATION_HONESTY.md) for the full vocabulary)
 
 ## 5. Benchmark honesty

@@ -34,7 +34,7 @@ tmp=$(mktemp -d)
 cd "$tmp"
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install dorian-vwp==1.4.0
+python -m pip install dorian-vwp==1.4.1
 git init -q
 printf '.venv/\n' > .gitignore
 
@@ -110,7 +110,7 @@ a sandbox. See [SECURITY.md](SECURITY.md) and [`docs/SECURITY_BOUNDARY.md`](docs
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue) ![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green)
 
 The PyPI distribution is `dorian-vwp`; the import and CLI are `dorian`. Python 3.11+, zero runtime
-dependencies, trusted publishing (latest: **`v1.4.0`**).
+dependencies, trusted publishing (latest: **`v1.4.1`**).
 
 ```bash
 pip install dorian-vwp             # core
@@ -149,7 +149,7 @@ jobs:
         with:
           fetch-depth: 0             # revalidate diffs against the PR base sha
           persist-credentials: false # the Action only reads the diff + posts via GITHUB_TOKEN
-      - uses: ajaysurya1221/dorian/action@v1.4.0
+      - uses: ajaysurya1221/dorian/action@v1.4.1
         with:
           fail_on: revoked
           # install defaults to the published PyPI package (dorian-vwp); pin a
@@ -191,7 +191,7 @@ ERRORED-only (checkers could not run; never conflated with broken) · `6` scope 
 
 ## Evidence
 
-On the historical 240-pair synthetic suite, Dorian produced 5 false alarms versus the path-scope watcher's 58, while missing 5 stale pairs that the watcher detected. These results are specific to the authored fixtures.
+On the historical 240-pair synthetic suite, dorian produced 5 false alarms versus the path-scope watcher's 58, while missing 5 stale pairs that the watcher detected ([`docs/BENCHMARK_v0.7.0.md`](docs/BENCHMARK_v0.7.0.md)). These results are specific to the authored fixtures.
 
 - **Synthetic benchmark.** Over 240 (artifact, mutation) pairs across six invented fixture domains
   with known-truth labels, claim-level revalidation flagged broken claims at precision **0.93** /
@@ -212,7 +212,7 @@ On the historical 240-pair synthetic suite, Dorian produced 5 false alarms versu
 
 **Keep a change note checkable across later edits**
 
-Dorian commits warrants for its own change notes. [The Loop Guard warrant](docs/changes/dorian-loop-guard.md.warrant) includes checks against implementation symbols and selected README text. [Its dogfood test](tests/test_loop_guard_dogfood.py) copies those real files into a temporary repository, seals the claims, then renames a referenced function and checks that the loop decision changes from continue to repair.
+dorian commits warrants for its own change notes. [The Loop Guard warrant](docs/changes/dorian-loop-guard.md.warrant) includes checks against implementation symbols and selected README text. [Its dogfood test](tests/test_loop_guard_dogfood.py) copies those real files into a temporary repository, seals the claims, then renames a referenced function and checks that the loop decision changes from continue to repair.
 
 This exercises specific authored claims. It does not certify the entire README or establish a current TRUSTED result for every warrant.
 
