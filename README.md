@@ -242,6 +242,16 @@ Development setup, checks, and conventions: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 Maintained by Ajay Surya Senthilrajan, with AI pair-programming recorded in commit trailers.
 See the tests, design records and release evidence linked here.
 
+## Related projects
+
+dorian is one of four independent projects maintained alongside
+[evalopt](https://github.com/ajaysurya1221/evalopt-graph). It owns code-claim warrants and their
+revalidation by deterministic checkers with no model calls; the checker families, warrant states and
+exit codes above are dorian's own. It runs on its own, with zero runtime dependencies and no evalopt
+package, import or runtime layer. Standalone feature development of evalopt has ended; its repository
+preserves its acceptance kernel and research record. Nothing there changes what a dorian warrant
+means, and dorian is not a successor to, conformance target for, or drop-in for evalopt.
+
 ## License
 
 Apache-2.0. Protocol: VWP (Validity Warrant Protocol), spec in [`spec/`](spec/).
